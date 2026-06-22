@@ -1,12 +1,15 @@
 import { AppShell } from './components/layout/AppShell';
 import { UIProvider } from './stores/uiStore';
 import { SessionProvider } from './stores/sessionStore';
+import { ChatProvider } from './stores/chatStore';
 
 function App() {
   return (
     <UIProvider>
       <SessionProvider>
-        <AppShell />
+        <ChatProvider>
+          <AppShell />
+        </ChatProvider>
       </SessionProvider>
     </UIProvider>
   );

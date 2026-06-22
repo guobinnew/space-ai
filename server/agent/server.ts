@@ -8,6 +8,7 @@
 import { handleApiRequest } from './router'
 import { corsHeaders } from './middleware/cors'
 import { requireAuth } from './middleware/auth'
+import { streamChat, type StreamChunk } from './services/llmStreamService'
 import type { WebSocketData } from './types'
 
 function readArgValue(flag: string): string | undefined {
@@ -185,13 +186,51 @@ export function startServer(port = PORT, host = HOST) {
         console.log(`[WS] Open: ${ws.data.sessionId} (${ws.data.channel})`)
         ws.send(JSON.stringify({ type: 'connected', sessionId: ws.data.sessionId }))
       },
-      message(ws, message) {
-        console.log(`[WS] Message from ${ws.data.sessionId}:`, message.slice(0, 100))
+      async message(ws, message) {
+        const text = message.toString()
+        console.log(`[WS] Message from ${ws.data.sessionId}:`, text.slice(0, 100))
+
+        // Only handle client channel
+        if (ws.data.channel !== 'client') return
+
+        try {
+          const data = JSON.parse(text) as { type: string; content?: string }
+
+          if (data.type === 'ping') {
+            ws.send(JSON.stringify({ type: 'pong' }))
+            return
+          }
+
+          if (data.type === 'user_message' && data.content) {
+            const sessionId = ws.data.sessionId
+            const userContent = data.content
+
+            // Save user message to session
+            const { sessionService } = await import('./services/sessionService')
+            await sessionService.addMessage(sessionId, 'user', userContent)
+
+            // Stream LLM response
+            await streamChat(sessionId, userContent, (chunk: StreamChunk) => {
+              ws.send(JSON.stringify(chunk))
+            })
+          }
+
+          if (data.type === 'stop_generation') {
+            // TODO: Implement generation cancellation
+            ws.send(JSON.stringify({ type: 'status', state: 'idle' }))
+          }
+        } catch (err) {
+          console.error(`[WS] Error processing message:`, err)
+          ws.send(JSON.stringify({
+            type: 'error',
+            message: err instanceof Error ? err.message : 'Internal error',
+          }))
+        }
       },
       close(ws) {
         console.log(`[WS] Closed: ${ws.data.sessionId}`)
       },
-      drain(ws) {
+      drain(_ws) {
         // Called when the server is ready to send more messages
       },
     },

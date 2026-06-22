@@ -1,16 +1,18 @@
 /**
  * EmptySession — 空会话页面
  *
- * 参照 smart-code EmptySession.tsx 复刻，简化版。
- * 居中欢迎信息 + 输入框，输入后创建新会话。
+ * 参照 smart-code EmptySession.tsx 复刻。
+ * 居中欢迎信息 + 输入框，输入后创建新会话并连接 WS。
  */
 
 import { useState, useRef } from 'react';
 import { useSessionStore } from '../stores/sessionStore';
+import { useChatStore } from '../stores/chatStore';
 import { useUIStore } from '../stores/uiStore';
 
 export function EmptySession() {
-  const { createSession, sendMessage } = useSessionStore();
+  const { createSession } = useSessionStore();
+  const { connectToSession, sendMessage } = useChatStore();
   const { openTab } = useUIStore();
   const [input, setInput] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -23,7 +25,11 @@ export function EmptySession() {
     try {
       const sessionId = await createSession();
       openTab(sessionId, '新会话', 'session');
-      await sendMessage(sessionId, text);
+      connectToSession(sessionId);
+      // Small delay to let WS connect
+      setTimeout(() => {
+        sendMessage(sessionId, text);
+      }, 300);
     } catch (err) {
       console.error('Failed to create session:', err);
     } finally {
