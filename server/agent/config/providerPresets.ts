@@ -41,7 +41,7 @@ export const PROVIDER_PRESETS: ProviderPreset[] = [
     id: 'qwen',
     name: 'Qwen',
     baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
-    apiFormat: 'openai_chat',
+    apiFormat: 'openai',
     defaultModels: { main: 'qwen-plus' },
     defaultCapabilities: { imageInput: true },
     needsApiKey: true,

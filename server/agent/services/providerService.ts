@@ -279,7 +279,7 @@ function buildDirectTestRequest(
 ): { url: string; headers: Record<string, string>; body: Record<string, unknown> } {
   const prompt = 'Say "ok" and nothing else.'
 
-  if (format === 'openai_chat') {
+  if (format === 'openai') {
     return {
       url: `${base}/chat/completions`,
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
@@ -303,7 +303,7 @@ function validateResponseBody(
     return { ok: false, error: ((body.error as Record<string, unknown>).message as string) || 'Error in response body' }
   }
 
-  if (format === 'openai_chat') {
+  if (format === 'openai') {
     if (!Array.isArray(body.choices) || body.choices.length === 0) {
       return { ok: false, error: 'Response missing choices — not a valid Chat Completions endpoint' }
     }

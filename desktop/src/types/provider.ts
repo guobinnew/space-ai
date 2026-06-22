@@ -4,7 +4,7 @@
  * 参照 smart-code types/provider.ts 复刻。
  */
 
-export type ApiFormat = 'anthropic' | 'openai_chat' | 'openai_responses'
+export type ApiFormat = 'anthropic' | 'openai'
 
 export type ModelMapping = {
   main: string

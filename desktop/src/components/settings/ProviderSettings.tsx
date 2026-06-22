@@ -131,7 +131,7 @@ export function ProviderSettings() {
                     )}
                     {provider.apiFormat && provider.apiFormat !== 'anthropic' && (
                       <span className="px-1.5 py-0.5 text-[10px] font-medium rounded bg-[var(--color-surface-container-high)] text-[var(--color-warning)] leading-none">
-                        {provider.apiFormat === 'openai_chat' ? 'OpenAI Chat' : 'OpenAI Responses'}
+                        OpenAI
                       </span>
                     )}
                     {isActive && (
@@ -355,8 +355,7 @@ function ProviderFormModal({ onClose, onSaved, mode, provider }: ProviderFormMod
               className="w-full h-9 px-3 text-sm rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-primary)] outline-none focus:border-[var(--color-border-focus)]"
             >
               <option value="anthropic">Anthropic</option>
-              <option value="openai_chat">OpenAI Chat</option>
-              <option value="openai_responses">OpenAI Responses</option>
+              <option value="openai">OpenAI</option>
             </select>
           </div>
 
