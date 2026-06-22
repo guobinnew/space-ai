@@ -27,28 +27,31 @@ export async function streamChat(
   userContent: string,
   onChunk: (chunk: StreamChunk) => void,
 ): Promise<void> {
+  console.log(`[LLM] streamChat start: sessionId=${sessionId}, content="${userContent.slice(0, 50)}..."`)
+
   // Get active provider
   const { providers, activeId } = await providerService.listProviders()
   if (!activeId) {
+    console.log('[LLM] No active provider')
     onChunk({ type: 'error', message: '没有活跃的服务商，请先在设置中配置并激活一个服务商' })
     return
   }
 
   const provider = providers.find((p) => p.id === activeId)
   if (!provider) {
+    console.log('[LLM] Active provider not found')
     onChunk({ type: 'error', message: '找不到活跃的服务商配置' })
     return
   }
 
-  // Build message history
+  console.log(`[LLM] Provider: ${provider.name}, format=${provider.apiFormat}, model=${provider.models.main}, baseUrl=${provider.baseUrl}`)
+
+  // Build message history (exclude the current user message — it was already saved by conversationService)
   const messages = await sessionService.getMessages(sessionId)
   const chatHistory = messages.map((m) => ({
     role: m.role,
     content: m.content,
   }))
-
-  // Add current user message
-  chatHistory.push({ role: 'user', content: userContent })
 
   onChunk({ type: 'status', state: 'thinking' })
   onChunk({ type: 'content_start' })
@@ -66,6 +69,7 @@ export async function streamChat(
     onChunk({ type: 'message_complete' })
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
+    console.error(`[LLM] streamChat error: ${message}`)
     onChunk({ type: 'error', message })
     onChunk({ type: 'status', state: 'idle' })
   }
@@ -85,6 +89,7 @@ async function streamAnthropic(
   onChunk: (chunk: StreamChunk) => void,
 ): Promise<void> {
   const url = `${baseUrl}/v1/messages`
+  console.log(`[LLM] Anthropic fetch: ${url}, model=${model}, messages=${messages.length}`)
   const response = await fetch(url, {
     method: 'POST',
     headers: {
@@ -98,9 +103,10 @@ async function streamAnthropic(
       messages,
       stream: true,
     }),
-    signal: AbortSignal.timeout(120000),
+    signal: AbortSignal.timeout(30000),
   })
 
+  console.log(`[LLM] Anthropic response: ${response.status} ${response.statusText}`)
   if (!response.ok) {
     const errText = await response.text().catch(() => '')
     throw new Error(`Anthropic API ${response.status}: ${errText.slice(0, 200)}`)
@@ -158,6 +164,7 @@ async function streamOpenAI(
   onChunk: (chunk: StreamChunk) => void,
 ): Promise<void> {
   const url = `${baseUrl}/chat/completions`
+  console.log(`[LLM] OpenAI fetch: ${url}, model=${model}, messages=${messages.length}`)
   const response = await fetch(url, {
     method: 'POST',
     headers: {
@@ -170,9 +177,10 @@ async function streamOpenAI(
       messages,
       stream: true,
     }),
-    signal: AbortSignal.timeout(120000),
+    signal: AbortSignal.timeout(30000),
   })
 
+  console.log(`[LLM] OpenAI response: ${response.status} ${response.statusText}`)
   if (!response.ok) {
     const errText = await response.text().catch(() => '')
     throw new Error(`OpenAI API ${response.status}: ${errText.slice(0, 200)}`)
