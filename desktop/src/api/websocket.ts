@@ -2,10 +2,8 @@
  * WebSocket Manager — 会话级 WS 连接管理
  *
  * 参照 smart-code api/websocket.ts 复刻，简化版。
- * 每个会话一个 WS 连接，支持消息处理器注册和心跳。
+ * 每个会话一个 WS 连接（连到该会话专属的 sidecar 端口），支持消息处理器注册和心跳。
  */
-
-const WS_BASE = 'ws://127.0.0.1:3721'
 
 type ServerMessage =
   | { type: 'connected'; sessionId: string }
@@ -33,11 +31,12 @@ type Connection = {
 class WebSocketManager {
   private connections = new Map<string, Connection>()
 
-  connect(sessionId: string): void {
-    // Already connected
+  /** Connect to a session's sidecar on the given port */
+  connect(sessionId: string, port: number = 3721): void {
+    // Already connected to the right port
     if (this.connections.has(sessionId)) return
 
-    const ws = new WebSocket(`${WS_BASE}/ws/${sessionId}`)
+    const ws = new WebSocket(`ws://127.0.0.1:${port}/ws/${sessionId}`)
     const conn: Connection = {
       ws,
       handlers: new Set(),
@@ -46,8 +45,7 @@ class WebSocketManager {
     }
 
     ws.onopen = () => {
-      console.log(`[WS] Connected: ${sessionId}`)
-      // Start heartbeat
+      console.log(`[WS] Connected: ${sessionId} (port ${port})`)
       conn.pingInterval = setInterval(() => {
         if (ws.readyState === WebSocket.OPEN) {
           ws.send(JSON.stringify({ type: 'ping' }))
@@ -68,10 +66,11 @@ class WebSocketManager {
       console.log(`[WS] Closed: ${sessionId}`)
       if (conn.pingInterval) clearInterval(conn.pingInterval)
       if (!conn.intentionalClose) {
-        // Auto-reconnect after 2s
+        // Auto-reconnect after 2s (only if connection still expected)
         setTimeout(() => {
-          this.connections.delete(sessionId)
-          this.connect(sessionId)
+          if (!this.connections.has(sessionId)) {
+            this.connect(sessionId, port)
+          }
         }, 2000)
       } else {
         this.connections.delete(sessionId)
@@ -101,11 +100,7 @@ class WebSocketManager {
   }
 
   onMessage(sessionId: string, handler: MessageHandler): () => void {
-    let conn = this.connections.get(sessionId)
-    if (!conn) {
-      this.connect(sessionId)
-      conn = this.connections.get(sessionId)
-    }
+    const conn = this.connections.get(sessionId)
     conn?.handlers.add(handler)
     return () => {
       conn?.handlers.delete(handler)

@@ -2,18 +2,19 @@
  * Chat Store — 聊天流式状态管理
  *
  * 参照 smart-code chatStore.ts 复刻，简化版。
- * 每个会话维护独立的消息列表和流式状态。
- * 通过 WebSocket 与后端通信，接收流式 LLM 响应。
+ * 每个会话维护独立的消息列表、流式状态和 sidecar 进程。
+ * 打开会话时启动对应的 sidecar 进程，通过 WebSocket 通信。
  */
 
 import { createContext, useContext, useState, useCallback, type ReactNode } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { wsManager, type ServerMessage } from '../api/websocket';
-import { sessionsApi } from '../api/sessions';
 import type { UIMessage, PerSessionChatState } from '../types/chat';
 
 interface ChatStoreState {
   sessions: Record<string, PerSessionChatState>;
+  /** Per-session sidecar port (0 = not started) */
+  ports: Record<string, number>;
   connectToSession: (sessionId: string) => void;
   disconnectSession: (sessionId: string) => void;
   sendMessage: (sessionId: string, content: string) => void;
@@ -34,6 +35,7 @@ function createInitialSessionState(): PerSessionChatState {
 
 export function ChatProvider({ children }: { children: ReactNode }) {
   const [sessions, setSessions] = useState<Record<string, PerSessionChatState>>({});
+  const [ports, setPorts] = useState<Record<string, number>>({});
 
   const getSession = useCallback(
     (sessionId: string): PerSessionChatState => {
@@ -53,9 +55,11 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   );
 
   const loadHistory = useCallback(
-    async (sessionId: string) => {
+    async (sessionId: string, port: number) => {
       try {
-        const data = await sessionsApi.getMessages(sessionId);
+        const res = await fetch(`http://127.0.0.1:${port}/api/sessions/${encodeURIComponent(sessionId)}/messages`);
+        if (!res.ok) return;
+        const data = await res.json() as { messages: Array<{ id: string; role: string; content: string; createdAt: string }> };
         const uiMessages: UIMessage[] = data.messages.map((m) =>
           m.role === 'user'
             ? { type: 'user_text', id: m.id, content: m.content, createdAt: m.createdAt }
@@ -71,17 +75,27 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
   const connectToSession = useCallback(
     async (sessionId: string) => {
-      // Ensure sidecar is running before connecting (Tauri only)
-      try {
-        await invoke('start_sidecar');
-      } catch {
-        // Not in Tauri (browser dev) or already running — ignore
+      // If already connected, skip
+      if (ports[sessionId]) {
+        wsManager.connect(sessionId, ports[sessionId]);
+        return;
       }
 
-      wsManager.connect(sessionId);
+      // Start per-session sidecar (Tauri only)
+      let port = 3721;
+      try {
+        port = await invoke<number>('start_session_sidecar', { sessionId });
+      } catch {
+        // Not in Tauri (browser dev) — use default port
+      }
+
+      setPorts((prev) => ({ ...prev, [sessionId]: port }));
+
+      // Connect WebSocket to the session's sidecar port
+      wsManager.connect(sessionId, port);
 
       // Load history
-      void loadHistory(sessionId);
+      void loadHistory(sessionId, port);
 
       // Register message handler
       wsManager.onMessage(sessionId, (msg: ServerMessage) => {
@@ -109,7 +123,6 @@ export function ChatProvider({ children }: { children: ReactNode }) {
             break;
 
           case 'message_complete': {
-            // Finalize: move streamingText to messages
             updateSession(sessionId, (prev) => {
               if (!prev.streamingText) return { ...prev, chatState: 'idle' };
               const assistantMsg: UIMessage = {
@@ -146,22 +159,34 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
           case 'connected':
           case 'pong':
-            // No state change needed
             break;
         }
       });
     },
-    [updateSession, loadHistory],
+    [updateSession, loadHistory, ports],
   );
 
-  const disconnectSession = useCallback((sessionId: string) => {
-    wsManager.clearHandlers(sessionId);
-    wsManager.disconnect(sessionId);
-  }, []);
+  const disconnectSession = useCallback(
+    (sessionId: string) => {
+      wsManager.clearHandlers(sessionId);
+      wsManager.disconnect(sessionId);
+
+      // Stop the sidecar process for this session (Tauri only)
+      invoke('stop_session_sidecar', { sessionId }).catch(() => {
+        // Not in Tauri or already stopped
+      });
+
+      setPorts((prev) => {
+        const next = { ...prev };
+        delete next[sessionId];
+        return next;
+      });
+    },
+    [],
+  );
 
   const sendMessage = useCallback(
     (sessionId: string, content: string) => {
-      // Add user message immediately (optimistic)
       const userMsg: UIMessage = {
         type: 'user_text',
         id: `user-${Date.now()}`,
@@ -174,7 +199,6 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         chatState: 'thinking',
       }));
 
-      // Send via WebSocket
       wsManager.send(sessionId, { type: 'user_message', content });
     },
     [updateSession],
@@ -192,12 +216,13 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     <ChatContext.Provider
       value={{
         sessions,
+        ports,
         connectToSession,
         disconnectSession,
         sendMessage,
         stopGeneration,
         getSession,
-        loadHistory,
+        loadHistory: (id: string) => loadHistory(id, ports[id] || 3721),
       }}
     >
       {children}
