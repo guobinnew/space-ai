@@ -2,18 +2,45 @@ use std::process::{Child, Command};
 use std::sync::Mutex;
 use tauri::Manager;
 
-/// Holds the server child process handle, killed on drop
+#[cfg(target_os = "windows")]
+use std::os::windows::process::CommandExt;
+
+/// Holds the server child process handle
 struct ServerProcess(Mutex<Option<Child>>);
+
+impl ServerProcess {
+    /// Kill the server process, using platform-appropriate method
+    fn kill(&self) {
+        if let Ok(mut guard) = self.0.lock() {
+            if let Some(ref mut child) = *guard {
+                let pid = child.id();
+                println!("[SmartSpace] Killing server process (pid={})", pid);
+
+                #[cfg(target_os = "windows")]
+                {
+                    // On Windows, use taskkill /T to kill the entire process tree
+                    let _ = Command::new("taskkill")
+                        .args(["/PID", &pid.to_string(), "/T", "/F"])
+                        .creation_flags(0x08000000) // CREATE_NO_WINDOW
+                        .status();
+                }
+
+                #[cfg(not(target_os = "windows"))]
+                {
+                    let _ = child.kill();
+                    let _ = child.wait();
+                }
+
+                println!("[SmartSpace] Server process killed");
+            }
+            *guard = None;
+        }
+    }
+}
 
 impl Drop for ServerProcess {
     fn drop(&mut self) {
-        if let Ok(mut guard) = self.0.lock() {
-            if let Some(ref mut child) = *guard {
-                println!("[SmartSpace] Killing server process (pid={})", child.id());
-                let _ = child.kill();
-                let _ = child.wait();
-            }
-        }
+        self.kill();
     }
 }
 
@@ -26,37 +53,29 @@ fn get_server_port() -> u16 {
 pub fn run() {
     tauri::Builder::default()
         .setup(|app| {
-            // Resolve the bundled server.js path from resources
             let resource_dir = app
                 .path()
                 .resource_dir()
                 .expect("failed to resolve resource dir");
 
-            // In dev mode, the server is not bundled as resource;
-            // we check for the bundled file first, fall back to a relative path
             let server_path = {
                 let bundled = resource_dir.join("server").join("server.js");
                 if bundled.exists() {
                     bundled
                 } else {
-                    // Dev fallback: look for the server dist relative to the project root
                     let dev_path = std::env::current_dir()
                         .unwrap_or_default()
                         .parent()
                         .map(|p| p.join("server").join("dist").join("server.js"))
                         .unwrap_or_default();
                     if dev_path.exists() {
-                        println!(
-                            "[SmartSpace] Dev mode: using server at {:?}",
-                            dev_path
-                        );
+                        println!("[SmartSpace] Dev mode: using server at {:?}", dev_path);
                         dev_path
                     } else {
                         eprintln!(
-                            "[SmartSpace] Server not found at bundled path {:?} or dev path {:?}",
+                            "[SmartSpace] Server not found at {:?} or {:?}",
                             bundled, dev_path
                         );
-                        // Don't crash in dev – the user may start the server manually
                         app.manage(ServerProcess(Mutex::new(None)));
                         return Ok(());
                     }
@@ -73,10 +92,15 @@ pub fn run() {
                 .expect("Failed to start Node.js server process");
 
             println!("[SmartSpace] Server started (pid={})", child.id());
-
             app.manage(ServerProcess(Mutex::new(Some(child))));
 
             Ok(())
+        })
+        .on_window_event(|window, event| {
+            if let tauri::WindowEvent::Destroyed = event {
+                let state = window.state::<ServerProcess>();
+                state.kill();
+            }
         })
         .invoke_handler(tauri::generate_handler![get_server_port])
         .run(tauri::generate_context!())
