@@ -8,9 +8,6 @@ export type ApiFormat = 'anthropic' | 'openai_chat' | 'openai_responses'
 
 export type ModelMapping = {
   main: string
-  haiku: string
-  sonnet: string
-  opus: string
 }
 
 export type ModelCapabilities = {

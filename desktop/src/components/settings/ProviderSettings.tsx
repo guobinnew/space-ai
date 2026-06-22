@@ -241,9 +241,6 @@ function ProviderFormModal({ onClose, onSaved, mode, provider }: ProviderFormMod
     setError(null);
     const normalizedModels: ModelMapping = {
       main: models.main,
-      haiku: models.main,
-      sonnet: models.main,
-      opus: models.main,
     };
     try {
       if (mode === 'create') {
@@ -387,7 +384,7 @@ function ProviderFormModal({ onClose, onSaved, mode, provider }: ProviderFormMod
               className="w-full h-9 px-3 text-sm rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-primary)] outline-none focus:border-[var(--color-border-focus)]"
               placeholder="模型 ID"
             />
-            <p className="text-[11px] text-[var(--color-text-tertiary)] mt-1">haiku/sonnet/opus 将自动与主模型保持一致</p>
+            <p className="text-[11px] text-[var(--color-text-tertiary)] mt-1">输入服务商支持的主模型 ID</p>
           </div>
 
           {/* Image input capability */}
