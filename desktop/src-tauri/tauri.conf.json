@@ -12,10 +12,24 @@
   "app": {
     "windows": [
       {
+        "label": "main",
         "title": "Smart Space",
         "width": 900,
         "height": 600,
-        "center": true
+        "center": true,
+        "visible": false
+      },
+      {
+        "label": "splash",
+        "title": "Smart Space",
+        "width": 400,
+        "height": 300,
+        "center": true,
+        "decorations": false,
+        "resizable": false,
+        "transparent": true,
+        "alwaysOnTop": true,
+        "url": "splashscreen.html"
       }
     ],
     "security": {

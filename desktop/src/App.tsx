@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { invoke } from '@tauri-apps/api/core';
 
 interface ServerInfo {
   name: string;
@@ -49,6 +50,11 @@ function App() {
     checkServer().then(() => {
       if (!cancelled) fetchInfo();
     });
+
+    // Close splash screen after a short delay to ensure smooth transition
+    setTimeout(() => {
+      invoke('close_splashscreen').catch(console.error);
+    }, 500);
 
     return () => {
       cancelled = true;

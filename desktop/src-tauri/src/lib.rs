@@ -49,6 +49,19 @@ fn get_server_port() -> u16 {
     3721
 }
 
+#[tauri::command]
+fn close_splashscreen(app: tauri::AppHandle) {
+    // Close splash window
+    if let Some(splash) = app.get_webview_window("splash") {
+        let _ = splash.close();
+    }
+    // Show main window
+    if let Some(main) = app.get_webview_window("main") {
+        let _ = main.show();
+        let _ = main.set_focus();
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -104,7 +117,7 @@ pub fn run() {
                 state.kill();
             }
         })
-        .invoke_handler(tauri::generate_handler![get_server_port])
+        .invoke_handler(tauri::generate_handler![get_server_port, close_splashscreen])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
