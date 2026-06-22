@@ -14,10 +14,13 @@
       {
         "label": "main",
         "title": "Smart Space",
-        "width": 900,
-        "height": 600,
+        "width": 1000,
+        "height": 680,
+        "minWidth": 720,
+        "minHeight": 480,
         "center": true,
-        "visible": false
+        "visible": false,
+        "decorations": false
       },
       {
         "label": "splash",
