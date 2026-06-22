@@ -152,7 +152,8 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
   const disconnectSession = useCallback((sessionId: string) => {
     wsManager.clearHandlers(sessionId);
-    wsManager.disconnect(sessionId);
+    // Use delayed disconnect to avoid React StrictMode connect-disconnect-connect race
+    wsManager.disconnectDelayed(sessionId);
     // Server sidecar will detect WS disconnect and clean up the CLI sidecar for this session
   }, []);
 

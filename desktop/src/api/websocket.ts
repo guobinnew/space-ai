@@ -33,8 +33,17 @@ class WebSocketManager {
 
   /** Connect to a session's sidecar on the given port */
   connect(sessionId: string, port: number = 3721): void {
-    // Already connected to the right port
-    if (this.connections.has(sessionId)) return
+    // Already connected or connecting
+    const existing = this.connections.get(sessionId)
+    if (existing) {
+      // If marked for delayed disconnect, cancel it by resetting flag
+      existing.intentionalClose = false
+      if (existing.ws.readyState === WebSocket.OPEN || existing.ws.readyState === WebSocket.CONNECTING) {
+        return
+      }
+      // Stale connection — clean up before reconnecting
+      this.connections.delete(sessionId)
+    }
 
     const ws = new WebSocket(`ws://127.0.0.1:${port}/ws/${sessionId}`)
     const conn: Connection = {
@@ -91,6 +100,21 @@ class WebSocketManager {
     if (conn.pingInterval) clearInterval(conn.pingInterval)
     conn.ws.close()
     this.connections.delete(sessionId)
+  }
+
+  /** Disconnect with a small delay to avoid React StrictMode connect-disconnect-connect race */
+  disconnectDelayed(sessionId: string, delay: number = 100): void {
+    // Mark as intentional close, but defer the actual close
+    const conn = this.connections.get(sessionId)
+    if (conn) conn.intentionalClose = true
+
+    setTimeout(() => {
+      // If a new connection was established in the meantime (reconnect),
+      // it will have intentionalClose=false, so skip the disconnect
+      const current = this.connections.get(sessionId)
+      if (!current || !current.intentionalClose) return
+      this.disconnect(sessionId)
+    }, delay)
   }
 
   send(sessionId: string, message: ClientMessage): void {

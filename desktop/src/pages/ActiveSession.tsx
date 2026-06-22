@@ -5,7 +5,7 @@
  * 使用 chatStore 管理流式状态，通过 WebSocket 与后端通信。
  */
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useChatStore } from '../stores/chatStore';
 import { useUIStore } from '../stores/uiStore';
 import { MessageList } from '../components/chat/MessageList';
@@ -14,16 +14,26 @@ import { ChatInput } from '../components/chat/ChatInput';
 export function ActiveSession({ sessionId }: { sessionId: string }) {
   const { connectToSession, disconnectSession, sendMessage, stopGeneration, getSession } = useChatStore();
   const { closeTab } = useUIStore();
+  // Use a ref to track if this is the first mount vs a re-render cleanup
+  const isConnectedRef = useRef(false);
 
   const sessionState = getSession(sessionId);
   const isGenerating = sessionState.chatState === 'thinking' || sessionState.chatState === 'streaming';
 
+  // Only connect/disconnect when sessionId changes — NOT on every render
   useEffect(() => {
-    connectToSession(sessionId);
+    // Skip re-connecting if already connected (React StrictMode double-mount guard)
+    if (isConnectedRef.current) return
+    isConnectedRef.current = true
+
+    connectToSession(sessionId)
+
     return () => {
-      disconnectSession(sessionId);
-    };
-  }, [sessionId, connectToSession, disconnectSession]);
+      isConnectedRef.current = false
+      disconnectSession(sessionId)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionId])
 
   const handleSend = (content: string) => {
     sendMessage(sessionId, content);
