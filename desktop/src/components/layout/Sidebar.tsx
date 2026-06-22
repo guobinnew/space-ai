@@ -1,7 +1,23 @@
+import { useEffect } from 'react';
 import { useUIStore, HOME_TAB_ID, SETTINGS_TAB_ID } from '../../stores/uiStore';
+import { useSessionStore } from '../../stores/sessionStore';
 
 export function Sidebar() {
   const { sidebarOpen, toggleSidebar, activeTabId, openTab } = useUIStore();
+  const { sessions, fetchSessions, createSession, isLoading } = useSessionStore();
+
+  useEffect(() => {
+    void fetchSessions();
+  }, [fetchSessions]);
+
+  const handleNewSession = async () => {
+    try {
+      const sessionId = await createSession();
+      openTab(sessionId, '新会话', 'session');
+    } catch (err) {
+      console.error('Failed to create session:', err);
+    }
+  };
 
   return (
     <aside
@@ -48,9 +64,61 @@ export function Sidebar() {
         >
           首页
         </NavItem>
+        <NavItem
+          active={false}
+          collapsed={!sidebarOpen}
+          label="新会话"
+          onClick={handleNewSession}
+          icon={<PlusIcon />}
+        >
+          新会话
+        </NavItem>
       </div>
 
-      <div className="flex-1" aria-hidden="true" />
+      {/* Session list */}
+      {sidebarOpen && (
+        <div className="flex-1 min-h-0 flex flex-col">
+          <div className="px-4 pb-1 pt-2 text-[11px] font-semibold tracking-wide text-[var(--color-text-tertiary)]">
+            会话
+          </div>
+          <div className="min-h-0 flex-1 overflow-y-auto px-2">
+            {isLoading && sessions.length === 0 && (
+              <div className="px-2 py-4 text-center text-xs text-[var(--color-text-tertiary)]">
+                加载中...
+              </div>
+            )}
+            {!isLoading && sessions.length === 0 && (
+              <div className="px-2 py-4 text-center text-xs text-[var(--color-text-tertiary)]">
+                暂无会话
+              </div>
+            )}
+            {sessions.map((session) => (
+              <button
+                key={session.id}
+                onClick={() => openTab(session.id, session.title, 'session')}
+                className={`group w-full rounded-[var(--radius-md)] py-1.5 pl-3 pr-2 text-left text-sm transition-colors ${
+                  session.id === activeTabId
+                    ? 'bg-[var(--color-surface-selected)] text-[var(--color-text-primary)]'
+                    : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)]'
+                }`}
+              >
+                <span className="flex items-center gap-2">
+                  <span
+                    className="h-1 w-1 flex-shrink-0 rounded-full"
+                    style={{
+                      backgroundColor: session.id === activeTabId ? 'var(--color-brand)' : 'var(--color-text-tertiary)',
+                      opacity: session.id === activeTabId ? 1 : 0.5,
+                    }}
+                  />
+                  <span className="flex-1 truncate">{session.title}</span>
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {!sidebarOpen && <div className="flex-1" aria-hidden="true" />}
 
       {/* Footer: settings */}
       <div className={`border-t border-[var(--color-border)] p-3 ${sidebarOpen ? '' : 'flex justify-center'}`}>
@@ -132,6 +200,15 @@ function HomeIcon() {
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
       <polyline points="9 22 9 12 15 12 15 22" />
+    </svg>
+  );
+}
+
+function PlusIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="12" y1="5" x2="12" y2="19" />
+      <line x1="5" y1="12" x2="19" y2="12" />
     </svg>
   );
 }

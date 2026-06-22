@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 
-export type TabType = 'home' | 'settings';
+export type TabType = 'home' | 'settings' | 'session';
 export type Theme = 'dark' | 'light';
 
 export interface Tab {
