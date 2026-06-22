@@ -63,9 +63,11 @@ pub fn run() {
                 if bundled.exists() {
                     bundled
                 } else {
+                    // current_dir in dev is desktop/src-tauri, need to go up twice to project root
                     let dev_path = std::env::current_dir()
                         .unwrap_or_default()
                         .parent()
+                        .and_then(|p| p.parent())
                         .map(|p| p.join("server").join("dist").join("server.js"))
                         .unwrap_or_default();
                     if dev_path.exists() {
