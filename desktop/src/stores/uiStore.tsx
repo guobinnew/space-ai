@@ -15,6 +15,7 @@ interface UIState {
   toggleSidebar: () => void;
   theme: Theme;
   toggleTheme: () => void;
+  setTheme: (t: Theme) => void;
   tabs: Tab[];
   activeTabId: string;
   setActiveTab: (id: string) => void;
@@ -56,6 +57,7 @@ export function UIProvider({ children }: { children: ReactNode }) {
 
   const toggleSidebar = () => setSidebarOpen((s) => !s);
   const toggleTheme = () => setTheme((t) => (t === 'dark' ? 'light' : 'dark'));
+  const setThemeMode = (next: Theme) => setTheme(next);
 
   const openTab = (id: string, title: string, type: TabType, closable = true) => {
     setTabs((prev) => (prev.some((t) => t.id === id) ? prev : [...prev, { id, title, type, closable }]));
@@ -75,7 +77,7 @@ export function UIProvider({ children }: { children: ReactNode }) {
 
   return (
     <UIContext.Provider
-      value={{ sidebarOpen, toggleSidebar, theme, toggleTheme, tabs, activeTabId, setActiveTab: setActiveTabId, openTab, closeTab }}
+      value={{ sidebarOpen, toggleSidebar, theme, toggleTheme, setTheme: setThemeMode, tabs, activeTabId, setActiveTab: setActiveTabId, openTab, closeTab }}
     >
       {children}
     </UIContext.Provider>
