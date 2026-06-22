@@ -3,14 +3,17 @@
   "private": true,
   "workspaces": [
     "desktop",
-    "server"
+    "server",
+    "server/agent"
   ],
   "scripts": {
     "dev": "npm run dev -w desktop",
     "dev:server": "npm run dev -w server",
+    "dev:agent": "npm run dev -w server/agent",
     "build:server": "npm run build -w server",
+    "build:agent": "npm run build -w server/agent",
     "build:desktop": "npm run build -w desktop",
-    "build:all": "npm run build:server && npm run build:desktop"
+    "build:all": "npm run build:agent && npm run build:desktop"
   },
   "devDependencies": {
     "sharp": "^0.35.2"

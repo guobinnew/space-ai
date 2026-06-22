@@ -20,3 +20,11 @@
 - 主窗口 `decorations:false`，自定义 WindowControls(Windows) + `data-tauri-drag-region` 拖动；capabilities 需窗口权限
 - 主题持久化: localStorage('smartspace-theme')，默认 dark，main.tsx 渲染前初始化 data-theme 防闪烁
 - tsconfig.node.json 必须 `composite:true` 且不能 noEmit（被 tsconfig.json 作为 references）
+
+## Server/Agent 架构 (2026-06-22)
+- `server/agent/`: 基于 Bun.serve 的 agent server，参照 smart-code `src/server` 复刻
+- 入口: `sidecar.ts server --app-root <path> --host --port`（参照 smart-code smart-sidecar.ts）
+- desktop lib.rs: dev 用 `bun run sidecar.ts`，生产用 `bun build --compile` 编译的二进制
+- tauri.conf.json resources: `../../server/dist/agent/` → `agent/`
+- 端口 3721；API: /api/health、/api/info、/api/status、/api/sessions(桩)、/ws/* WebSocket
+- bun 通过 npm 全局安装(shim: bun.cmd)，Start-Process 需用 bun.cmd 全路径

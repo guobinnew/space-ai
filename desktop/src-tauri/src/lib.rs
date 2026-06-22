@@ -71,25 +71,30 @@ pub fn run() {
                 .resource_dir()
                 .expect("failed to resolve resource dir");
 
-            let server_path = {
-                let bundled = resource_dir.join("server").join("server.js");
+            let sidecar_path = {
+                // Production: compiled sidecar binary bundled as resource
+                #[cfg(target_os = "windows")]
+                let bundled = resource_dir.join("agent").join("smart-sidecar.exe");
+                #[cfg(not(target_os = "windows"))]
+                let bundled = resource_dir.join("agent").join("smart-sidecar");
                 if bundled.exists() {
                     bundled
                 } else {
+                    // Dev mode: run sidecar.ts directly with bun
                     // current_dir in dev is desktop/src-tauri, need to go up twice to project root
-                    let dev_path = std::env::current_dir()
+                    let dev_sidecar = std::env::current_dir()
                         .unwrap_or_default()
                         .parent()
                         .and_then(|p| p.parent())
-                        .map(|p| p.join("server").join("dist").join("server.js"))
+                        .map(|p| p.join("server").join("agent").join("sidecar.ts"))
                         .unwrap_or_default();
-                    if dev_path.exists() {
-                        println!("[SmartSpace] Dev mode: using server at {:?}", dev_path);
-                        dev_path
+                    if dev_sidecar.exists() {
+                        println!("[SmartSpace] Dev mode: using sidecar at {:?}", dev_sidecar);
+                        dev_sidecar
                     } else {
                         eprintln!(
-                            "[SmartSpace] Server not found at {:?} or {:?}",
-                            bundled, dev_path
+                            "[SmartSpace] Sidecar not found at {:?} or {:?}",
+                            bundled, dev_sidecar
                         );
                         app.manage(ServerProcess(Mutex::new(None)));
                         return Ok(());
@@ -97,16 +102,40 @@ pub fn run() {
                 }
             };
 
-            println!("[SmartSpace] Starting server: {:?}", server_path);
+            let app_root = std::env::current_dir()
+                .unwrap_or_default()
+                .parent()
+                .and_then(|p| p.parent())
+                .map(|p| p.to_path_buf())
+                .unwrap_or_else(|| std::path::PathBuf::from("."));
 
-            let child = Command::new("node")
-                .arg(&server_path)
+            let is_compiled = sidecar_path.extension().map(|e| e == "exe" || e == "").unwrap_or(true)
+                && sidecar_path.file_name().map(|n| n != "sidecar.ts").unwrap_or(true);
+
+            let mut cmd = if is_compiled {
+                // Production: run compiled binary directly
+                Command::new(&sidecar_path)
+            } else {
+                // Dev mode: run .ts with bun
+                let mut c = Command::new("bun");
+                c.arg("run").arg(&sidecar_path);
+                c
+            };
+
+            let child = cmd
+                .arg("server")
+                .arg("--app-root")
+                .arg(&app_root)
+                .arg("--host")
+                .arg("127.0.0.1")
+                .arg("--port")
+                .arg("3721")
                 .env("PORT", "3721")
                 .env("HOST", "127.0.0.1")
                 .spawn()
-                .expect("Failed to start Node.js server process");
+                .expect("Failed to start sidecar process");
 
-            println!("[SmartSpace] Server started (pid={})", child.id());
+            println!("[SmartSpace] Sidecar started (pid={})", child.id());
             app.manage(ServerProcess(Mutex::new(Some(child))));
 
             Ok(())

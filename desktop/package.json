@@ -6,10 +6,10 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "build:full": "npm --prefix ../server run build && npm run build",
+    "build:full": "npm --prefix ../server/agent run build && npm run build",
     "preview": "vite preview",
     "tauri": "tauri",
-    "tauri:dev": "npm --prefix ../server run build && tauri dev"
+    "tauri:dev": "tauri dev"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.1",
