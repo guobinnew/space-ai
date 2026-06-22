@@ -1,10 +1,16 @@
-import { useEffect } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useUIStore, HOME_TAB_ID, SETTINGS_TAB_ID } from '../../stores/uiStore';
 import { useSessionStore } from '../../stores/sessionStore';
+import type { SessionListItem } from '../../types/session';
+
+type ContextMenu = { sessionId: string; x: number; y: number; session: SessionListItem };
 
 export function Sidebar() {
-  const { sidebarOpen, toggleSidebar, activeTabId, openTab } = useUIStore();
-  const { sessions, fetchSessions, createSession, isLoading } = useSessionStore();
+  const { sidebarOpen, toggleSidebar, activeTabId, openTab, closeTab } = useUIStore();
+  const { sessions, fetchSessions, createSession, deleteSession, renameSession, isLoading } = useSessionStore();
+  const [contextMenu, setContextMenu] = useState<ContextMenu | null>(null);
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState('');
 
   useEffect(() => {
     void fetchSessions();
@@ -17,6 +23,39 @@ export function Sidebar() {
     } catch (err) {
       console.error('Failed to create session:', err);
     }
+  };
+
+  const handleContextMenu = useCallback((e: React.MouseEvent, session: SessionListItem) => {
+    e.preventDefault();
+    setContextMenu({ sessionId: session.id, x: e.clientX, y: e.clientY, session });
+  }, []);
+
+  // Close context menu on outside click
+  useEffect(() => {
+    if (!contextMenu) return;
+    const close = () => setContextMenu(null);
+    document.addEventListener('click', close);
+    return () => document.removeEventListener('click', close);
+  }, [contextMenu]);
+
+  const handleStartRename = (sessionId: string, currentTitle: string) => {
+    setContextMenu(null);
+    setRenamingId(sessionId);
+    setRenameValue(currentTitle);
+  };
+
+  const handleFinishRename = async () => {
+    if (renamingId && renameValue.trim()) {
+      await renameSession(renamingId, renameValue.trim());
+    }
+    setRenamingId(null);
+    setRenameValue('');
+  };
+
+  const handleDelete = async (sessionId: string) => {
+    setContextMenu(null);
+    closeTab(sessionId);
+    await deleteSession(sessionId);
   };
 
   return (
@@ -93,28 +132,69 @@ export function Sidebar() {
               </div>
             )}
             {sessions.map((session) => (
-              <button
-                key={session.id}
-                onClick={() => openTab(session.id, session.title, 'session')}
-                className={`group w-full rounded-[var(--radius-md)] py-1.5 pl-3 pr-2 text-left text-sm transition-colors ${
-                  session.id === activeTabId
-                    ? 'bg-[var(--color-surface-selected)] text-[var(--color-text-primary)]'
-                    : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)]'
-                }`}
-              >
-                <span className="flex items-center gap-2">
-                  <span
-                    className="h-1 w-1 flex-shrink-0 rounded-full"
-                    style={{
-                      backgroundColor: session.id === activeTabId ? 'var(--color-brand)' : 'var(--color-text-tertiary)',
-                      opacity: session.id === activeTabId ? 1 : 0.5,
+              <div key={session.id} className="relative">
+                {renamingId === session.id ? (
+                  <input
+                    autoFocus
+                    value={renameValue}
+                    onChange={(e) => setRenameValue(e.target.value)}
+                    onBlur={handleFinishRename}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleFinishRename();
+                      if (e.key === 'Escape') {
+                        setRenamingId(null);
+                        setRenameValue('');
+                      }
                     }}
+                    className="w-full rounded-[var(--radius-md)] border border-[var(--color-border-focus)] bg-[var(--color-surface)] px-3 py-1.5 text-sm text-[var(--color-text-primary)] outline-none"
                   />
-                  <span className="flex-1 truncate">{session.title}</span>
-                </span>
-              </button>
+                ) : (
+                  <button
+                    onClick={() => openTab(session.id, session.title, 'session')}
+                    onContextMenu={(e) => handleContextMenu(e, session)}
+                    className={`group w-full rounded-[var(--radius-md)] py-1.5 pl-3 pr-2 text-left text-sm transition-colors ${
+                      session.id === activeTabId
+                        ? 'bg-[var(--color-surface-selected)] text-[var(--color-text-primary)]'
+                        : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)]'
+                    }`}
+                  >
+                    <span className="flex items-center gap-2">
+                      <span
+                        className="h-1 w-1 flex-shrink-0 rounded-full"
+                        style={{
+                          backgroundColor: session.id === activeTabId ? 'var(--color-brand)' : 'var(--color-text-tertiary)',
+                          opacity: session.id === activeTabId ? 1 : 0.5,
+                        }}
+                      />
+                      <span className="flex-1 truncate">{session.title}</span>
+                    </span>
+                  </button>
+                )}
+              </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* Context menu for session list */}
+      {contextMenu && (
+        <div
+          className="fixed z-50 min-w-[140px] rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] py-1"
+          style={{ left: contextMenu.x, top: contextMenu.y, boxShadow: 'var(--shadow-dropdown)' }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button
+            onClick={() => handleStartRename(contextMenu.sessionId, contextMenu.session.title)}
+            className="w-full px-3 py-1.5 text-left text-xs text-[var(--color-text-primary)] transition-colors hover:bg-[var(--color-surface-hover)]"
+          >
+            重命名
+          </button>
+          <button
+            onClick={() => handleDelete(contextMenu.sessionId)}
+            className="w-full px-3 py-1.5 text-left text-xs text-[var(--color-error)] transition-colors hover:bg-[var(--color-surface-hover)]"
+          >
+            删除
+          </button>
         </div>
       )}
 
