@@ -7,6 +7,7 @@
 
 import { handleStatusApi } from './api/status'
 import { handleSessionsApi } from './api/sessions'
+import { handleProvidersApi } from './api/providers'
 import { ApiError, errorResponse } from './middleware/errorHandler'
 
 export async function handleApiRequest(req: Request, url: URL): Promise<Response> {
@@ -22,6 +23,9 @@ export async function handleApiRequest(req: Request, url: URL): Promise<Response
 
       case 'sessions':
         return await handleSessionsApi(req, url, segments)
+
+      case 'providers':
+        return await handleProvidersApi(req, url, segments)
 
       case 'health':
         return Response.json({ status: 'ok', timestamp: new Date().toISOString() })
