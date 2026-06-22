@@ -167,12 +167,9 @@ export class ProviderService {
 
     settings.env = {
       ...existingEnv,
-      ANTHROPIC_BASE_URL: provider.baseUrl,
-      ANTHROPIC_AUTH_TOKEN: provider.apiKey,
-      ANTHROPIC_MODEL: provider.models.main,
-      ANTHROPIC_DEFAULT_HAIKU_MODEL: provider.models.haiku,
-      ANTHROPIC_DEFAULT_SONNET_MODEL: provider.models.sonnet,
-      ANTHROPIC_DEFAULT_OPUS_MODEL: provider.models.opus,
+      SPACEAI_BASE_URL: provider.baseUrl,
+      SPACEAI_AUTH_TOKEN: provider.apiKey,
+      SPACEAI_MODEL: provider.models.main,
     }
 
     await this.writeSettings(settings)
@@ -193,7 +190,7 @@ export class ProviderService {
       }
     }
 
-    if (process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN) {
+    if (process.env.SPACEAI_AUTH_TOKEN) {
       return { hasAuth: true, source: 'env' }
     }
 
