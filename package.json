@@ -11,5 +11,8 @@
     "build:server": "npm run build -w server",
     "build:desktop": "npm run build -w desktop",
     "build:all": "npm run build:server && npm run build:desktop"
+  },
+  "devDependencies": {
+    "sharp": "^0.35.2"
   }
 }
