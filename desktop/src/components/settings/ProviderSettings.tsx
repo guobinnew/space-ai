@@ -276,11 +276,10 @@ function ProviderFormModal({ onClose, onSaved, mode, provider }: ProviderFormMod
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
       <div
         className="bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)] w-full max-w-lg max-h-[85vh] overflow-y-auto mx-4"
         style={{ boxShadow: 'var(--shadow-dropdown)' }}
-        onClick={(e) => e.stopPropagation()}
       >
         {/* Modal header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--color-border)]">
