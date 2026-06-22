@@ -1,0 +1,15 @@
+{
+  "name": "smart-space",
+  "private": true,
+  "workspaces": [
+    "desktop",
+    "server"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w desktop",
+    "dev:server": "npm run dev -w server",
+    "build:server": "npm run build -w server",
+    "build:desktop": "npm run build -w desktop",
+    "build:all": "npm run build:server && npm run build:desktop"
+  }
+}
