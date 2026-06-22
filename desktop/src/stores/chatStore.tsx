@@ -2,19 +2,21 @@
  * Chat Store — 聊天流式状态管理
  *
  * 参照 smart-code chatStore.ts 复刻，简化版。
- * 每个会话维护独立的消息列表、流式状态和 sidecar 进程。
- * 打开会话时启动对应的 sidecar 进程，通过 WebSocket 通信。
+ * 每个会话维护独立的消息列表和流式状态。
+ * 通过 WebSocket 与 Server sidecar 通信，Server sidecar 内部为每个会话
+ * 启动 CLI sidecar 子进程(Bun.spawn)并桥接 WS 通信。
  */
 
 import { createContext, useContext, useState, useCallback, type ReactNode } from 'react';
-import { invoke } from '@tauri-apps/api/core';
 import { wsManager, type ServerMessage } from '../api/websocket';
+import { sessionsApi } from '../api/sessions';
 import type { UIMessage, PerSessionChatState } from '../types/chat';
+
+/** Server sidecar 固定端口 */
+const SERVER_PORT = 3721;
 
 interface ChatStoreState {
   sessions: Record<string, PerSessionChatState>;
-  /** Per-session sidecar port (0 = not started) */
-  ports: Record<string, number>;
   connectToSession: (sessionId: string) => void;
   disconnectSession: (sessionId: string) => void;
   sendMessage: (sessionId: string, content: string) => void;
@@ -35,7 +37,6 @@ function createInitialSessionState(): PerSessionChatState {
 
 export function ChatProvider({ children }: { children: ReactNode }) {
   const [sessions, setSessions] = useState<Record<string, PerSessionChatState>>({});
-  const [ports, setPorts] = useState<Record<string, number>>({});
 
   const getSession = useCallback(
     (sessionId: string): PerSessionChatState => {
@@ -55,11 +56,9 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   );
 
   const loadHistory = useCallback(
-    async (sessionId: string, port: number) => {
+    async (sessionId: string) => {
       try {
-        const res = await fetch(`http://127.0.0.1:${port}/api/sessions/${encodeURIComponent(sessionId)}/messages`);
-        if (!res.ok) return;
-        const data = await res.json() as { messages: Array<{ id: string; role: string; content: string; createdAt: string }> };
+        const data = await sessionsApi.getMessages(sessionId);
         const uiMessages: UIMessage[] = data.messages.map((m) =>
           m.role === 'user'
             ? { type: 'user_text', id: m.id, content: m.content, createdAt: m.createdAt }
@@ -74,28 +73,13 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   );
 
   const connectToSession = useCallback(
-    async (sessionId: string) => {
-      // If already connected, skip
-      if (ports[sessionId]) {
-        wsManager.connect(sessionId, ports[sessionId]);
-        return;
-      }
-
-      // Start per-session sidecar (Tauri only)
-      let port = 3721;
-      try {
-        port = await invoke<number>('start_session_sidecar', { sessionId });
-      } catch {
-        // Not in Tauri (browser dev) — use default port
-      }
-
-      setPorts((prev) => ({ ...prev, [sessionId]: port }));
-
-      // Connect WebSocket to the session's sidecar port
-      wsManager.connect(sessionId, port);
+    (sessionId: string) => {
+      // Connect to the single Server sidecar (fixed port).
+      // The Server sidecar will spawn a CLI sidecar for this session internally.
+      wsManager.connect(sessionId, SERVER_PORT);
 
       // Load history
-      void loadHistory(sessionId, port);
+      void loadHistory(sessionId);
 
       // Register message handler
       wsManager.onMessage(sessionId, (msg: ServerMessage) => {
@@ -163,27 +147,14 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         }
       });
     },
-    [updateSession, loadHistory, ports],
+    [updateSession, loadHistory],
   );
 
-  const disconnectSession = useCallback(
-    (sessionId: string) => {
-      wsManager.clearHandlers(sessionId);
-      wsManager.disconnect(sessionId);
-
-      // Stop the sidecar process for this session (Tauri only)
-      invoke('stop_session_sidecar', { sessionId }).catch(() => {
-        // Not in Tauri or already stopped
-      });
-
-      setPorts((prev) => {
-        const next = { ...prev };
-        delete next[sessionId];
-        return next;
-      });
-    },
-    [],
-  );
+  const disconnectSession = useCallback((sessionId: string) => {
+    wsManager.clearHandlers(sessionId);
+    wsManager.disconnect(sessionId);
+    // Server sidecar will detect WS disconnect and clean up the CLI sidecar for this session
+  }, []);
 
   const sendMessage = useCallback(
     (sessionId: string, content: string) => {
@@ -216,13 +187,12 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     <ChatContext.Provider
       value={{
         sessions,
-        ports,
         connectToSession,
         disconnectSession,
         sendMessage,
         stopGeneration,
         getSession,
-        loadHistory: (id: string) => loadHistory(id, ports[id] || 3721),
+        loadHistory,
       }}
     >
       {children}

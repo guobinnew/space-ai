@@ -1,47 +1,19 @@
-use std::collections::HashMap;
 use std::process::{Child, Command};
 use std::sync::Mutex;
-use tauri::{Manager, State};
+use tauri::Manager;
 
 #[cfg(target_os = "windows")]
 use std::os::windows::process::CommandExt;
 
-/// Holds per-session sidecar process handles.
-/// Each session gets its own sidecar process on a unique port.
-struct SidecarManager(Mutex<HashMap<String, Child>>);
+/// Holds the single Server sidecar process (lives for the entire app lifecycle).
+struct ServerSidecar(Mutex<Option<Child>>);
 
-/// The base port — session N gets port BASE_PORT + N (allocated dynamically)
-const BASE_PORT: u16 = 3721;
-
-impl SidecarManager {
-    fn new() -> Self {
-        SidecarManager(Mutex::new(HashMap::new()))
-    }
-
-    /// Check if a session's sidecar is running
-    fn is_running(&self, session_id: &str) -> bool {
-        if let Ok(map) = self.0.lock() {
-            map.contains_key(session_id)
-        } else {
-            false
-        }
-    }
-
-    /// Get the port for a session (deterministic: hash of session_id + base)
-    fn get_port(&self, session_id: &str) -> u16 {
-        // Simple hash: use the last 4 hex chars of the session id to offset
-        let hash = session_id
-            .bytes()
-            .fold(0u16, |acc, b| acc.wrapping_add(b as u16));
-        BASE_PORT + (hash % 1000) + 1
-    }
-
-    /// Kill a specific session's sidecar
-    fn kill_session(&self, session_id: &str) {
-        if let Ok(mut map) = self.0.lock() {
-            if let Some(ref mut child) = map.get_mut(session_id) {
+impl ServerSidecar {
+    fn kill(&self) {
+        if let Ok(mut guard) = self.0.lock() {
+            if let Some(ref mut child) = *guard {
                 let pid = child.id();
-                println!("[SmartSpace] Killing sidecar for session {} (pid={})", session_id, pid);
+                println!("[SmartSpace] Killing server sidecar (pid={})", pid);
 
                 #[cfg(target_os = "windows")]
                 {
@@ -56,30 +28,17 @@ impl SidecarManager {
                     let _ = child.kill();
                     let _ = child.wait();
                 }
-            }
-            map.remove(session_id);
-        }
-    }
 
-    /// Kill all sidecar processes
-    fn kill_all(&self) {
-        // Collect session IDs first, then kill each one
-        let session_ids: Vec<String> = {
-            let map = self.0.lock();
-            match map {
-                Ok(m) => m.keys().cloned().collect(),
-                Err(_) => return,
+                println!("[SmartSpace] Server sidecar killed");
             }
-        };
-        for id in session_ids {
-            self.kill_session(&id);
+            *guard = None;
         }
     }
 }
 
-impl Drop for SidecarManager {
+impl Drop for ServerSidecar {
     fn drop(&mut self) {
-        self.kill_all();
+        self.kill();
     }
 }
 
@@ -94,65 +53,84 @@ fn close_splashscreen(app: tauri::AppHandle) {
     }
 }
 
-/// Start a sidecar process for a specific session.
-/// Returns the port the sidecar is listening on.
+/// Get the server sidecar port (fixed at 3721).
 #[tauri::command]
-fn start_session_sidecar(
-    app: tauri::AppHandle,
-    state: State<'_, SidecarManager>,
-    session_id: String,
-) -> Result<u16, String> {
-    // Already running for this session
-    if state.is_running(&session_id) {
-        return Ok(state.get_port(&session_id));
+fn get_server_port() -> u16 {
+    3721
+}
+
+/// Resolve the sidecar binary/script path.
+/// Production: bundled binary at resource_dir/agent/smart-sidecar[.exe]
+/// Dev mode: server/agent/sidecar.ts (run with bun)
+fn resolve_sidecar_path(resource_dir: &std::path::Path) -> Option<std::path::PathBuf> {
+    #[cfg(target_os = "windows")]
+    let bundled = resource_dir.join("agent").join("smart-sidecar.exe");
+    #[cfg(not(target_os = "windows"))]
+    let bundled = resource_dir.join("agent").join("smart-sidecar");
+
+    if bundled.exists() {
+        return Some(bundled);
     }
 
-    let port = state.get_port(&session_id);
+    // Dev mode: look for sidecar.ts relative to current dir
+    let dev_sidecar = std::env::current_dir()
+        .ok()
+        .and_then(|d| d.parent().and_then(|p| p.parent()).map(|p| p.to_path_buf()))
+        .map(|root| root.join("server").join("agent").join("sidecar.ts"));
 
+    if let Some(ref path) = dev_sidecar {
+        if path.exists() {
+            println!("[SmartSpace] Dev mode: using sidecar at {:?}", path);
+            return Some(path.clone());
+        }
+    }
+
+    eprintln!(
+        "[SmartSpace] Sidecar not found at {:?} or {:?}",
+        bundled,
+        dev_sidecar.as_deref().unwrap_or(std::path::Path::new(""))
+    );
+    None
+}
+
+/// Resolve app root (two levels up from src-tauri dir in dev, resource dir in prod).
+fn resolve_app_root() -> std::path::PathBuf {
+    std::env::current_dir()
+        .unwrap_or_default()
+        .parent()
+        .and_then(|p| p.parent())
+        .map(|p| p.to_path_buf())
+        .unwrap_or_else(|| std::path::PathBuf::from("."))
+}
+
+/// Start the single Server sidecar process during app setup.
+/// This process lives for the entire desktop app lifecycle.
+fn start_server_sidecar(app: &tauri::App) -> Result<Child, String> {
     let resource_dir = app
         .path()
         .resource_dir()
         .map_err(|e| format!("failed to resolve resource dir: {}", e))?;
 
-    let sidecar_path = {
-        #[cfg(target_os = "windows")]
-        let bundled = resource_dir.join("agent").join("smart-sidecar.exe");
-        #[cfg(not(target_os = "windows"))]
-        let bundled = resource_dir.join("agent").join("smart-sidecar");
-        if bundled.exists() {
-            bundled
-        } else {
-            let dev_sidecar = std::env::current_dir()
-                .unwrap_or_default()
-                .parent()
-                .and_then(|p| p.parent())
-                .map(|p| p.join("server").join("agent").join("sidecar.ts"))
-                .unwrap_or_default();
-            if dev_sidecar.exists() {
-                println!("[SmartSpace] Dev mode: using sidecar at {:?}", dev_sidecar);
-                dev_sidecar
-            } else {
-                return Err(format!(
-                    "Sidecar not found at {:?} or {:?}",
-                    bundled, dev_sidecar
-                ));
-            }
-        }
-    };
+    let sidecar_path = resolve_sidecar_path(&resource_dir)
+        .ok_or_else(|| "Sidecar binary/script not found".to_string())?;
 
-    let app_root = std::env::current_dir()
-        .unwrap_or_default()
-        .parent()
-        .and_then(|p| p.parent())
-        .map(|p| p.to_path_buf())
-        .unwrap_or_else(|| std::path::PathBuf::from("."));
+    let app_root = resolve_app_root();
+    let app_root_str = app_root.to_string_lossy().to_string();
 
-    let is_compiled = sidecar_path.extension().map(|e| e == "exe" || e == "").unwrap_or(true)
-        && sidecar_path.file_name().map(|n| n != "sidecar.ts").unwrap_or(true);
+    // Determine if we're running a compiled binary or a .ts script
+    let is_compiled = sidecar_path
+        .extension()
+        .map(|e| e == "exe" || e == "")
+        .unwrap_or(true)
+        && sidecar_path
+            .file_name()
+            .map(|n| n != "sidecar.ts")
+            .unwrap_or(true);
 
     let mut cmd = if is_compiled {
         Command::new(&sidecar_path)
     } else {
+        // Dev mode: run .ts with bun
         #[cfg(target_os = "windows")]
         {
             let mut c = Command::new("cmd");
@@ -167,59 +145,53 @@ fn start_session_sidecar(
         }
     };
 
-    let port_str = port.to_string();
-
     let child = cmd
         .arg("server")
         .arg("--app-root")
-        .arg(&app_root)
+        .arg(&app_root_str)
         .arg("--host")
         .arg("127.0.0.1")
         .arg("--port")
-        .arg(&port_str)
-        .env("PORT", &port_str)
+        .arg("3721")
+        .env("PORT", "3721")
         .env("HOST", "127.0.0.1")
         .spawn()
-        .map_err(|e| format!("Failed to start sidecar process: {}", e))?;
+        .map_err(|e| format!("Failed to start server sidecar: {}", e))?;
 
-    println!(
-        "[SmartSpace] Sidecar started for session {} on port {} (pid={})",
-        session_id,
-        port,
-        child.id()
-    );
-
-    let mut map = state.0.lock().map_err(|e| format!("Lock error: {}", e))?;
-    map.insert(session_id, child);
-    Ok(port)
-}
-
-/// Stop the sidecar process for a specific session.
-#[tauri::command]
-fn stop_session_sidecar(state: State<'_, SidecarManager>, session_id: String) -> Result<bool, String> {
-    state.kill_session(&session_id);
-    Ok(true)
+    println!("[SmartSpace] Server sidecar started (pid={})", child.id());
+    Ok(child)
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .setup(|app| {
-            app.manage(SidecarManager::new());
+            // Start the single Server sidecar process.
+            // It lives for the entire app lifecycle; CLI sidecars (per session)
+            // are spawned by the Server sidecar's JS code via Bun.spawn.
+            match start_server_sidecar(app) {
+                Ok(child) => {
+                    app.manage(ServerSidecar(Mutex::new(Some(child))));
+                }
+                Err(e) => {
+                    eprintln!("[SmartSpace] Failed to start server sidecar: {}", e);
+                    app.manage(ServerSidecar(Mutex::new(None)));
+                }
+            }
             Ok(())
         })
         .on_window_event(|window, event| {
+            // Kill the server sidecar when the MAIN window is destroyed.
             if let tauri::WindowEvent::Destroyed = event {
                 if window.label() == "main" {
-                    let state = window.state::<SidecarManager>();
-                    state.kill_all();
+                    let state = window.state::<ServerSidecar>();
+                    state.kill();
                 }
             }
         })
         .invoke_handler(tauri::generate_handler![
             close_splashscreen,
-            start_session_sidecar,
-            stop_session_sidecar
+            get_server_port
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -8,7 +8,8 @@
 import { handleApiRequest } from './router'
 import { corsHeaders } from './middleware/cors'
 import { requireAuth } from './middleware/auth'
-import { streamChat, type StreamChunk } from './services/llmStreamService'
+import { conversationService } from './services/conversationService'
+import type { StreamChunk } from './services/llmStreamService'
 import type { WebSocketData } from './types'
 
 function readArgValue(flag: string): string | undefined {
@@ -185,6 +186,13 @@ export function startServer(port = PORT, host = HOST) {
       open(ws) {
         console.log(`[WS] Open: ${ws.data.sessionId} (${ws.data.channel})`)
         ws.send(JSON.stringify({ type: 'connected', sessionId: ws.data.sessionId }))
+
+        // Start a CLI sidecar for this session when client connects
+        if (ws.data.channel === 'client') {
+          conversationService.startSession(ws.data.sessionId, '', (chunk: StreamChunk) => {
+            ws.send(JSON.stringify(chunk))
+          })
+        }
       },
       async message(ws, message) {
         const text = message.toString()
@@ -205,18 +213,13 @@ export function startServer(port = PORT, host = HOST) {
             const sessionId = ws.data.sessionId
             const userContent = data.content
 
-            // Save user message to session
-            const { sessionService } = await import('./services/sessionService')
-            await sessionService.addMessage(sessionId, 'user', userContent)
-
-            // Stream LLM response
-            await streamChat(sessionId, userContent, (chunk: StreamChunk) => {
-              ws.send(JSON.stringify(chunk))
-            })
+            // Delegate to conversationService — it manages the CLI sidecar
+            // and streams LLM response chunks back via the outputCallback
+            await conversationService.sendMessage(sessionId, userContent)
           }
 
           if (data.type === 'stop_generation') {
-            // TODO: Implement generation cancellation
+            conversationService.stopSession(ws.data.sessionId)
             ws.send(JSON.stringify({ type: 'status', state: 'idle' }))
           }
         } catch (err) {
@@ -229,6 +232,10 @@ export function startServer(port = PORT, host = HOST) {
       },
       close(ws) {
         console.log(`[WS] Closed: ${ws.data.sessionId}`)
+        // End the CLI sidecar for this session when client disconnects
+        if (ws.data.channel === 'client') {
+          conversationService.endSession(ws.data.sessionId)
+        }
       },
       drain(_ws) {
         // Called when the server is ready to send more messages
