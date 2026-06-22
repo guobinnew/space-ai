@@ -117,9 +117,21 @@ pub fn run() {
                 Command::new(&sidecar_path)
             } else {
                 // Dev mode: run .ts with bun
-                let mut c = Command::new("bun");
-                c.arg("run").arg(&sidecar_path);
-                c
+                // On Windows, bun is typically installed as an npm shim (bun.cmd),
+                // which CreateProcess cannot execute directly. Wrap with cmd /C
+                // so cmd.exe resolves the .cmd extension via PATHEXT.
+                #[cfg(target_os = "windows")]
+                {
+                    let mut c = Command::new("cmd");
+                    c.arg("/C").arg("bun").arg("run").arg(&sidecar_path);
+                    c
+                }
+                #[cfg(not(target_os = "windows"))]
+                {
+                    let mut c = Command::new("bun");
+                    c.arg("run").arg(&sidecar_path);
+                    c
+                }
             };
 
             let child = cmd
