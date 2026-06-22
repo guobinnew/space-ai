@@ -3,8 +3,8 @@
  *
  * 参照 smart-code services/providerService.ts 复刻，简化版。
  *
- * Storage: ~/.smartspace/providers.json (lightweight index)
- * Active provider env vars written to ~/.smartspace/settings.json
+ * Storage: ~/.spaceai/providers.json (lightweight index)
+ * Active provider env vars written to ~/.spaceai/settings.json
  */
 
 import * as fs from 'fs/promises'
@@ -26,7 +26,7 @@ const DEFAULT_INDEX: ProvidersIndex = { activeId: null, providers: [] }
 
 export class ProviderService {
   private getConfigDir(): string {
-    return process.env.SMARTSPACE_CONFIG_DIR || path.join(os.homedir(), '.smartspace')
+    return process.env.SPACEAI_CONFIG_DIR || path.join(os.homedir(), '.spaceai')
   }
 
   private getIndexPath(): string {
@@ -179,14 +179,14 @@ export class ProviderService {
 
   async checkAuthStatus(): Promise<{
     hasAuth: boolean
-    source: 'smartspace-provider' | 'env' | 'none'
+    source: 'spaceai-provider' | 'env' | 'none'
     activeProvider?: string
   }> {
     const index = await this.readIndex()
     if (index.activeId) {
       const provider = index.providers.find((p) => p.id === index.activeId)
       if (provider?.apiKey) {
-        return { hasAuth: true, source: 'smartspace-provider', activeProvider: provider.name }
+        return { hasAuth: true, source: 'spaceai-provider', activeProvider: provider.name }
       }
     }
 

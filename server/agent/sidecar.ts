@@ -23,7 +23,7 @@ const restArgs = rawArgs.slice(1)
 if (mode === 'server') {
   const { appRoot, args } = parseLauncherArgs(restArgs)
 
-  process.env.SMARTSPACE_APP_ROOT = appRoot
+  process.env.SPACEAI_APP_ROOT = appRoot
   process.env.CALLER_DIR ||= process.cwd()
   process.argv = [process.argv[0]!, process.argv[1]!, ...args]
 
@@ -36,7 +36,7 @@ if (mode === 'server') {
 
 function parseLauncherArgs(rawArgs: string[]): { appRoot: string; args: string[] } {
   const nextArgs: string[] = []
-  let appRoot: string | null = process.env.SMARTSPACE_APP_ROOT ?? null
+  let appRoot: string | null = process.env.SPACEAI_APP_ROOT ?? null
 
   for (let index = 0; index < rawArgs.length; index++) {
     const arg = rawArgs[index]

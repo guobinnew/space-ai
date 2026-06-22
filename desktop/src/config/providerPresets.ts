@@ -40,12 +40,12 @@ export const PROVIDER_PRESETS: ProviderPreset[] = [
   {
     id: 'mimo',
     name: 'Mimo',
-    baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+    baseUrl: 'https://api.xiaomimimo.com/v1',
     apiFormat: 'openai',
-    defaultModels: { main: 'qwen3.7-max' },
+    defaultModels: { main: 'mimo-v2.5-pro' },
     defaultCapabilities: { imageInput: true },
     needsApiKey: true,
-    websiteUrl: 'https://help.aliyun.com/zh/model-studio',
+    websiteUrl: 'https://mimo.mi.com/',
   },
   {
     id: 'custom',

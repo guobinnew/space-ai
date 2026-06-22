@@ -20,7 +20,7 @@ type PresetsResponse = { presets: ProviderPreset[] }
 type TestResultResponse = { result: ProviderTestResult }
 type AuthStatusResponse = {
   hasAuth: boolean
-  source: 'smartspace-provider' | 'env' | 'none'
+  source: 'spaceai-provider' | 'env' | 'none'
   activeProvider?: string
 }
 
