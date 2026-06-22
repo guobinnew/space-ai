@@ -116,13 +116,21 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       }));
       await sessionsApi.addMessage(id, 'assistant', assistantMsg.content);
 
-      // Update session list item
+      // Update session list item (title may have been auto-updated by server)
       setSessions((prev) =>
-        prev.map((s) =>
-          s.id === id
-            ? { ...s, messageCount: s.messageCount + 2, modifiedAt: new Date().toISOString() }
-            : s,
-        ),
+        prev.map((s) => {
+          if (s.id !== id) return s;
+          // Auto-title from first user message (matches server logic)
+          const newTitle = s.messageCount === 0 && content.trim()
+            ? content.slice(0, 30) + (content.length > 30 ? '...' : '')
+            : s.title;
+          return {
+            ...s,
+            title: newTitle,
+            messageCount: s.messageCount + 2,
+            modifiedAt: new Date().toISOString(),
+          };
+        }),
       );
     } catch (err) {
       setError(err instanceof Error ? err.message : '发送消息失败');
