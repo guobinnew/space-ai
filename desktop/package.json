@@ -9,7 +9,7 @@
     "build:full": "npm --prefix ../server run build && npm run build",
     "preview": "vite preview",
     "tauri": "tauri",
-    "tauri:dev": "npm --prefix ../server run build && concurrently -n server,tauri -c blue,green \"npm --prefix ../server run start\" \"tauri dev\""
+    "tauri:dev": "npm --prefix ../server run build && concurrently --kill-others -n server,tauri -c blue,green \"npm --prefix ../server run start\" \"tauri dev\""
   },
   "dependencies": {
     "@tauri-apps/api": "^2.0.0",
