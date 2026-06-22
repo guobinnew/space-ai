@@ -7,6 +7,7 @@
  */
 
 import { createContext, useContext, useState, useCallback, type ReactNode } from 'react';
+import { invoke } from '@tauri-apps/api/core';
 import { wsManager, type ServerMessage } from '../api/websocket';
 import { sessionsApi } from '../api/sessions';
 import type { UIMessage, PerSessionChatState } from '../types/chat';
@@ -69,7 +70,14 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   );
 
   const connectToSession = useCallback(
-    (sessionId: string) => {
+    async (sessionId: string) => {
+      // Ensure sidecar is running before connecting (Tauri only)
+      try {
+        await invoke('start_sidecar');
+      } catch {
+        // Not in Tauri (browser dev) or already running — ignore
+      }
+
       wsManager.connect(sessionId);
 
       // Load history
