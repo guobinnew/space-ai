@@ -112,9 +112,15 @@ pub fn run() {
             Ok(())
         })
         .on_window_event(|window, event| {
+            // Only kill the server when the MAIN window is destroyed.
+            // The splash window is also closed during normal startup
+            // (via close_splashscreen), which would otherwise trigger
+            // a premature server kill.
             if let tauri::WindowEvent::Destroyed = event {
-                let state = window.state::<ServerProcess>();
-                state.kill();
+                if window.label() == "main" {
+                    let state = window.state::<ServerProcess>();
+                    state.kill();
+                }
             }
         })
         .invoke_handler(tauri::generate_handler![get_server_port, close_splashscreen])
