@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
+import { settingsApi, type GeneralSettings } from '../api/settings';
 
 export type TabType = 'home' | 'settings' | 'session';
 export type Theme = 'dark' | 'light';
@@ -35,93 +36,84 @@ const UIContext = createContext<UIState | null>(null);
 export const HOME_TAB_ID = 'home';
 export const SETTINGS_TAB_ID = 'settings';
 
-function getInitialTheme(): Theme {
-  try {
-    const saved = localStorage.getItem('smartspace-theme');
-    if (saved === 'light' || saved === 'dark') return saved;
-  } catch {
-    /* localStorage unavailable */
-  }
-  return 'dark';
-}
-
-function getInitialLocale(): Locale {
-  try {
-    const saved = localStorage.getItem('smartspace-locale');
-    if (saved === 'zh' || saved === 'en') return saved;
-  } catch {
-    /* localStorage unavailable */
-  }
-  return 'zh';
-}
-
-function getInitialWorkDir(): string {
-  try {
-    return localStorage.getItem('smartspace-workdir') || '';
-  } catch {
-    return '';
-  }
-}
-
-function getInitialNotify(): boolean {
-  try {
-    return localStorage.getItem('smartspace-notify') === 'true';
-  } catch {
-    return false;
-  }
-}
+/** 默认值（服务端未启动或加载失败时使用） */
+const DEFAULT_THEME: Theme = 'dark';
+const DEFAULT_LOCALE: Locale = 'zh';
 
 export function UIProvider({ children }: { children: ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [theme, setTheme] = useState<Theme>(getInitialTheme);
-  const [locale, setLocaleState] = useState<Locale>(getInitialLocale);
-  const [defaultWorkDir, setDefaultWorkDirState] = useState<string>(getInitialWorkDir);
-  const [notifyOnCompletion, setNotifyOnCompletionState] = useState<boolean>(getInitialNotify);
+  const [theme, setTheme] = useState<Theme>(DEFAULT_THEME);
+  const [locale, setLocaleState] = useState<Locale>(DEFAULT_LOCALE);
+  const [defaultWorkDir, setDefaultWorkDirState] = useState<string>('');
+  const [notifyOnCompletion, setNotifyOnCompletionState] = useState<boolean>(false);
   const [tabs, setTabs] = useState<Tab[]>([
     { id: HOME_TAB_ID, title: '首页', type: 'home', closable: false },
   ]);
   const [activeTabId, setActiveTabId] = useState<string>(HOME_TAB_ID);
 
+  // 初次挂载：从服务端加载通用设置（统一存储在 ~/.spaceai/settings.json）
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { settings } = await settingsApi.get();
+        if (cancelled) return;
+        setTheme(settings.theme);
+        setLocaleState(settings.locale);
+        setDefaultWorkDirState(settings.defaultWorkDir);
+        setNotifyOnCompletionState(settings.notifyOnCompletion);
+      } catch {
+        // 服务端未就绪或读取失败 — 使用默认值
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // theme 变化：应用到 DOM + 持久化到服务端
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
-    try {
-      localStorage.setItem('smartspace-theme', theme);
-    } catch {
-      /* ignore */
-    }
   }, [theme]);
 
+  // locale 变化：应用到 DOM
   useEffect(() => {
     document.documentElement.setAttribute('data-locale', locale);
-    try {
-      localStorage.setItem('smartspace-locale', locale);
-    } catch {
-      /* ignore */
-    }
   }, [locale]);
 
-  useEffect(() => {
-    try {
-      localStorage.setItem('smartspace-workdir', defaultWorkDir);
-    } catch {
-      /* ignore */
-    }
-  }, [defaultWorkDir]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('smartspace-notify', String(notifyOnCompletion));
-    } catch {
-      /* ignore */
-    }
-  }, [notifyOnCompletion]);
+  // 持久化到服务端的 setter（局部更新，失败静默）
+  const persist = (partial: Partial<GeneralSettings>) => {
+    void settingsApi.update(partial).catch(() => {
+      /* 服务端未就绪或写入失败 — 忽略，下次启动会重新同步 */
+    });
+  };
 
   const toggleSidebar = () => setSidebarOpen((s) => !s);
-  const toggleTheme = () => setTheme((t) => (t === 'dark' ? 'light' : 'dark'));
-  const setThemeMode = (next: Theme) => setTheme(next);
-  const setLocale = (l: Locale) => setLocaleState(l);
-  const setDefaultWorkDir = (dir: string) => setDefaultWorkDirState(dir);
-  const setNotifyOnCompletion = (v: boolean) => setNotifyOnCompletionState(v);
+  const toggleTheme = () => {
+    setTheme((prev) => {
+      const next = prev === 'dark' ? 'light' : 'dark';
+      persist({ theme: next });
+      return next;
+    });
+  };
+  const setThemeMode = (next: Theme) => {
+    setTheme(next);
+    persist({ theme: next });
+  };
+  const setLocale = (l: Locale) => {
+    setLocaleState(l);
+    persist({ locale: l });
+  };
+  const setDefaultWorkDir = (dir: string) => {
+    setDefaultWorkDirState(dir);
+    persist({ defaultWorkDir: dir });
+  };
+  const setNotifyOnCompletion = (v: boolean) => {
+    setNotifyOnCompletionState(v);
+    persist({ notifyOnCompletion: v });
+  };
+
+  // toggleTheme 已持久化（见上）
 
   const openTab = (id: string, title: string, type: TabType, closable = true) => {
     setTabs((prev) => (prev.some((t) => t.id === id) ? prev : [...prev, { id, title, type, closable }]));
@@ -141,7 +133,24 @@ export function UIProvider({ children }: { children: ReactNode }) {
 
   return (
     <UIContext.Provider
-      value={{ sidebarOpen, toggleSidebar, theme, toggleTheme, setTheme: setThemeMode, locale, setLocale, defaultWorkDir, setDefaultWorkDir, notifyOnCompletion, setNotifyOnCompletion, tabs, activeTabId, setActiveTab: setActiveTabId, openTab, closeTab }}
+      value={{
+        sidebarOpen,
+        toggleSidebar,
+        theme,
+        toggleTheme,
+        setTheme: setThemeMode,
+        locale,
+        setLocale,
+        defaultWorkDir,
+        setDefaultWorkDir,
+        notifyOnCompletion,
+        setNotifyOnCompletion,
+        tabs,
+        activeTabId,
+        setActiveTab: setActiveTabId,
+        openTab,
+        closeTab,
+      }}
     >
       {children}
     </UIContext.Provider>

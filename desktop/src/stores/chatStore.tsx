@@ -10,6 +10,7 @@
 import { createContext, useContext, useState, useCallback, type ReactNode } from 'react';
 import { wsManager, type ServerMessage } from '../api/websocket';
 import { sessionsApi } from '../api/sessions';
+import { useUIStore } from './uiStore';
 import type { UIMessage, PerSessionChatState } from '../types/chat';
 
 /** Server sidecar 固定端口 */
@@ -19,9 +20,8 @@ const SERVER_PORT = 3721;
  * Check if system notification should be sent when a session completes.
  * Only fires when: notifyOnCompletion is enabled AND the window is not focused.
  */
-async function maybeNotifyCompletion(_sessionId: string, _text: string): Promise<void> {
+async function maybeNotifyCompletion(enabled: boolean, _sessionId: string, _text: string): Promise<void> {
   try {
-    const enabled = localStorage.getItem('smartspace-notify') === 'true';
     if (!enabled) return;
 
     // Check window focus state via Tauri
@@ -63,6 +63,8 @@ function createInitialSessionState(): PerSessionChatState {
 
 export function ChatProvider({ children }: { children: ReactNode }) {
   const [sessions, setSessions] = useState<Record<string, PerSessionChatState>>({});
+  // 通用设置统一存储在 ~/.spaceai/settings.json，通过 uiStore 读取
+  const { notifyOnCompletion } = useUIStore();
 
   const getSession = useCallback(
     (sessionId: string): PerSessionChatState => {
@@ -152,7 +154,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
             });
 
             // Send system notification if enabled and window not focused
-            void maybeNotifyCompletion(sessionId, completedText);
+            void maybeNotifyCompletion(notifyOnCompletion, sessionId, completedText);
             break;
           }
 
@@ -178,7 +180,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         }
       });
     },
-    [updateSession, loadHistory],
+    [updateSession, loadHistory, notifyOnCompletion],
   );
 
   const disconnectSession = useCallback((sessionId: string) => {
