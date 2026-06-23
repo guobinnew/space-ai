@@ -1,27 +1,13 @@
 /**
  * Skills API
  *
- * GET  /api/skills          — list skills
- * GET  /api/skills/:name    — get skill detail
- * POST /api/skills/import   — import skill pack (.zip)
+ * GET  /api/skills          — list skills (扫描 ~/.spaceai/skills/)
+ * GET  /api/skills/:name    — get skill detail (含正文)
+ * POST /api/skills/import   — import skill pack (.zip)  [TODO]
  */
 
+import { skillService } from '../services/skillService'
 import { ApiError, errorResponse } from '../middleware/errorHandler'
-
-type SkillMeta = {
-  name: string
-  description: string
-  source: 'builtin' | 'user' | 'project'
-  userInvocable: boolean
-  tokenEstimate?: number
-}
-
-// Placeholder skill list — in production this would scan ~/.spaceai/skills/
-const BUILTIN_SKILLS: SkillMeta[] = [
-  { name: 'code-review', description: '代码审查', source: 'builtin', userInvocable: true, tokenEstimate: 500 },
-  { name: 'tdd', description: '测试驱动开发', source: 'builtin', userInvocable: true, tokenEstimate: 800 },
-  { name: 'pdf', description: 'PDF 文件处理', source: 'builtin', userInvocable: true, tokenEstimate: 300 },
-]
 
 export async function handleSkillsApi(
   req: Request,
@@ -33,20 +19,20 @@ export async function handleSkillsApi(
 
     // POST /api/skills/import
     if (skillName === 'import' && req.method === 'POST') {
-      // TODO: implement zip import
+      // TODO: implement zip import — 解压到 ~/.spaceai/skills/<name>/
       return Response.json({ success: true, message: '技能导入功能开发中' })
     }
 
     // GET /api/skills
     if (!skillName && req.method === 'GET') {
-      return Response.json({ skills: BUILTIN_SKILLS })
+      const skills = await skillService.listSkills()
+      return Response.json({ skills })
     }
 
     // GET /api/skills/:name
     if (skillName && req.method === 'GET') {
-      const skill = BUILTIN_SKILLS.find((s) => s.name === skillName)
-      if (!skill) throw ApiError.notFound(`Skill not found: ${skillName}`)
-      return Response.json({ skill: { ...skill, content: '' } })
+      const skill = await skillService.getSkill(skillName)
+      return Response.json({ skill })
     }
 
     throw new ApiError(405, `Method ${req.method} not allowed`, 'METHOD_NOT_ALLOWED')
