@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect, type ReactNode } from '
 
 export type TabType = 'home' | 'settings' | 'session';
 export type Theme = 'dark' | 'light';
+export type Locale = 'zh' | 'en';
 
 export interface Tab {
   id: string;
@@ -16,6 +17,10 @@ interface UIState {
   theme: Theme;
   toggleTheme: () => void;
   setTheme: (t: Theme) => void;
+  locale: Locale;
+  setLocale: (l: Locale) => void;
+  defaultWorkDir: string;
+  setDefaultWorkDir: (dir: string) => void;
   tabs: Tab[];
   activeTabId: string;
   setActiveTab: (id: string) => void;
@@ -38,9 +43,29 @@ function getInitialTheme(): Theme {
   return 'dark';
 }
 
+function getInitialLocale(): Locale {
+  try {
+    const saved = localStorage.getItem('smartspace-locale');
+    if (saved === 'zh' || saved === 'en') return saved;
+  } catch {
+    /* localStorage unavailable */
+  }
+  return 'zh';
+}
+
+function getInitialWorkDir(): string {
+  try {
+    return localStorage.getItem('smartspace-workdir') || '';
+  } catch {
+    return '';
+  }
+}
+
 export function UIProvider({ children }: { children: ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [theme, setTheme] = useState<Theme>(getInitialTheme);
+  const [locale, setLocaleState] = useState<Locale>(getInitialLocale);
+  const [defaultWorkDir, setDefaultWorkDirState] = useState<string>(getInitialWorkDir);
   const [tabs, setTabs] = useState<Tab[]>([
     { id: HOME_TAB_ID, title: '首页', type: 'home', closable: false },
   ]);
@@ -55,9 +80,28 @@ export function UIProvider({ children }: { children: ReactNode }) {
     }
   }, [theme]);
 
+  useEffect(() => {
+    document.documentElement.setAttribute('data-locale', locale);
+    try {
+      localStorage.setItem('smartspace-locale', locale);
+    } catch {
+      /* ignore */
+    }
+  }, [locale]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('smartspace-workdir', defaultWorkDir);
+    } catch {
+      /* ignore */
+    }
+  }, [defaultWorkDir]);
+
   const toggleSidebar = () => setSidebarOpen((s) => !s);
   const toggleTheme = () => setTheme((t) => (t === 'dark' ? 'light' : 'dark'));
   const setThemeMode = (next: Theme) => setTheme(next);
+  const setLocale = (l: Locale) => setLocaleState(l);
+  const setDefaultWorkDir = (dir: string) => setDefaultWorkDirState(dir);
 
   const openTab = (id: string, title: string, type: TabType, closable = true) => {
     setTabs((prev) => (prev.some((t) => t.id === id) ? prev : [...prev, { id, title, type, closable }]));
@@ -77,7 +121,7 @@ export function UIProvider({ children }: { children: ReactNode }) {
 
   return (
     <UIContext.Provider
-      value={{ sidebarOpen, toggleSidebar, theme, toggleTheme, setTheme: setThemeMode, tabs, activeTabId, setActiveTab: setActiveTabId, openTab, closeTab }}
+      value={{ sidebarOpen, toggleSidebar, theme, toggleTheme, setTheme: setThemeMode, locale, setLocale, defaultWorkDir, setDefaultWorkDir, tabs, activeTabId, setActiveTab: setActiveTabId, openTab, closeTab }}
     >
       {children}
     </UIContext.Provider>

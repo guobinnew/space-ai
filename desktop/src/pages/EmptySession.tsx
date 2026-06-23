@@ -13,7 +13,7 @@ import { useUIStore } from '../stores/uiStore';
 export function EmptySession() {
   const { createSession } = useSessionStore();
   const { connectToSession, sendMessage } = useChatStore();
-  const { openTab } = useUIStore();
+  const { openTab, defaultWorkDir } = useUIStore();
   const [input, setInput] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -23,7 +23,7 @@ export function EmptySession() {
     if (!text || isSubmitting) return;
     setIsSubmitting(true);
     try {
-      const sessionId = await createSession();
+      const sessionId = await createSession(defaultWorkDir || undefined);
       openTab(sessionId, '新会话', 'session');
       connectToSession(sessionId);
       // Small delay to let WS connect

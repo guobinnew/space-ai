@@ -77,18 +77,36 @@ function CategoryButton({
 }
 
 function GeneralSettings() {
-  const { theme, setTheme } = useUIStore();
+  const { theme, setTheme, locale, setLocale, defaultWorkDir, setDefaultWorkDir } = useUIStore();
 
   const themes: Array<{ value: Theme; label: string }> = [
     { value: 'light', label: '浅色' },
     { value: 'dark', label: '深色' },
   ];
 
+  const locales: Array<{ value: typeof locale; label: string }> = [
+    { value: 'zh', label: '中文' },
+    { value: 'en', label: 'English' },
+  ];
+
+  const handlePickDir = async () => {
+    try {
+      const { open } = await import('@tauri-apps/plugin-dialog');
+      const selected = await open({ directory: true, multiple: false });
+      if (typeof selected === 'string') {
+        setDefaultWorkDir(selected);
+      }
+    } catch {
+      // Not in Tauri or dialog cancelled
+    }
+  };
+
   return (
     <div className="max-w-xl">
+      {/* Appearance */}
       <h2 className="text-base font-semibold text-[var(--color-text-primary)] mb-1">外观</h2>
       <p className="text-sm text-[var(--color-text-tertiary)] mb-3">切换应用的明暗主题</p>
-      <div className="flex gap-2">
+      <div className="flex gap-2 mb-8">
         {themes.map(({ value, label }) => (
           <button
             key={value}
@@ -103,6 +121,45 @@ function GeneralSettings() {
             {label}
           </button>
         ))}
+      </div>
+
+      {/* Language */}
+      <h2 className="text-base font-semibold text-[var(--color-text-primary)] mb-1">语言</h2>
+      <p className="text-sm text-[var(--color-text-tertiary)] mb-3">选择界面语言</p>
+      <div className="flex gap-2 mb-8">
+        {locales.map(({ value, label }) => (
+          <button
+            key={value}
+            onClick={() => setLocale(value)}
+            className={`flex-1 py-2 text-xs font-semibold rounded-lg border transition-all ${
+              locale === value
+                ? 'text-[var(--color-btn-primary-fg)] border-transparent shadow-[var(--shadow-button-primary)]'
+                : 'border-[var(--color-border)] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)]'
+            }`}
+            style={locale === value ? { background: 'var(--gradient-btn-primary)' } : undefined}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {/* Default Working Directory */}
+      <h2 className="text-base font-semibold text-[var(--color-text-primary)] mb-1">默认工作目录</h2>
+      <p className="text-sm text-[var(--color-text-tertiary)] mb-3">新建会话时的默认工作目录</p>
+      <div className="flex items-center gap-2">
+        <input
+          type="text"
+          value={defaultWorkDir}
+          onChange={(e) => setDefaultWorkDir(e.target.value)}
+          className="flex-1 h-9 px-3 text-sm rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-primary)] outline-none focus:border-[var(--color-border-focus)]"
+          placeholder="选择或输入工作目录路径"
+        />
+        <button
+          onClick={handlePickDir}
+          className="flex-shrink-0 px-3 py-2 text-xs font-medium rounded-lg border border-[var(--color-border)] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] transition-colors"
+        >
+          浏览
+        </button>
       </div>
     </div>
   );

@@ -6,7 +6,7 @@ import type { SessionListItem } from '../../types/session';
 type ContextMenu = { sessionId: string; x: number; y: number; session: SessionListItem };
 
 export function Sidebar() {
-  const { sidebarOpen, toggleSidebar, activeTabId, openTab, closeTab } = useUIStore();
+  const { sidebarOpen, toggleSidebar, activeTabId, openTab, closeTab, defaultWorkDir } = useUIStore();
   const { sessions, fetchSessions, createSession, deleteSession, renameSession, isLoading } = useSessionStore();
   const [contextMenu, setContextMenu] = useState<ContextMenu | null>(null);
   const [renamingId, setRenamingId] = useState<string | null>(null);
@@ -18,7 +18,7 @@ export function Sidebar() {
 
   const handleNewSession = async () => {
     try {
-      const sessionId = await createSession();
+      const sessionId = await createSession(defaultWorkDir || undefined);
       openTab(sessionId, '新会话', 'session');
     } catch (err) {
       console.error('Failed to create session:', err);
