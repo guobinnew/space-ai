@@ -77,7 +77,7 @@ function CategoryButton({
 }
 
 function GeneralSettings() {
-  const { theme, setTheme, locale, setLocale, defaultWorkDir, setDefaultWorkDir } = useUIStore();
+  const { theme, setTheme, locale, setLocale, defaultWorkDir, setDefaultWorkDir, notifyOnCompletion, setNotifyOnCompletion } = useUIStore();
 
   const themes: Array<{ value: Theme; label: string }> = [
     { value: 'light', label: '浅色' },
@@ -161,6 +161,30 @@ function GeneralSettings() {
           浏览
         </button>
       </div>
+
+      {/* System Notification */}
+      <h2 className="text-base font-semibold text-[var(--color-text-primary)] mb-1 mt-8">系统通知</h2>
+      <p className="text-sm text-[var(--color-text-tertiary)] mb-3">当应用窗口最小化或不在前台时，会话回复完成后通过系统通知提醒你</p>
+      <label className="flex items-center gap-3 cursor-pointer">
+        <button
+          type="button"
+          role="switch"
+          aria-checked={notifyOnCompletion}
+          onClick={() => setNotifyOnCompletion(!notifyOnCompletion)}
+          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+            notifyOnCompletion ? 'bg-[var(--color-brand)]' : 'bg-[var(--color-surface-container-high)]'
+          }`}
+        >
+          <span
+            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+              notifyOnCompletion ? 'translate-x-6' : 'translate-x-1'
+            }`}
+          />
+        </button>
+        <span className="text-sm text-[var(--color-text-secondary)]">
+          {notifyOnCompletion ? '已开启' : '已关闭'}
+        </span>
+      </label>
     </div>
   );
 }

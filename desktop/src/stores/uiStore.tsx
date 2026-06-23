@@ -21,6 +21,8 @@ interface UIState {
   setLocale: (l: Locale) => void;
   defaultWorkDir: string;
   setDefaultWorkDir: (dir: string) => void;
+  notifyOnCompletion: boolean;
+  setNotifyOnCompletion: (v: boolean) => void;
   tabs: Tab[];
   activeTabId: string;
   setActiveTab: (id: string) => void;
@@ -61,11 +63,20 @@ function getInitialWorkDir(): string {
   }
 }
 
+function getInitialNotify(): boolean {
+  try {
+    return localStorage.getItem('smartspace-notify') === 'true';
+  } catch {
+    return false;
+  }
+}
+
 export function UIProvider({ children }: { children: ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [theme, setTheme] = useState<Theme>(getInitialTheme);
   const [locale, setLocaleState] = useState<Locale>(getInitialLocale);
   const [defaultWorkDir, setDefaultWorkDirState] = useState<string>(getInitialWorkDir);
+  const [notifyOnCompletion, setNotifyOnCompletionState] = useState<boolean>(getInitialNotify);
   const [tabs, setTabs] = useState<Tab[]>([
     { id: HOME_TAB_ID, title: '首页', type: 'home', closable: false },
   ]);
@@ -97,11 +108,20 @@ export function UIProvider({ children }: { children: ReactNode }) {
     }
   }, [defaultWorkDir]);
 
+  useEffect(() => {
+    try {
+      localStorage.setItem('smartspace-notify', String(notifyOnCompletion));
+    } catch {
+      /* ignore */
+    }
+  }, [notifyOnCompletion]);
+
   const toggleSidebar = () => setSidebarOpen((s) => !s);
   const toggleTheme = () => setTheme((t) => (t === 'dark' ? 'light' : 'dark'));
   const setThemeMode = (next: Theme) => setTheme(next);
   const setLocale = (l: Locale) => setLocaleState(l);
   const setDefaultWorkDir = (dir: string) => setDefaultWorkDirState(dir);
+  const setNotifyOnCompletion = (v: boolean) => setNotifyOnCompletionState(v);
 
   const openTab = (id: string, title: string, type: TabType, closable = true) => {
     setTabs((prev) => (prev.some((t) => t.id === id) ? prev : [...prev, { id, title, type, closable }]));
@@ -121,7 +141,7 @@ export function UIProvider({ children }: { children: ReactNode }) {
 
   return (
     <UIContext.Provider
-      value={{ sidebarOpen, toggleSidebar, theme, toggleTheme, setTheme: setThemeMode, locale, setLocale, defaultWorkDir, setDefaultWorkDir, tabs, activeTabId, setActiveTab: setActiveTabId, openTab, closeTab }}
+      value={{ sidebarOpen, toggleSidebar, theme, toggleTheme, setTheme: setThemeMode, locale, setLocale, defaultWorkDir, setDefaultWorkDir, notifyOnCompletion, setNotifyOnCompletion, tabs, activeTabId, setActiveTab: setActiveTabId, openTab, closeTab }}
     >
       {children}
     </UIContext.Provider>

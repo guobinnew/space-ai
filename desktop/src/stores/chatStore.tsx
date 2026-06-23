@@ -15,6 +15,32 @@ import type { UIMessage, PerSessionChatState } from '../types/chat';
 /** Server sidecar 固定端口 */
 const SERVER_PORT = 3721;
 
+/**
+ * Check if system notification should be sent when a session completes.
+ * Only fires when: notifyOnCompletion is enabled AND the window is not focused.
+ */
+async function maybeNotifyCompletion(_sessionId: string, _text: string): Promise<void> {
+  try {
+    const enabled = localStorage.getItem('smartspace-notify') === 'true';
+    if (!enabled) return;
+
+    // Check window focus state via Tauri
+    const { getCurrentWindow } = await import('@tauri-apps/api/window');
+    const win = getCurrentWindow();
+    const focused = await win.isFocused();
+    if (focused) return;
+
+    // Send notification
+    const { sendNotification } = await import('@tauri-apps/plugin-notification');
+    sendNotification({
+      title: 'Smart Space',
+      body: '会话回复已完成',
+    });
+  } catch {
+    // Not in Tauri or notification unavailable — silently ignore
+  }
+}
+
 interface ChatStoreState {
   sessions: Record<string, PerSessionChatState>;
   connectToSession: (sessionId: string) => void;
@@ -107,8 +133,10 @@ export function ChatProvider({ children }: { children: ReactNode }) {
             break;
 
           case 'message_complete': {
+            let completedText = '';
             updateSession(sessionId, (prev) => {
               if (!prev.streamingText) return { ...prev, chatState: 'idle' };
+              completedText = prev.streamingText;
               const assistantMsg: UIMessage = {
                 type: 'assistant_text',
                 id: `assistant-${Date.now()}`,
@@ -122,6 +150,9 @@ export function ChatProvider({ children }: { children: ReactNode }) {
                 chatState: 'idle',
               };
             });
+
+            // Send system notification if enabled and window not focused
+            void maybeNotifyCompletion(sessionId, completedText);
             break;
           }
 
