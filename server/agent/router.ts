@@ -8,6 +8,9 @@
 import { handleStatusApi } from './api/status'
 import { handleSessionsApi } from './api/sessions'
 import { handleProvidersApi } from './api/providers'
+import { handleSkillsApi } from './api/skills'
+import { handleComputerUseApi } from './api/computerUse'
+import { handleMemoryApi } from './api/memory'
 import { ApiError, errorResponse } from './middleware/errorHandler'
 
 export async function handleApiRequest(req: Request, url: URL): Promise<Response> {
@@ -26,6 +29,15 @@ export async function handleApiRequest(req: Request, url: URL): Promise<Response
 
       case 'providers':
         return await handleProvidersApi(req, url, segments)
+
+      case 'skills':
+        return await handleSkillsApi(req, url, segments)
+
+      case 'computer-use':
+        return await handleComputerUseApi(req, url, segments)
+
+      case 'memory':
+        return await handleMemoryApi(req, url, segments)
 
       case 'health':
         return Response.json({ status: 'ok', timestamp: new Date().toISOString() })

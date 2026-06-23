@@ -2,8 +2,11 @@ import { useState } from 'react';
 import { useUIStore } from '../stores/uiStore';
 import type { Theme } from '../stores/uiStore';
 import { ProviderSettings } from '../components/settings/ProviderSettings';
+import { SkillsSettings } from '../components/settings/SkillsSettings';
+import { ComputerUseSettings } from '../components/settings/ComputerUseSettings';
+import { MemorySettings } from '../components/settings/MemorySettings';
 
-type SettingsCategory = 'general' | 'providers' | 'about';
+type SettingsCategory = 'general' | 'providers' | 'skills' | 'computerUse' | 'memory' | 'about';
 
 export function SettingsPage() {
   const [activeCategory, setActiveCategory] = useState<SettingsCategory>('general');
@@ -26,6 +29,24 @@ export function SettingsPage() {
               active={activeCategory === 'providers'}
               onClick={() => setActiveCategory('providers')}
             />
+            <CategoryButton
+              icon={<SkillsIcon />}
+              label="技能"
+              active={activeCategory === 'skills'}
+              onClick={() => setActiveCategory('skills')}
+            />
+            <CategoryButton
+              icon={<ComputerUseIcon />}
+              label="计算机操作"
+              active={activeCategory === 'computerUse'}
+              onClick={() => setActiveCategory('computerUse')}
+            />
+            <CategoryButton
+              icon={<MemoryIcon />}
+              label="存储"
+              active={activeCategory === 'memory'}
+              onClick={() => setActiveCategory('memory')}
+            />
           </div>
           <div className="border-t border-[var(--color-border)] pt-1">
             <CategoryButton
@@ -41,6 +62,9 @@ export function SettingsPage() {
         <div className="flex-1 overflow-y-auto px-8 py-6">
           {activeCategory === 'general' && <GeneralSettings />}
           {activeCategory === 'providers' && <ProviderSettings />}
+          {activeCategory === 'skills' && <SkillsSettings />}
+          {activeCategory === 'computerUse' && <ComputerUseSettings />}
+          {activeCategory === 'memory' && <MemorySettings />}
           {activeCategory === 'about' && <AboutSettings />}
         </div>
       </div>
@@ -247,6 +271,33 @@ function AboutIcon() {
       <circle cx="12" cy="12" r="10" />
       <line x1="12" y1="16" x2="12" y2="12" />
       <line x1="12" y1="8" x2="12.01" y2="8" />
+    </svg>
+  );
+}
+
+function SkillsIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 2l3 7 7 3-7 3-3 7-3-7-7-3 7-3 3-7z" />
+    </svg>
+  );
+}
+
+function ComputerUseIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
+      <line x1="8" y1="21" x2="16" y2="21" />
+      <line x1="12" y1="17" x2="12" y2="21" />
+    </svg>
+  );
+}
+
+function MemoryIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96.44 2.5 2.5 0 0 1-2.96-3.08 3 3 0 0 1-.34-5.58 2.5 2.5 0 0 1 1.32-4.24 2.5 2.5 0 0 1 1.98-3A2.5 2.5 0 0 1 9.5 2Z" />
+      <path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96.44 2.5 2.5 0 0 0 2.96-3.08 3 3 0 0 0 .34-5.58 2.5 2.5 0 0 0-1.32-4.24 2.5 2.5 0 0 0-1.98-3A2.5 2.5 0 0 0 14.5 2Z" />
     </svg>
   );
 }
