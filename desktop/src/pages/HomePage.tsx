@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
+import { useTranslation } from '../i18n';
 
 interface ServerInfo {
   name: string;
@@ -12,6 +13,7 @@ interface ServerInfo {
 type ServerStatus = 'checking' | 'connected' | 'disconnected';
 
 export function HomePage() {
+  const t = useTranslation();
   const [serverStatus, setServerStatus] = useState<ServerStatus>('checking');
   const [serverInfo, setServerInfo] = useState<ServerInfo | null>(null);
 
@@ -61,9 +63,9 @@ export function HomePage() {
   }, []);
 
   const statusLabel: Record<ServerStatus, string> = {
-    checking: '检测中',
-    connected: '已连接',
-    disconnected: '未连接',
+    checking: t('home.checking'),
+    connected: t('home.connected'),
+    disconnected: t('home.disconnected'),
   };
 
   const statusBadgeClass: Record<ServerStatus, string> = {
@@ -89,10 +91,10 @@ export function HomePage() {
                 className="text-2xl font-bold tracking-tight text-[var(--color-text-primary)]"
                 style={{ fontFamily: 'var(--font-headline)' }}
               >
-                欢迎使用 Smart Space
+                {t('home.welcome')}
               </h1>
               <p className="text-sm text-[var(--color-text-secondary)] mt-1">
-                桌面客户端 + 内嵌服务端
+                {t('home.subtitle')}
               </p>
             </div>
           </div>
@@ -101,11 +103,11 @@ export function HomePage() {
         {/* Server status card */}
         <div className="mb-10">
           <h2 className="text-sm font-semibold text-[var(--color-text-tertiary)] uppercase tracking-wider mb-3">
-            服务状态
+            {t('home.serverStatus')}
           </h2>
           <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-container-low)] p-6">
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-[var(--color-text-primary)]">后端服务</span>
+              <span className="text-sm font-medium text-[var(--color-text-primary)]">{t('home.backend')}</span>
               <span
                 className={`text-xs font-semibold px-3 py-1 rounded-full ${statusBadgeClass[serverStatus]}`}
               >
@@ -115,16 +117,16 @@ export function HomePage() {
 
             {serverInfo && (
               <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-                <InfoCell label="名称" value={serverInfo.name} />
-                <InfoCell label="版本" value={serverInfo.version} />
-                <InfoCell label="Node" value={serverInfo.nodeVersion} />
-                <InfoCell label="平台" value={serverInfo.platform} />
+                <InfoCell label={t('home.name')} value={serverInfo.name} />
+                <InfoCell label={t('home.version')} value={serverInfo.version} />
+                <InfoCell label={t('home.node')} value={serverInfo.nodeVersion} />
+                <InfoCell label={t('home.platform')} value={serverInfo.platform} />
               </div>
             )}
 
             {serverStatus === 'disconnected' && (
               <p className="mt-4 text-xs text-[var(--color-text-tertiary)]">
-                正在尝试重新连接内嵌服务端 (127.0.0.1:3721)…
+                {t('home.reconnecting')}
               </p>
             )}
           </div>
@@ -133,13 +135,13 @@ export function HomePage() {
         {/* Tech stack */}
         <div>
           <h2 className="text-sm font-semibold text-[var(--color-text-tertiary)] uppercase tracking-wider mb-3">
-            技术栈
+            {t('home.techStack')}
           </h2>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <TechCard name="Tauri" desc="桌面框架" />
-            <TechCard name="React" desc="前端 UI" />
-            <TechCard name="Node.js" desc="内嵌服务" />
-            <TechCard name="Tailwind" desc="样式系统" />
+            <TechCard name="Tauri" desc={t('home.desktopFramework')} />
+            <TechCard name="React" desc={t('home.frontendUI')} />
+            <TechCard name="Node.js" desc={t('home.embeddedService')} />
+            <TechCard name="Tailwind" desc={t('home.styleSystem')} />
           </div>
         </div>
       </div>

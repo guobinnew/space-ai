@@ -6,6 +6,7 @@
  */
 
 import { useState, useRef, useEffect } from 'react';
+import { useTranslation } from '../../i18n';
 
 type ChatInputProps = {
   onSend: (content: string) => void;
@@ -15,6 +16,7 @@ type ChatInputProps = {
 };
 
 export function ChatInput({ onSend, onStop, isGenerating, disabled }: ChatInputProps) {
+  const t = useTranslation();
   const [input, setInput] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -51,7 +53,7 @@ export function ChatInput({ onSend, onStop, isGenerating, disabled }: ChatInputP
           onKeyDown={handleKeyDown}
           disabled={disabled}
           className="flex-1 resize-none border-0 bg-transparent text-sm text-[var(--color-text-primary)] outline-none placeholder:text-[var(--color-text-tertiary)] disabled:opacity-50"
-          placeholder="输入消息，Enter 发送，Shift+Enter 换行"
+          placeholder={t('session.placeholder')}
           rows={1}
           style={{ maxHeight: '120px' }}
         />
@@ -60,7 +62,7 @@ export function ChatInput({ onSend, onStop, isGenerating, disabled }: ChatInputP
             onClick={onStop}
             className="flex-shrink-0 px-4 py-1.5 text-xs font-semibold rounded-lg border border-[var(--color-border)] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] transition-colors"
           >
-            停止
+            {t('session.stop')}
           </button>
         ) : (
           <button
@@ -69,7 +71,7 @@ export function ChatInput({ onSend, onStop, isGenerating, disabled }: ChatInputP
             className="flex-shrink-0 px-4 py-1.5 text-xs font-semibold rounded-lg text-[var(--color-btn-primary-fg)] transition-all hover:brightness-105 disabled:opacity-30"
             style={{ background: 'var(--gradient-btn-primary)', boxShadow: 'var(--shadow-button-primary)' }}
           >
-            发送
+            {t('session.send')}
           </button>
         )}
       </div>

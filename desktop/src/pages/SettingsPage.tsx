@@ -5,10 +5,12 @@ import { ProviderSettings } from '../components/settings/ProviderSettings';
 import { SkillsSettings } from '../components/settings/SkillsSettings';
 import { ComputerUseSettings } from '../components/settings/ComputerUseSettings';
 import { MemorySettings } from '../components/settings/MemorySettings';
+import { useTranslation } from '../i18n';
 
 type SettingsCategory = 'general' | 'providers' | 'skills' | 'computerUse' | 'memory' | 'about';
 
 export function SettingsPage() {
+  const t = useTranslation();
   const [activeCategory, setActiveCategory] = useState<SettingsCategory>('general');
 
   return (
@@ -19,31 +21,31 @@ export function SettingsPage() {
           <div className="flex-1">
             <CategoryButton
               icon={<GeneralIcon />}
-              label="通用"
+              label={t('settings.general')}
               active={activeCategory === 'general'}
               onClick={() => setActiveCategory('general')}
             />
             <CategoryButton
               icon={<ProvidersIcon />}
-              label="服务商"
+              label={t('settings.providers')}
               active={activeCategory === 'providers'}
               onClick={() => setActiveCategory('providers')}
             />
             <CategoryButton
               icon={<SkillsIcon />}
-              label="技能"
+              label={t('settings.skills')}
               active={activeCategory === 'skills'}
               onClick={() => setActiveCategory('skills')}
             />
             <CategoryButton
               icon={<ComputerUseIcon />}
-              label="计算机操作"
+              label={t('settings.computerUse')}
               active={activeCategory === 'computerUse'}
               onClick={() => setActiveCategory('computerUse')}
             />
             <CategoryButton
               icon={<MemoryIcon />}
-              label="存储"
+              label={t('settings.memory')}
               active={activeCategory === 'memory'}
               onClick={() => setActiveCategory('memory')}
             />
@@ -51,7 +53,7 @@ export function SettingsPage() {
           <div className="border-t border-[var(--color-border)] pt-1">
             <CategoryButton
               icon={<AboutIcon />}
-              label="关于"
+              label={t('settings.about')}
               active={activeCategory === 'about'}
               onClick={() => setActiveCategory('about')}
             />
@@ -101,11 +103,12 @@ function CategoryButton({
 }
 
 function GeneralSettings() {
+  const t = useTranslation();
   const { theme, setTheme, locale, setLocale, defaultWorkDir, setDefaultWorkDir, notifyOnCompletion, setNotifyOnCompletion } = useUIStore();
 
   const themes: Array<{ value: Theme; label: string }> = [
-    { value: 'light', label: '浅色' },
-    { value: 'dark', label: '深色' },
+    { value: 'light', label: t('settings.general.light') },
+    { value: 'dark', label: t('settings.general.dark') },
   ];
 
   const locales: Array<{ value: typeof locale; label: string }> = [
@@ -128,8 +131,8 @@ function GeneralSettings() {
   return (
     <div className="max-w-xl">
       {/* Appearance */}
-      <h2 className="text-base font-semibold text-[var(--color-text-primary)] mb-1">外观</h2>
-      <p className="text-sm text-[var(--color-text-tertiary)] mb-3">切换应用的明暗主题</p>
+      <h2 className="text-base font-semibold text-[var(--color-text-primary)] mb-1">{t('settings.general.appearance')}</h2>
+      <p className="text-sm text-[var(--color-text-tertiary)] mb-3">{t('settings.general.appearanceDesc')}</p>
       <div className="flex gap-2 mb-8">
         {themes.map(({ value, label }) => (
           <button
@@ -148,8 +151,8 @@ function GeneralSettings() {
       </div>
 
       {/* Language */}
-      <h2 className="text-base font-semibold text-[var(--color-text-primary)] mb-1">语言</h2>
-      <p className="text-sm text-[var(--color-text-tertiary)] mb-3">选择界面语言</p>
+      <h2 className="text-base font-semibold text-[var(--color-text-primary)] mb-1">{t('settings.general.language')}</h2>
+      <p className="text-sm text-[var(--color-text-tertiary)] mb-3">{t('settings.general.languageDesc')}</p>
       <div className="flex gap-2 mb-8">
         {locales.map(({ value, label }) => (
           <button
@@ -168,27 +171,27 @@ function GeneralSettings() {
       </div>
 
       {/* Default Working Directory */}
-      <h2 className="text-base font-semibold text-[var(--color-text-primary)] mb-1">默认工作目录</h2>
-      <p className="text-sm text-[var(--color-text-tertiary)] mb-3">新建会话时的默认工作目录</p>
+      <h2 className="text-base font-semibold text-[var(--color-text-primary)] mb-1">{t('settings.general.workDir')}</h2>
+      <p className="text-sm text-[var(--color-text-tertiary)] mb-3">{t('settings.general.workDirDesc')}</p>
       <div className="flex items-center gap-2">
         <input
           type="text"
           value={defaultWorkDir}
           onChange={(e) => setDefaultWorkDir(e.target.value)}
           className="flex-1 h-9 px-3 text-sm rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-primary)] outline-none focus:border-[var(--color-border-focus)]"
-          placeholder="选择或输入工作目录路径"
+          placeholder={t('settings.general.workDirPlaceholder')}
         />
         <button
           onClick={handlePickDir}
           className="flex-shrink-0 px-3 py-2 text-xs font-medium rounded-lg border border-[var(--color-border)] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] transition-colors"
         >
-          浏览
+          {t('settings.general.browse')}
         </button>
       </div>
 
       {/* System Notification */}
-      <h2 className="text-base font-semibold text-[var(--color-text-primary)] mb-1 mt-8">系统通知</h2>
-      <p className="text-sm text-[var(--color-text-tertiary)] mb-3">当应用窗口最小化或不在前台时，会话回复完成后通过系统通知提醒你</p>
+      <h2 className="text-base font-semibold text-[var(--color-text-primary)] mb-1 mt-8">{t('settings.general.notification')}</h2>
+      <p className="text-sm text-[var(--color-text-tertiary)] mb-3">{t('settings.general.notificationDesc')}</p>
       <label className="flex items-center gap-3 cursor-pointer">
         <button
           type="button"
@@ -206,7 +209,7 @@ function GeneralSettings() {
           />
         </button>
         <span className="text-sm text-[var(--color-text-secondary)]">
-          {notifyOnCompletion ? '已开启' : '已关闭'}
+          {notifyOnCompletion ? t('settings.general.notificationOn') : t('settings.general.notificationOff')}
         </span>
       </label>
     </div>
@@ -214,10 +217,11 @@ function GeneralSettings() {
 }
 
 function AboutSettings() {
+  const t = useTranslation();
   return (
     <div className="max-w-xl">
-      <h2 className="text-base font-semibold text-[var(--color-text-primary)] mb-1">关于</h2>
-      <p className="text-sm text-[var(--color-text-tertiary)] mb-6">应用信息</p>
+      <h2 className="text-base font-semibold text-[var(--color-text-primary)] mb-1">{t('settings.about.title')}</h2>
+      <p className="text-sm text-[var(--color-text-tertiary)] mb-6">{t('settings.about.desc')}</p>
 
       <div className="flex items-center gap-4 mb-6">
         <div
@@ -233,13 +237,13 @@ function AboutSettings() {
           >
             Smart Space
           </div>
-          <div className="text-sm text-[var(--color-text-tertiary)] mt-0.5">版本 0.1.0</div>
+          <div className="text-sm text-[var(--color-text-tertiary)] mt-0.5">{t('settings.about.version')}</div>
         </div>
       </div>
 
       <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-container-low)] p-4">
         <div className="text-sm text-[var(--color-text-secondary)] leading-relaxed">
-          Smart Space 是一个桌面客户端 + 内嵌服务端的应用，基于 Tauri + React + Bun 构建。
+          {t('settings.about.body')}
         </div>
       </div>
     </div>

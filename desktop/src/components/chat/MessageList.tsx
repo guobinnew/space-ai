@@ -10,6 +10,7 @@ import type { UIMessage, ChatState } from '../../types/chat';
 import { UserMessage } from './UserMessage';
 import { AssistantMessage } from './AssistantMessage';
 import { StreamingIndicator } from './StreamingIndicator';
+import { useTranslation } from '../../i18n';
 
 type MessageListProps = {
   messages: UIMessage[];
@@ -18,6 +19,7 @@ type MessageListProps = {
 };
 
 export function MessageList({ messages, streamingText, chatState }: MessageListProps) {
+  const t = useTranslation();
   const endRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -33,7 +35,7 @@ export function MessageList({ messages, streamingText, chatState }: MessageListP
         >
           S
         </div>
-        <p className="text-sm text-[var(--color-text-tertiary)]">开始新对话</p>
+        <p className="text-sm text-[var(--color-text-tertiary)]">{t('chat.empty')}</p>
       </div>
     );
   }

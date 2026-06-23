@@ -7,8 +7,10 @@
 
 import { useState, useEffect } from 'react';
 import { memoryApi, type MemoryEntry, type MemoryStats } from '../../api/features';
+import { useTranslation } from '../../i18n';
 
 export function MemorySettings() {
+  const t = useTranslation();
   const [entries, setEntries] = useState<MemoryEntry[]>([]);
   const [stats, setStats] = useState<MemoryStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -68,7 +70,7 @@ export function MemorySettings() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!window.confirm('确定删除此记忆条目？')) return;
+    if (!window.confirm(t('settings.memory.deleteConfirm'))) return;
     await memoryApi.delete(id);
     await fetchAll();
   };
@@ -77,8 +79,8 @@ export function MemorySettings() {
     <div className="max-w-2xl">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h2 className="text-base font-semibold text-[var(--color-text-primary)]">存储</h2>
-          <p className="text-sm text-[var(--color-text-tertiary)] mt-0.5">管理 AI 的长期记忆条目</p>
+          <h2 className="text-base font-semibold text-[var(--color-text-primary)]">{t('settings.memory.title')}</h2>
+          <p className="text-sm text-[var(--color-text-tertiary)] mt-0.5">{t('settings.memory.desc')}</p>
         </div>
         <button
           onClick={handleCreate}
@@ -89,7 +91,7 @@ export function MemorySettings() {
             <line x1="12" y1="5" x2="12" y2="19" />
             <line x1="5" y1="12" x2="19" y2="12" />
           </svg>
-          新建
+          {t('settings.memory.new')}
         </button>
       </div>
 
@@ -98,15 +100,15 @@ export function MemorySettings() {
         <div className="grid grid-cols-3 gap-3 mb-4">
           <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-container-low)] p-3 text-center">
             <div className="text-lg font-bold text-[var(--color-text-primary)]">{stats.totalEntries}</div>
-            <div className="text-[11px] text-[var(--color-text-tertiary)]">条目数</div>
+            <div className="text-[11px] text-[var(--color-text-tertiary)]">{t('settings.memory.totalEntries')}</div>
           </div>
           <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-container-low)] p-3 text-center">
             <div className="text-lg font-bold text-[var(--color-text-primary)]">{Math.round(stats.totalSize / 1024)}KB</div>
-            <div className="text-[11px] text-[var(--color-text-tertiary)]">总大小</div>
+            <div className="text-[11px] text-[var(--color-text-tertiary)]">{t('settings.memory.totalSize')}</div>
           </div>
           <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-container-low)] p-3 text-center">
             <div className="text-lg font-bold text-[var(--color-text-primary)]">{stats.categories.length}</div>
-            <div className="text-[11px] text-[var(--color-text-tertiary)]">分类数</div>
+            <div className="text-[11px] text-[var(--color-text-tertiary)]">{t('settings.memory.categories')}</div>
           </div>
         </div>
       )}
@@ -119,14 +121,14 @@ export function MemorySettings() {
             value={formTitle}
             onChange={(e) => setFormTitle(e.target.value)}
             className="w-full h-9 px-3 mb-2 text-sm rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-primary)] outline-none focus:border-[var(--color-border-focus)]"
-            placeholder="标题"
+            placeholder={t('settings.memory.titlePlaceholder')}
           />
           <textarea
             value={formContent}
             onChange={(e) => setFormContent(e.target.value)}
             rows={3}
             className="w-full px-3 py-2 mb-2 text-sm rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-primary)] outline-none focus:border-[var(--color-border-focus)] resize-none"
-            placeholder="内容"
+            placeholder={t('settings.memory.contentPlaceholder')}
           />
           <div className="flex items-center gap-2">
             <input
@@ -134,13 +136,13 @@ export function MemorySettings() {
               value={formCategory}
               onChange={(e) => setFormCategory(e.target.value)}
               className="flex-1 h-9 px-3 text-sm rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-primary)] outline-none focus:border-[var(--color-border-focus)]"
-              placeholder="分类"
+              placeholder={t('settings.memory.categoryPlaceholder')}
             />
             <button
               onClick={() => setShowForm(false)}
               className="px-3 py-1.5 text-xs font-medium rounded-lg border border-[var(--color-border)] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] transition-colors"
             >
-              取消
+              {t('settings.memory.cancel')}
             </button>
             <button
               onClick={handleSave}
@@ -148,7 +150,7 @@ export function MemorySettings() {
               className="px-3 py-1.5 text-xs font-semibold rounded-lg text-[var(--color-btn-primary-fg)] transition-all hover:brightness-105 disabled:opacity-30"
               style={{ background: 'var(--gradient-btn-primary)' }}
             >
-              保存
+              {t('settings.memory.save')}
             </button>
           </div>
         </div>
@@ -161,7 +163,7 @@ export function MemorySettings() {
         </div>
       ) : entries.length === 0 ? (
         <div className="rounded-xl border border-dashed border-[var(--color-border)] bg-[var(--color-surface-container-low)] px-6 py-10 text-center">
-          <p className="text-sm text-[var(--color-text-tertiary)]">暂无记忆条目</p>
+          <p className="text-sm text-[var(--color-text-tertiary)]">{t('settings.memory.empty')}</p>
         </div>
       ) : (
         <div className="flex flex-col gap-2">
@@ -184,13 +186,13 @@ export function MemorySettings() {
                   onClick={() => handleEdit(entry)}
                   className="px-2 py-1 text-xs text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] rounded transition-colors"
                 >
-                  编辑
+                  {t('settings.memory.edit')}
                 </button>
                 <button
                   onClick={() => handleDelete(entry.id)}
                   className="px-2 py-1 text-xs text-[var(--color-error)] hover:bg-[var(--color-surface-hover)] rounded transition-colors"
                 >
-                  删除
+                  {t('settings.memory.delete')}
                 </button>
               </div>
             </div>

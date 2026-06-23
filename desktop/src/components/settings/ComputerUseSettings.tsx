@@ -7,8 +7,10 @@
 
 import { useState, useEffect } from 'react';
 import { computerUseApi, type ComputerUseStatus } from '../../api/features';
+import { useTranslation } from '../../i18n';
 
 export function ComputerUseSettings() {
+  const t = useTranslation();
   const [status, setStatus] = useState<ComputerUseStatus | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [setupRunning, setSetupRunning] = useState(false);
@@ -38,7 +40,7 @@ export function ComputerUseSettings() {
       setSetupResult({ success: result.success, message: result.message });
       await fetchStatus();
     } catch (err) {
-      setSetupResult({ success: false, message: err instanceof Error ? err.message : '设置失败' });
+      setSetupResult({ success: false, message: err instanceof Error ? err.message : t('settings.computerUse.setupFailed') });
     } finally {
       setSetupRunning(false);
     }
@@ -54,32 +56,32 @@ export function ComputerUseSettings() {
 
   return (
     <div className="max-w-xl">
-      <h2 className="text-base font-semibold text-[var(--color-text-primary)] mb-1">计算机操作</h2>
-      <p className="text-sm text-[var(--color-text-tertiary)] mb-6">允许 AI 控制鼠标和键盘执行计算机操作</p>
+      <h2 className="text-base font-semibold text-[var(--color-text-primary)] mb-1">{t('settings.computerUse.title')}</h2>
+      <p className="text-sm text-[var(--color-text-tertiary)] mb-6">{t('settings.computerUse.desc')}</p>
 
       {/* Status card */}
       <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-container-low)] p-4 mb-4">
         <div className="flex items-center gap-3 mb-3">
           <span className={`w-2.5 h-2.5 rounded-full ${status?.available ? 'bg-[var(--color-success)]' : 'bg-[var(--color-text-tertiary)]'}`} />
           <span className="text-sm font-medium text-[var(--color-text-primary)]">
-            {status?.available ? '可用' : '不可用'}
+            {status?.available ? t('settings.computerUse.available') : t('settings.computerUse.unavailable')}
           </span>
         </div>
         <div className="grid grid-cols-2 gap-3 text-xs">
           <div>
-            <span className="text-[var(--color-text-tertiary)]">平台</span>
+            <span className="text-[var(--color-text-tertiary)]">{t('settings.computerUse.platform')}</span>
             <div className="text-[var(--color-text-secondary)] mt-0.5">{status?.platform || '-'}</div>
           </div>
           <div>
-            <span className="text-[var(--color-text-tertiary)]">Python</span>
+            <span className="text-[var(--color-text-tertiary)]">{t('settings.computerUse.python')}</span>
             <div className={`mt-0.5 ${status?.pythonAvailable ? 'text-[var(--color-success)]' : 'text-[var(--color-text-tertiary)]'}`}>
-              {status?.pythonAvailable ? '已安装' : '未安装'}
+              {status?.pythonAvailable ? t('settings.computerUse.pythonInstalled') : t('settings.computerUse.pythonNotInstalled')}
             </div>
           </div>
           <div>
-            <span className="text-[var(--color-text-tertiary)]">设置状态</span>
+            <span className="text-[var(--color-text-tertiary)]">{t('settings.computerUse.setupStatus')}</span>
             <div className={`mt-0.5 ${status?.setupCompleted ? 'text-[var(--color-success)]' : 'text-[var(--color-warning)]'}`}>
-              {status?.setupCompleted ? '已完成' : '未完成'}
+              {status?.setupCompleted ? t('settings.computerUse.setupCompleted') : t('settings.computerUse.setupNotCompleted')}
             </div>
           </div>
         </div>
@@ -92,7 +94,7 @@ export function ComputerUseSettings() {
         className="px-4 py-2 text-sm font-semibold rounded-lg text-[var(--color-btn-primary-fg)] transition-all hover:brightness-105 disabled:opacity-30"
         style={{ background: 'var(--gradient-btn-primary)', boxShadow: 'var(--shadow-button-primary)' }}
       >
-        {setupRunning ? '设置中...' : '运行设置'}
+        {setupRunning ? t('settings.computerUse.settingUp') : t('settings.computerUse.runSetup')}
       </button>
 
       {setupResult && (

@@ -10,8 +10,10 @@ import { useChatStore } from '../stores/chatStore';
 import { useUIStore } from '../stores/uiStore';
 import { MessageList } from '../components/chat/MessageList';
 import { ChatInput } from '../components/chat/ChatInput';
+import { useTranslation } from '../i18n';
 
 export function ActiveSession({ sessionId }: { sessionId: string }) {
+  const t = useTranslation();
   const { connectToSession, disconnectSession, sendMessage, stopGeneration, getSession } = useChatStore();
   const { closeTab } = useUIStore();
   // Use a ref to track if this is the first mount vs a re-render cleanup
@@ -53,13 +55,13 @@ export function ActiveSession({ sessionId }: { sessionId: string }) {
       {/* Header */}
       <div className="flex items-center justify-between px-6 py-3 border-b border-[var(--color-border)] flex-shrink-0">
         <span className="text-sm font-medium text-[var(--color-text-primary)] truncate">
-          会话
+          {t('session.title')}
         </span>
         <button
           onClick={handleClose}
           className="text-xs text-[var(--color-text-tertiary)] hover:text-[var(--color-error)] transition-colors"
         >
-          关闭
+          {t('session.close')}
         </button>
       </div>
 

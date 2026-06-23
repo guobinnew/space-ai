@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from '../../i18n';
 import { providersApi } from '../../api/providers';
 import { PROVIDER_PRESETS } from '../../config/providerPresets';
 import type { SavedProvider, ProviderTestResult, ProviderPreset, ApiFormat, ModelMapping, ModelCapabilities } from '../../types/provider';
 
 export function ProviderSettings() {
+  const t = useTranslation();
   const [providers, setProviders] = useState<SavedProvider[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -20,7 +22,7 @@ export function ProviderSettings() {
       setProviders(data.providers);
       setActiveId(data.activeId);
     } catch (err) {
-      setError(err instanceof Error ? err.message : '加载服务商失败');
+      setError(err instanceof Error ? err.message : t('settings.providers.loadFailed'));
     } finally {
       setIsLoading(false);
     }
@@ -32,12 +34,12 @@ export function ProviderSettings() {
 
   const handleDelete = async (provider: SavedProvider) => {
     if (activeId === provider.id) return;
-    if (!window.confirm(`确定删除服务商「${provider.name}」吗？`)) return;
+    if (!window.confirm(`${t('settings.providers.confirmDelete')}「${provider.name}」？`)) return;
     try {
       await providersApi.delete(provider.id);
       await fetchProviders();
     } catch (err) {
-      setError(err instanceof Error ? err.message : '删除失败');
+      setError(err instanceof Error ? err.message : t('settings.providers.deleteFailed'));
     }
   };
 
@@ -62,7 +64,7 @@ export function ProviderSettings() {
       await providersApi.activate(id);
       await fetchProviders();
     } catch (err) {
-      setError(err instanceof Error ? err.message : '激活失败');
+      setError(err instanceof Error ? err.message : t('settings.providers.activateFailed'));
     }
   };
 
@@ -70,8 +72,8 @@ export function ProviderSettings() {
     <div className="max-w-2xl">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h2 className="text-base font-semibold text-[var(--color-text-primary)]">服务商</h2>
-          <p className="text-sm text-[var(--color-text-tertiary)] mt-0.5">管理 LLM 服务商配置，支持增删改查和连接测试</p>
+          <h2 className="text-base font-semibold text-[var(--color-text-primary)]">{t('settings.providers.title')}</h2>
+          <p className="text-sm text-[var(--color-text-tertiary)] mt-0.5">{t('settings.providers.desc')}</p>
         </div>
         <button
           onClick={() => setShowCreateModal(true)}
@@ -82,7 +84,7 @@ export function ProviderSettings() {
             <line x1="12" y1="5" x2="12" y2="19" />
             <line x1="5" y1="12" x2="19" y2="12" />
           </svg>
-          添加服务商
+          {t('settings.providers.add')}
         </button>
       </div>
 
@@ -98,13 +100,13 @@ export function ProviderSettings() {
         </div>
       ) : providers.length === 0 ? (
         <div className="rounded-xl border border-dashed border-[var(--color-border)] bg-[var(--color-surface-container-low)] px-6 py-10 text-center">
-          <p className="text-sm text-[var(--color-text-tertiary)]">还没有配置服务商</p>
+          <p className="text-sm text-[var(--color-text-tertiary)]">{t('settings.providers.empty')}</p>
           <button
             onClick={() => setShowCreateModal(true)}
             className="mt-3 inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-xs font-semibold text-[var(--color-btn-primary-fg)] transition-all hover:brightness-105"
             style={{ background: 'var(--gradient-btn-primary)', boxShadow: 'var(--shadow-button-primary)' }}
           >
-            添加第一个服务商
+            {t('settings.providers.addFirst')}
           </button>
         </div>
       ) : (
@@ -135,7 +137,7 @@ export function ProviderSettings() {
                       </span>
                     )}
                     {isActive && (
-                      <span className="px-1.5 py-0.5 text-[10px] font-bold rounded border border-[var(--color-brand)]/18 bg-[var(--color-brand)]/14 text-[var(--color-brand)] leading-none">当前</span>
+                      <span className="px-1.5 py-0.5 text-[10px] font-bold rounded border border-[var(--color-brand)]/18 bg-[var(--color-brand)]/14 text-[var(--color-brand)] leading-none">{t('settings.providers.active')}</span>
                     )}
                   </div>
                   <div className="text-xs text-[var(--color-text-tertiary)] truncate mt-0.5">
@@ -145,8 +147,8 @@ export function ProviderSettings() {
                     <div className="text-xs mt-1">
                       <span className={test.result.connectivity.success ? 'text-[var(--color-success)]' : 'text-[var(--color-error)]'}>
                         {test.result.connectivity.success
-                          ? `连接成功 (${test.result.connectivity.latencyMs}ms)`
-                          : `连接失败: ${test.result.connectivity.error || ''}`}
+                          ? `${t('settings.providers.connectivityOk')} (${test.result.connectivity.latencyMs}ms)`
+                          : `${t('settings.providers.connectivityFailed')}: ${test.result.connectivity.error || ''}`}
                       </span>
                     </div>
                   )}
@@ -154,7 +156,7 @@ export function ProviderSettings() {
                 <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
                   {!isActive && (
                     <button onClick={() => handleActivate(provider.id)} className="px-2.5 py-1 text-xs text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] rounded transition-colors">
-                      启用
+                      {t('settings.providers.activate')}
                     </button>
                   )}
                   <button
@@ -162,14 +164,14 @@ export function ProviderSettings() {
                     disabled={test?.loading}
                     className="px-2.5 py-1 text-xs text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] rounded transition-colors disabled:opacity-50"
                   >
-                    {test?.loading ? '测试中...' : '测试'}
+                    {test?.loading ? t('settings.providers.testing') : t('settings.providers.test')}
                   </button>
                   <button onClick={() => setEditingProvider(provider)} className="px-2.5 py-1 text-xs text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] rounded transition-colors">
-                    编辑
+                    {t('settings.providers.edit')}
                   </button>
                   {!isActive && (
                     <button onClick={() => handleDelete(provider)} className="px-2.5 py-1 text-xs text-[var(--color-error)] hover:bg-[var(--color-surface-hover)] rounded transition-colors">
-                      删除
+                      {t('settings.providers.delete')}
                     </button>
                   )}
                 </div>
@@ -207,6 +209,7 @@ type ProviderFormModalProps = {
 };
 
 function ProviderFormModal({ onClose, onSaved, mode, provider }: ProviderFormModalProps) {
+  const t = useTranslation();
   const availablePresets = PROVIDER_PRESETS;
   const fallbackPreset = availablePresets[availablePresets.length - 1] ?? availablePresets[0]!;
   const initialPreset = provider
@@ -269,7 +272,7 @@ function ProviderFormModal({ onClose, onSaved, mode, provider }: ProviderFormMod
       onSaved();
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : '保存失败');
+      setError(err instanceof Error ? err.message : t('provider.form.saveFailed'));
     } finally {
       setIsSubmitting(false);
     }
@@ -284,7 +287,7 @@ function ProviderFormModal({ onClose, onSaved, mode, provider }: ProviderFormMod
         {/* Modal header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--color-border)]">
           <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">
-            {mode === 'create' ? '添加服务商' : '编辑服务商'}
+            {mode === 'create' ? t('provider.form.add') : t('provider.form.edit')}
           </h3>
           <button onClick={onClose} className="text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)] transition-colors">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -304,7 +307,7 @@ function ProviderFormModal({ onClose, onSaved, mode, provider }: ProviderFormMod
 
           {/* Preset selector */}
           <div>
-            <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1.5">服务商预设</label>
+            <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1.5">{t('provider.form.preset')}</label>
             <select
               value={selectedPreset.id}
               onChange={(e) => {
@@ -323,19 +326,19 @@ function ProviderFormModal({ onClose, onSaved, mode, provider }: ProviderFormMod
 
           {/* Name */}
           <div>
-            <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1.5">名称</label>
+            <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1.5">{t('provider.form.name')}</label>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
               className="w-full h-9 px-3 text-sm rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-primary)] outline-none focus:border-[var(--color-border-focus)]"
-              placeholder="服务商名称"
+              placeholder={t('provider.form.namePlaceholder')}
             />
           </div>
 
           {/* Base URL */}
           <div>
-            <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1.5">Base URL</label>
+            <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1.5">{t('provider.form.baseUrl')}</label>
             <input
               type="text"
               value={baseUrl}
@@ -347,7 +350,7 @@ function ProviderFormModal({ onClose, onSaved, mode, provider }: ProviderFormMod
 
           {/* API Format */}
           <div>
-            <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1.5">API 格式</label>
+            <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1.5">{t('provider.form.apiFormat')}</label>
             <select
               value={apiFormat}
               onChange={(e) => setApiFormat(e.target.value as ApiFormat)}
@@ -361,28 +364,28 @@ function ProviderFormModal({ onClose, onSaved, mode, provider }: ProviderFormMod
           {/* API Key */}
           <div>
             <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1.5">
-              API Key {mode === 'edit' && <span className="text-[var(--color-text-tertiary)]">(留空则不修改)</span>}
+              {t('provider.form.apiKey')} {mode === 'edit' && <span className="text-[var(--color-text-tertiary)]">{t('provider.form.apiKeyEditHint')}</span>}
             </label>
             <input
               type="password"
               value={apiKey}
               onChange={(e) => setApiKey(e.target.value)}
               className="w-full h-9 px-3 text-sm rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-primary)] outline-none focus:border-[var(--color-border-focus)]"
-              placeholder={mode === 'edit' ? '••••••••' : '输入 API Key'}
+              placeholder={mode === 'edit' ? t('provider.form.apiKeyMasked') : t('provider.form.apiKeyPlaceholder')}
             />
           </div>
 
           {/* Model */}
           <div>
-            <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1.5">主模型 ID</label>
+            <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1.5">{t('provider.form.model')}</label>
             <input
               type="text"
               value={models.main}
               onChange={(e) => setModels({ ...models, main: e.target.value })}
               className="w-full h-9 px-3 text-sm rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-primary)] outline-none focus:border-[var(--color-border-focus)]"
-              placeholder="模型 ID"
+              placeholder={t('provider.form.modelPlaceholder')}
             />
-            <p className="text-[11px] text-[var(--color-text-tertiary)] mt-1">输入服务商支持的主模型 ID</p>
+            <p className="text-[11px] text-[var(--color-text-tertiary)] mt-1">{t('provider.form.modelHint')}</p>
           </div>
 
           {/* Image input capability */}
@@ -394,18 +397,18 @@ function ProviderFormModal({ onClose, onSaved, mode, provider }: ProviderFormMod
               onChange={(e) => setCapabilities({ ...capabilities, imageInput: e.target.checked })}
               className="rounded"
             />
-            <label htmlFor="image-input" className="text-sm text-[var(--color-text-secondary)]">支持图片输入</label>
+            <label htmlFor="image-input" className="text-sm text-[var(--color-text-secondary)]">{t('provider.form.imageInput')}</label>
           </div>
 
           {/* Notes */}
           <div>
-            <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1.5">备注（可选）</label>
+            <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1.5">{t('provider.form.notes')}</label>
             <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               rows={2}
               className="w-full px-3 py-2 text-sm rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-primary)] outline-none focus:border-[var(--color-border-focus)] resize-none"
-              placeholder="备注信息"
+              placeholder={t('provider.form.notesPlaceholder')}
             />
           </div>
         </div>
@@ -416,7 +419,7 @@ function ProviderFormModal({ onClose, onSaved, mode, provider }: ProviderFormMod
             onClick={onClose}
             className="px-4 py-2 text-sm font-medium text-[var(--color-text-secondary)] bg-[var(--color-surface-container)] hover:bg-[var(--color-surface-hover)] rounded-lg transition-colors"
           >
-            取消
+            {t('provider.form.cancel')}
           </button>
           <button
             onClick={handleSubmit}
@@ -424,7 +427,7 @@ function ProviderFormModal({ onClose, onSaved, mode, provider }: ProviderFormMod
             className="px-4 py-2 text-sm font-semibold text-[var(--color-btn-primary-fg)] rounded-lg transition-all hover:brightness-105 disabled:opacity-30"
             style={{ background: 'var(--gradient-btn-primary)', boxShadow: 'var(--shadow-button-primary)' }}
           >
-            {isSubmitting ? '保存中...' : mode === 'create' ? '添加' : '保存'}
+            {isSubmitting ? t('provider.form.saving') : mode === 'create' ? t('provider.form.addBtn') : t('provider.form.save')}
           </button>
         </div>
       </div>

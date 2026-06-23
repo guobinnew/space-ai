@@ -1,6 +1,7 @@
 import { useUIStore } from '../../stores/uiStore';
 import { WindowControls, showWindowControls } from './WindowControls';
 import type { Tab } from '../../stores/uiStore';
+import { useTranslation } from '../../i18n';
 
 const isTauri =
   typeof window !== 'undefined' && ('__TAURI_INTERNALS__' in window || '__TAURI__' in window);
@@ -54,6 +55,7 @@ function TabItem({
   onClick: () => void;
   onClose: () => void;
 }) {
+  const t = useTranslation();
   return (
     <div
       onClick={onClick}
@@ -83,7 +85,7 @@ function TabItem({
           onClose();
         }}
         className={`flex-shrink-0 w-4 h-4 flex items-center justify-center rounded transition-opacity text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)] ${tab.closable ? 'opacity-0 group-hover:opacity-100' : 'hidden'}`}
-        aria-label="关闭标签"
+        aria-label={t('tab.close')}
       >
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
           <line x1="18" y1="6" x2="6" y2="18" />

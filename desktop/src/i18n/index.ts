@@ -1,0 +1,414 @@
+/**
+ * Internationalization (i18n)
+ *
+ * 翻译字典 + useTranslation hook。
+ * 语言由 uiStore.locale 控制，切换时所有组件自动更新。
+ */
+
+import { useUIStore, type Locale } from '../stores/uiStore';
+
+const translations: Record<Locale, Record<string, string>> = {
+  zh: {
+    // App
+    'app.name': 'Smart Space',
+    'app.subtitle': '桌面客户端 + 内嵌服务端',
+
+    // Sidebar
+    'sidebar.home': '首页',
+    'sidebar.newSession': '新会话',
+    'sidebar.settings': '设置',
+    'sidebar.collapse': '折叠侧边栏',
+    'sidebar.expand': '展开侧边栏',
+    'sidebar.sessions': '会话',
+    'sidebar.noSessions': '暂无会话',
+    'sidebar.loading': '加载中...',
+
+    // TabBar
+    'tab.close': '关闭标签',
+
+    // WindowControls
+    'window.minimize': '最小化',
+    'window.maximize': '最大化',
+    'window.restore': '还原',
+    'window.close': '关闭',
+
+    // HomePage
+    'home.welcome': '欢迎使用 Smart Space',
+    'home.subtitle': '桌面客户端 + 内嵌服务端',
+    'home.serverStatus': '服务状态',
+    'home.backend': '后端服务',
+    'home.checking': '检测中',
+    'home.connected': '已连接',
+    'home.disconnected': '未连接',
+    'home.reconnecting': '正在尝试重新连接内嵌服务端 (127.0.0.1:3721)…',
+    'home.techStack': '技术栈',
+    'home.name': '名称',
+    'home.version': '版本',
+    'home.node': 'Node',
+    'home.platform': '平台',
+    'home.desktopFramework': '桌面框架',
+    'home.frontendUI': '前端 UI',
+    'home.embeddedService': '内嵌服务',
+    'home.styleSystem': '样式系统',
+
+    // EmptySession
+    'empty.title': '开始新对话',
+    'empty.subtitle': '输入消息开始与 Smart Space 对话',
+    'empty.placeholder': '输入消息，Enter 发送',
+
+    // ActiveSession
+    'session.title': '会话',
+    'session.close': '关闭',
+    'session.delete': '删除会话',
+    'session.rename': '重命名',
+    'session.deleteConfirm': '确定删除此会话吗？',
+    'session.newTitle': '新会话',
+    'session.placeholder': '输入消息，Enter 发送，Shift+Enter 换行',
+    'session.send': '发送',
+    'session.sending': '发送中...',
+    'session.stop': '停止',
+    'session.startNew': '开始新对话',
+
+    // Chat
+    'chat.thinking': '思考中...',
+    'chat.creating': '创建中...',
+    'chat.empty': '开始新对话',
+    'chat.responsePlaceholder': '收到消息。会话功能开发中，暂不支持 AI 回复。',
+
+    // Settings
+    'settings.general': '通用',
+    'settings.providers': '服务商',
+    'settings.skills': '技能',
+    'settings.computerUse': '计算机操作',
+    'settings.memory': '存储',
+    'settings.about': '关于',
+
+    // General settings
+    'settings.general.appearance': '外观',
+    'settings.general.appearanceDesc': '切换应用的明暗主题',
+    'settings.general.light': '浅色',
+    'settings.general.dark': '深色',
+    'settings.general.language': '语言',
+    'settings.general.languageDesc': '选择界面语言',
+    'settings.general.workDir': '默认工作目录',
+    'settings.general.workDirDesc': '新建会话时的默认工作目录',
+    'settings.general.workDirPlaceholder': '选择或输入工作目录路径',
+    'settings.general.browse': '浏览',
+    'settings.general.notification': '系统通知',
+    'settings.general.notificationDesc': '当应用窗口最小化或不在前台时，会话回复完成后通过系统通知提醒你',
+    'settings.general.notificationOn': '已开启',
+    'settings.general.notificationOff': '已关闭',
+
+    // About
+    'settings.about.title': '关于',
+    'settings.about.desc': '应用信息',
+    'settings.about.version': '版本 0.1.0',
+    'settings.about.body': 'Smart Space 是一个桌面客户端 + 内嵌服务端的应用，基于 Tauri + React + Bun 构建。',
+
+    // Providers
+    'settings.providers.title': '服务商',
+    'settings.providers.desc': '管理 LLM 服务商配置，支持增删改查和连接测试',
+    'settings.providers.add': '添加服务商',
+    'settings.providers.empty': '还没有配置服务商',
+    'settings.providers.addFirst': '添加第一个服务商',
+    'settings.providers.active': '当前',
+    'settings.providers.activate': '启用',
+    'settings.providers.test': '测试',
+    'settings.providers.testing': '测试中...',
+    'settings.providers.edit': '编辑',
+    'settings.providers.delete': '删除',
+    'settings.providers.connectivityOk': '连接成功',
+    'settings.providers.connectivityFailed': '连接失败',
+    'settings.providers.loadFailed': '加载服务商失败',
+    'settings.providers.deleteFailed': '删除失败',
+    'settings.providers.activateFailed': '激活失败',
+    'settings.providers.confirmDelete': '确定删除服务商',
+
+    // Provider form
+    'provider.form.add': '添加服务商',
+    'provider.form.edit': '编辑服务商',
+    'provider.form.preset': '服务商预设',
+    'provider.form.name': '名称',
+    'provider.form.namePlaceholder': '服务商名称',
+    'provider.form.baseUrl': 'Base URL',
+    'provider.form.baseUrlPlaceholder': 'https://api.example.com',
+    'provider.form.apiFormat': 'API 格式',
+    'provider.form.apiKey': 'API Key',
+    'provider.form.apiKeyEditHint': '(留空则不修改)',
+    'provider.form.apiKeyPlaceholder': '输入 API Key',
+    'provider.form.apiKeyMasked': '••••••••',
+    'provider.form.model': '主模型 ID',
+    'provider.form.modelPlaceholder': '模型 ID',
+    'provider.form.modelHint': '输入服务商支持的主模型 ID',
+    'provider.form.imageInput': '支持图片输入',
+    'provider.form.notes': '备注（可选）',
+    'provider.form.notesPlaceholder': '备注信息',
+    'provider.form.cancel': '取消',
+    'provider.form.save': '保存',
+    'provider.form.addBtn': '添加',
+    'provider.form.saving': '保存中...',
+    'provider.form.saveFailed': '保存失败',
+
+    // Skills
+    'settings.skills.title': '技能',
+    'settings.skills.desc': '管理技能包，扩展 AI 能力',
+    'settings.skills.import': '导入技能包',
+    'settings.skills.importing': '导入中...',
+    'settings.skills.empty': '暂无技能',
+    'settings.skills.importSuccess': '导入成功',
+    'settings.skills.importFailed': '导入失败',
+    'settings.skills.sourceBuiltin': '内置',
+    'settings.skills.sourceUser': '用户',
+    'settings.skills.sourceProject': '项目',
+
+    // Computer Use
+    'settings.computerUse.title': '计算机操作',
+    'settings.computerUse.desc': '允许 AI 控制鼠标和键盘执行计算机操作',
+    'settings.computerUse.available': '可用',
+    'settings.computerUse.unavailable': '不可用',
+    'settings.computerUse.platform': '平台',
+    'settings.computerUse.python': 'Python',
+    'settings.computerUse.pythonInstalled': '已安装',
+    'settings.computerUse.pythonNotInstalled': '未安装',
+    'settings.computerUse.setupStatus': '设置状态',
+    'settings.computerUse.setupCompleted': '已完成',
+    'settings.computerUse.setupNotCompleted': '未完成',
+    'settings.computerUse.runSetup': '运行设置',
+    'settings.computerUse.settingUp': '设置中...',
+    'settings.computerUse.setupFailed': '设置失败',
+
+    // Memory
+    'settings.memory.title': '存储',
+    'settings.memory.desc': '管理 AI 的长期记忆条目',
+    'settings.memory.new': '新建',
+    'settings.memory.totalEntries': '条目数',
+    'settings.memory.totalSize': '总大小',
+    'settings.memory.categories': '分类数',
+    'settings.memory.empty': '暂无记忆条目',
+    'settings.memory.titlePlaceholder': '标题',
+    'settings.memory.contentPlaceholder': '内容',
+    'settings.memory.categoryPlaceholder': '分类',
+    'settings.memory.cancel': '取消',
+    'settings.memory.save': '保存',
+    'settings.memory.edit': '编辑',
+    'settings.memory.delete': '删除',
+    'settings.memory.deleteConfirm': '确定删除此记忆条目？',
+
+    // Common
+    'common.confirm': '确定',
+    'common.cancel': '取消',
+    'common.delete': '删除',
+    'common.ok': '确定',
+  },
+
+  en: {
+    // App
+    'app.name': 'Smart Space',
+    'app.subtitle': 'Desktop Client + Embedded Server',
+
+    // Sidebar
+    'sidebar.home': 'Home',
+    'sidebar.newSession': 'New Session',
+    'sidebar.settings': 'Settings',
+    'sidebar.collapse': 'Collapse sidebar',
+    'sidebar.expand': 'Expand sidebar',
+    'sidebar.sessions': 'Sessions',
+    'sidebar.noSessions': 'No sessions',
+    'sidebar.loading': 'Loading...',
+
+    // TabBar
+    'tab.close': 'Close tab',
+
+    // WindowControls
+    'window.minimize': 'Minimize',
+    'window.maximize': 'Maximize',
+    'window.restore': 'Restore',
+    'window.close': 'Close',
+
+    // HomePage
+    'home.welcome': 'Welcome to Smart Space',
+    'home.subtitle': 'Desktop Client + Embedded Server',
+    'home.serverStatus': 'Server Status',
+    'home.backend': 'Backend Service',
+    'home.checking': 'Checking',
+    'home.connected': 'Connected',
+    'home.disconnected': 'Disconnected',
+    'home.reconnecting': 'Trying to reconnect to embedded server (127.0.0.1:3721)…',
+    'home.techStack': 'Tech Stack',
+    'home.name': 'Name',
+    'home.version': 'Version',
+    'home.node': 'Node',
+    'home.platform': 'Platform',
+    'home.desktopFramework': 'Desktop Framework',
+    'home.frontendUI': 'Frontend UI',
+    'home.embeddedService': 'Embedded Service',
+    'home.styleSystem': 'Style System',
+
+    // EmptySession
+    'empty.title': 'Start a New Conversation',
+    'empty.subtitle': 'Type a message to start chatting with Smart Space',
+    'empty.placeholder': 'Type a message, press Enter to send',
+
+    // ActiveSession
+    'session.title': 'Session',
+    'session.close': 'Close',
+    'session.delete': 'Delete Session',
+    'session.rename': 'Rename',
+    'session.deleteConfirm': 'Delete this session?',
+    'session.newTitle': 'New Session',
+    'session.placeholder': 'Type a message, Enter to send, Shift+Enter for new line',
+    'session.send': 'Send',
+    'session.sending': 'Sending...',
+    'session.stop': 'Stop',
+    'session.startNew': 'Start a New Conversation',
+
+    // Chat
+    'chat.thinking': 'Thinking...',
+    'chat.creating': 'Creating...',
+    'chat.empty': 'Start a new conversation',
+    'chat.responsePlaceholder': 'Message received. Chat feature is under development, AI replies not supported yet.',
+
+    // Settings
+    'settings.general': 'General',
+    'settings.providers': 'Providers',
+    'settings.skills': 'Skills',
+    'settings.computerUse': 'Computer Use',
+    'settings.memory': 'Memory',
+    'settings.about': 'About',
+
+    // General settings
+    'settings.general.appearance': 'Appearance',
+    'settings.general.appearanceDesc': 'Switch between light and dark theme',
+    'settings.general.light': 'Light',
+    'settings.general.dark': 'Dark',
+    'settings.general.language': 'Language',
+    'settings.general.languageDesc': 'Choose interface language',
+    'settings.general.workDir': 'Default Working Directory',
+    'settings.general.workDirDesc': 'Default working directory for new sessions',
+    'settings.general.workDirPlaceholder': 'Select or enter a directory path',
+    'settings.general.browse': 'Browse',
+    'settings.general.notification': 'System Notifications',
+    'settings.general.notificationDesc': 'Notify you when a session response completes while the window is minimized or not in focus',
+    'settings.general.notificationOn': 'Enabled',
+    'settings.general.notificationOff': 'Disabled',
+
+    // About
+    'settings.about.title': 'About',
+    'settings.about.desc': 'Application information',
+    'settings.about.version': 'Version 0.1.0',
+    'settings.about.body': 'Smart Space is a desktop client + embedded server application built with Tauri + React + Bun.',
+
+    // Providers
+    'settings.providers.title': 'Providers',
+    'settings.providers.desc': 'Manage LLM provider configurations with CRUD and connectivity testing',
+    'settings.providers.add': 'Add Provider',
+    'settings.providers.empty': 'No providers configured',
+    'settings.providers.addFirst': 'Add your first provider',
+    'settings.providers.active': 'Active',
+    'settings.providers.activate': 'Activate',
+    'settings.providers.test': 'Test',
+    'settings.providers.testing': 'Testing...',
+    'settings.providers.edit': 'Edit',
+    'settings.providers.delete': 'Delete',
+    'settings.providers.connectivityOk': 'Connected',
+    'settings.providers.connectivityFailed': 'Connection failed',
+    'settings.providers.loadFailed': 'Failed to load providers',
+    'settings.providers.deleteFailed': 'Delete failed',
+    'settings.providers.activateFailed': 'Activation failed',
+    'settings.providers.confirmDelete': 'Delete provider',
+
+    // Provider form
+    'provider.form.add': 'Add Provider',
+    'provider.form.edit': 'Edit Provider',
+    'provider.form.preset': 'Provider Preset',
+    'provider.form.name': 'Name',
+    'provider.form.namePlaceholder': 'Provider name',
+    'provider.form.baseUrl': 'Base URL',
+    'provider.form.baseUrlPlaceholder': 'https://api.example.com',
+    'provider.form.apiFormat': 'API Format',
+    'provider.form.apiKey': 'API Key',
+    'provider.form.apiKeyEditHint': '(leave empty to keep current)',
+    'provider.form.apiKeyPlaceholder': 'Enter API Key',
+    'provider.form.apiKeyMasked': '••••••••',
+    'provider.form.model': 'Main Model ID',
+    'provider.form.modelPlaceholder': 'Model ID',
+    'provider.form.modelHint': 'Enter the main model ID supported by the provider',
+    'provider.form.imageInput': 'Support image input',
+    'provider.form.notes': 'Notes (optional)',
+    'provider.form.notesPlaceholder': 'Notes',
+    'provider.form.cancel': 'Cancel',
+    'provider.form.save': 'Save',
+    'provider.form.addBtn': 'Add',
+    'provider.form.saving': 'Saving...',
+    'provider.form.saveFailed': 'Save failed',
+
+    // Skills
+    'settings.skills.title': 'Skills',
+    'settings.skills.desc': 'Manage skill packs to extend AI capabilities',
+    'settings.skills.import': 'Import Skill Pack',
+    'settings.skills.importing': 'Importing...',
+    'settings.skills.empty': 'No skills installed',
+    'settings.skills.importSuccess': 'Import successful',
+    'settings.skills.importFailed': 'Import failed',
+    'settings.skills.sourceBuiltin': 'Built-in',
+    'settings.skills.sourceUser': 'User',
+    'settings.skills.sourceProject': 'Project',
+
+    // Computer Use
+    'settings.computerUse.title': 'Computer Use',
+    'settings.computerUse.desc': 'Allow AI to control mouse and keyboard',
+    'settings.computerUse.available': 'Available',
+    'settings.computerUse.unavailable': 'Unavailable',
+    'settings.computerUse.platform': 'Platform',
+    'settings.computerUse.python': 'Python',
+    'settings.computerUse.pythonInstalled': 'Installed',
+    'settings.computerUse.pythonNotInstalled': 'Not installed',
+    'settings.computerUse.setupStatus': 'Setup Status',
+    'settings.computerUse.setupCompleted': 'Completed',
+    'settings.computerUse.setupNotCompleted': 'Not completed',
+    'settings.computerUse.runSetup': 'Run Setup',
+    'settings.computerUse.settingUp': 'Setting up...',
+    'settings.computerUse.setupFailed': 'Setup failed',
+
+    // Memory
+    'settings.memory.title': 'Memory',
+    'settings.memory.desc': 'Manage AI long-term memory entries',
+    'settings.memory.new': 'New',
+    'settings.memory.totalEntries': 'Entries',
+    'settings.memory.totalSize': 'Total Size',
+    'settings.memory.categories': 'Categories',
+    'settings.memory.empty': 'No memory entries',
+    'settings.memory.titlePlaceholder': 'Title',
+    'settings.memory.contentPlaceholder': 'Content',
+    'settings.memory.categoryPlaceholder': 'Category',
+    'settings.memory.cancel': 'Cancel',
+    'settings.memory.save': 'Save',
+    'settings.memory.edit': 'Edit',
+    'settings.memory.delete': 'Delete',
+    'settings.memory.deleteConfirm': 'Delete this memory entry?',
+
+    // Common
+    'common.confirm': 'OK',
+    'common.cancel': 'Cancel',
+    'common.delete': 'Delete',
+    'common.ok': 'OK',
+  },
+};
+
+/** Translation function — returns the translated string for the current locale. */
+export function useTranslation() {
+  const { locale } = useUIStore();
+  const dict = translations[locale] || translations.zh;
+
+  const t = (key: string): string => {
+    return dict[key] || translations.zh[key] || key;
+  };
+
+  return t;
+}
+
+/** Non-hook version for use outside React components. */
+export function translate(key: string, locale: Locale = 'zh'): string {
+  const dict = translations[locale] || translations.zh;
+  return dict[key] || translations.zh[key] || key;
+}

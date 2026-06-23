@@ -6,11 +6,13 @@
  */
 
 import { useState, useRef } from 'react';
+import { useTranslation } from '../i18n';
 import { useSessionStore } from '../stores/sessionStore';
 import { useChatStore } from '../stores/chatStore';
 import { useUIStore } from '../stores/uiStore';
 
 export function EmptySession() {
+  const t = useTranslation();
   const { createSession } = useSessionStore();
   const { connectToSession, sendMessage } = useChatStore();
   const { openTab, defaultWorkDir } = useUIStore();
@@ -60,10 +62,10 @@ export function EmptySession() {
               className="mb-2 text-2xl font-bold tracking-tight text-[var(--color-text-primary)]"
               style={{ fontFamily: 'var(--font-headline)' }}
             >
-              开始新对话
+              {t('empty.title')}
             </h1>
             <p className="text-sm text-[var(--color-text-secondary)]">
-              输入消息开始与 Smart Space 对话
+              {t('empty.subtitle')}
             </p>
           </div>
         </div>
@@ -79,7 +81,7 @@ export function EmptySession() {
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
               className="flex-1 resize-none border-0 bg-transparent text-sm text-[var(--color-text-primary)] outline-none placeholder:text-[var(--color-text-tertiary)]"
-              placeholder="输入消息，Enter 发送"
+              placeholder={t('empty.placeholder')}
               rows={2}
               style={{ maxHeight: '120px' }}
             />
@@ -89,7 +91,7 @@ export function EmptySession() {
               className="flex-shrink-0 px-4 py-1.5 text-xs font-semibold rounded-lg text-[var(--color-btn-primary-fg)] transition-all hover:brightness-105 disabled:opacity-30"
               style={{ background: 'var(--gradient-btn-primary)', boxShadow: 'var(--shadow-button-primary)' }}
             >
-              {isSubmitting ? '创建中...' : '发送'}
+              {isSubmitting ? t('chat.creating') : t('session.send')}
             </button>
           </div>
         </div>

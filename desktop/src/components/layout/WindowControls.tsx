@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from '../../i18n';
 
 const isTauri =
   typeof window !== 'undefined' && ('__TAURI_INTERNALS__' in window || '__TAURI__' in window);
@@ -9,6 +10,7 @@ export const showWindowControls = isTauri && isWindows;
 
 export function WindowControls() {
   const [maximized, setMaximized] = useState(false);
+  const t = useTranslation();
   const [win, setWin] = useState<{
     minimize: () => Promise<void>;
     toggleMaximize: () => Promise<void>;
@@ -50,7 +52,7 @@ export function WindowControls() {
       {/* Minimize */}
       <button
         onClick={() => runWindowAction(() => win.minimize())}
-        aria-label="最小化"
+        aria-label={t('window.minimize')}
         className="w-[46px] h-full flex items-center justify-center text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] transition-colors"
       >
         <svg width="10" height="1" viewBox="0 0 10 1">
@@ -61,7 +63,7 @@ export function WindowControls() {
       {/* Maximize / Restore */}
       <button
         onClick={() => runWindowAction(() => win.toggleMaximize())}
-        aria-label={maximized ? '还原' : '最大化'}
+        aria-label={maximized ? t('window.restore') : t('window.maximize')}
         className="w-[46px] h-full flex items-center justify-center text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] transition-colors"
       >
         {maximized ? (
@@ -79,7 +81,7 @@ export function WindowControls() {
       {/* Close */}
       <button
         onClick={() => runWindowAction(() => win.close())}
-        aria-label="关闭"
+        aria-label={t('window.close')}
         className="w-[46px] h-full flex items-center justify-center text-[var(--color-text-secondary)] hover:bg-[var(--color-window-close-hover)] hover:text-white transition-colors"
       >
         <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.2">

@@ -7,8 +7,10 @@
 
 import { useState, useEffect } from 'react';
 import { skillsApi, type SkillMeta } from '../../api/features';
+import { useTranslation } from '../../i18n';
 
 export function SkillsSettings() {
+  const t = useTranslation();
   const [skills, setSkills] = useState<SkillMeta[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [importing, setImporting] = useState(false);
@@ -36,33 +38,33 @@ export function SkillsSettings() {
       const selected = await open({
         multiple: false,
         filters: [{ name: 'Zip', extensions: ['zip'] }],
-        title: '导入技能包',
+        title: t('settings.skills.import'),
       });
       if (typeof selected !== 'string') return;
 
       setImporting(true);
       const result = await skillsApi.import(selected);
-      setMessage({ type: 'success', text: result.message || '导入成功' });
+      setMessage({ type: 'success', text: result.message || t('settings.skills.importSuccess') });
       await fetchSkills();
     } catch (err) {
-      setMessage({ type: 'error', text: err instanceof Error ? err.message : '导入失败' });
+      setMessage({ type: 'error', text: err instanceof Error ? err.message : t('settings.skills.importFailed') });
     } finally {
       setImporting(false);
     }
   };
 
   const sourceLabels: Record<SkillMeta['source'], string> = {
-    builtin: '内置',
-    user: '用户',
-    project: '项目',
+    builtin: t('settings.skills.sourceBuiltin'),
+    user: t('settings.skills.sourceUser'),
+    project: t('settings.skills.sourceProject'),
   };
 
   return (
     <div className="max-w-2xl">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h2 className="text-base font-semibold text-[var(--color-text-primary)]">技能</h2>
-          <p className="text-sm text-[var(--color-text-tertiary)] mt-0.5">管理技能包，扩展 AI 能力</p>
+          <h2 className="text-base font-semibold text-[var(--color-text-primary)]">{t('settings.skills.title')}</h2>
+          <p className="text-sm text-[var(--color-text-tertiary)] mt-0.5">{t('settings.skills.desc')}</p>
         </div>
         <button
           onClick={handleImport}
@@ -75,7 +77,7 @@ export function SkillsSettings() {
             <polyline points="17 8 12 3 7 8" />
             <line x1="12" y1="3" x2="12" y2="15" />
           </svg>
-          {importing ? '导入中...' : '导入技能包'}
+          {importing ? t('settings.skills.importing') : t('settings.skills.import')}
         </button>
       </div>
 
@@ -95,7 +97,7 @@ export function SkillsSettings() {
         </div>
       ) : skills.length === 0 ? (
         <div className="rounded-xl border border-dashed border-[var(--color-border)] bg-[var(--color-surface-container-low)] px-6 py-10 text-center">
-          <p className="text-sm text-[var(--color-text-tertiary)]">暂无技能</p>
+          <p className="text-sm text-[var(--color-text-tertiary)]">{t('settings.skills.empty')}</p>
         </div>
       ) : (
         <div className="flex flex-col gap-2">
