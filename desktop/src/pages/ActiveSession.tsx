@@ -46,7 +46,8 @@ export function ActiveSession({ sessionId }: { sessionId: string }) {
   };
 
   const handleClose = () => {
-    disconnectSession(sessionId);
+    // 仅关闭 tab；WS 断开由组件卸载时的 cleanup 统一处理，
+    // 这样切换 tab 不断开 WS，只有关闭 tab 才断开。
     closeTab(sessionId);
   };
 
