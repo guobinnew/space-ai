@@ -1,6 +1,6 @@
 @import "tailwindcss";
 
-/* Material Symbols Outlined — loaded via <link> in index.html */
+/* Material Symbols Outlined — loaded via <link> in index.html (not @import to avoid CSS ordering issues) */
 
 .material-symbols-outlined {
   font-family: 'Material Symbols Outlined';
