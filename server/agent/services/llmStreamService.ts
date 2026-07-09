@@ -1,12 +1,20 @@
 /**
- * LLM Streaming Service — 调用 LLM API 并流式返回
+ * LLM Streaming Service — 调用 LLM API 并流式返回（支持工具调用 agentic loop）
  *
- * 使用活跃 provider 配置，通过 fetch streaming 调用 LLM API。
- * 支持 Anthropic 和 OpenAI 两种 API 格式。
+ * 参照 smart-code query.ts 的 agentic loop，简化版。
+ * 每次用户消息触发多轮 LLM 调用：
+ *   1. 发送 system + messages + tools 给 LLM
+ *   2. 流式接收文本（实时输出给前端）+ 收集 tool_use
+ *   3. 若有 tool_use：执行工具，将 tool_result 加入 messages，回到步骤 1
+ *   4. 若无 tool_use（纯文本响应）：结束循环
  */
 
+import * as os from 'os'
 import { sessionService } from './sessionService'
 import { ProviderService } from './providerService'
+import { getSystemPrompt } from '../constants/prompts'
+import { getToolDefinitions, getTool } from '../tools'
+import type { ToolContext } from '../tools'
 import type { ApiFormat } from '../types/provider'
 
 const providerService = new ProviderService()
@@ -18,53 +26,126 @@ export type StreamChunk =
   | { type: 'message_complete' }
   | { type: 'error'; message: string }
 
+/** 最大 agentic loop 轮数（防止无限循环） */
+const MAX_TOOL_ROUNDS = 15
+
+/** 工具调用信息 */
+interface ToolUse {
+  id: string
+  name: string
+  input: Record<string, unknown>
+}
+
+/** 一轮 LLM 调用的结果 */
+interface LLMResponse {
+  /** 文本内容 */
+  text: string
+  /** 工具调用列表 */
+  toolUses: ToolUse[]
+  /** 停止原因 */
+  stopReason: 'end_turn' | 'tool_use' | 'max_tokens' | 'stop' | 'length' | 'other'
+}
+
+// ─── Anthropic 消息格式 ──────────────────────────────────────
+
+type AnthropicContentBlock =
+  | { type: 'text'; text: string }
+  | { type: 'tool_use'; id: string; name: string; input: Record<string, unknown> }
+  | { type: 'tool_result'; tool_use_id: string; content: string; is_error?: boolean }
+
+type AnthropicMessage = {
+  role: 'user' | 'assistant'
+  content: string | AnthropicContentBlock[]
+}
+
+// ─── OpenAI 消息格式 ─────────────────────────────────────────
+
+type OpenAIToolCall = {
+  id: string
+  type: 'function'
+  function: { name: string; arguments: string }
+}
+
+type OpenAIMessage = {
+  role: 'system' | 'user' | 'assistant' | 'tool'
+  content: string | null
+  tool_calls?: OpenAIToolCall[]
+  tool_call_id?: string
+}
+
+// ─── 主入口 ──────────────────────────────────────────────────
+
 /**
- * 调用 LLM API 并流式返回结果。
- * 调用方通过 onChunk 回调接收流式数据。
+ * 调用 LLM API 并流式返回结果（支持工具调用循环）。
  */
 export async function streamChat(
   sessionId: string,
   userContent: string,
   onChunk: (chunk: StreamChunk) => void,
+  isCancelled?: () => boolean,
 ): Promise<void> {
   console.log(`[LLM] streamChat start: sessionId=${sessionId}, content="${userContent.slice(0, 50)}..."`)
 
   // Get active provider
   const { providers, activeId } = await providerService.listProviders()
   if (!activeId) {
-    console.log('[LLM] No active provider')
     onChunk({ type: 'error', message: '没有活跃的服务商，请先在设置中配置并激活一个服务商' })
     return
   }
 
   const provider = providers.find((p) => p.id === activeId)
   if (!provider) {
-    console.log('[LLM] Active provider not found')
     onChunk({ type: 'error', message: '找不到活跃的服务商配置' })
     return
   }
 
-  console.log(`[LLM] Provider: ${provider.name}, format=${provider.apiFormat}, model=${provider.models.main}, baseUrl=${provider.baseUrl}`)
+  // Get session workDir for tool execution
+  let workDir = ''
+  try {
+    const session = await sessionService.getSession(sessionId)
+    workDir = session.workDir || ''
+  } catch {
+    // Session might not have workDir
+  }
+  if (!workDir) workDir = os.homedir()
 
-  // Build message history (exclude the current user message — it was already saved by conversationService)
-  const messages = await sessionService.getMessages(sessionId)
-  const chatHistory = messages.map((m) => ({
-    role: m.role,
-    content: m.content,
-  }))
+  const format: ApiFormat = provider.apiFormat ?? 'anthropic'
+  const baseUrl = provider.baseUrl.replace(/\/+$/, '')
+  const model = provider.models.main
+  const apiKey = provider.apiKey
+
+  // Build system prompt
+  const systemPrompt = getSystemPrompt(workDir, model)
+
+  // Build tool definitions
+  const toolDefs = getToolDefinitions()
+
+  // Build initial messages from history
+  const history = await sessionService.getMessages(sessionId)
+  // The last message is the current user message (already saved by conversationService)
+  // Use all messages except we'll let the loop handle it
+
+  const toolContext: ToolContext = { workDir, sessionId }
 
   onChunk({ type: 'status', state: 'thinking' })
   onChunk({ type: 'content_start' })
 
-  const format: ApiFormat = provider.apiFormat ?? 'anthropic'
-  const baseUrl = provider.baseUrl.replace(/\/+$/, '')
+  let fullText = ''
+  const cancelCheck = isCancelled || (() => false)
 
   try {
     if (format === 'anthropic') {
-      await streamAnthropic(sessionId, baseUrl, provider.apiKey, provider.models.main, chatHistory, onChunk)
+      fullText = await runAnthropicLoop(
+        baseUrl, apiKey, model, systemPrompt, toolDefs, history,
+        toolContext, onChunk, cancelCheck,
+      )
     } else {
-      await streamOpenAI(sessionId, baseUrl, provider.apiKey, provider.models.main, chatHistory, onChunk)
+      fullText = await runOpenAILoop(
+        baseUrl, apiKey, model, systemPrompt, toolDefs, history,
+        toolContext, onChunk, cancelCheck,
+      )
     }
+
     onChunk({ type: 'status', state: 'idle' })
     onChunk({ type: 'message_complete' })
   } catch (err) {
@@ -73,23 +154,110 @@ export async function streamChat(
     onChunk({ type: 'error', message })
     onChunk({ type: 'status', state: 'idle' })
   }
+
+  // Save assistant response (only the final text, not tool calls)
+  if (fullText) {
+    try {
+      await sessionService.addMessage(sessionId, 'assistant', fullText)
+    } catch (err) {
+      console.error(`[LLM] Failed to save assistant message: ${err}`)
+    }
+  }
 }
 
-type ChatMessage = { role: 'user' | 'assistant'; content: string }
+// ─── Anthropic agentic loop ──────────────────────────────────
 
-/**
- * Anthropic Messages API 流式调用
- */
-async function streamAnthropic(
-  sessionId: string,
+async function runAnthropicLoop(
   baseUrl: string,
   apiKey: string,
   model: string,
-  messages: ChatMessage[],
+  systemPrompt: string,
+  toolDefs: ReturnType<typeof getToolDefinitions>,
+  history: Array<{ role: 'user' | 'assistant'; content: string }>,
+  toolContext: ToolContext,
   onChunk: (chunk: StreamChunk) => void,
-): Promise<void> {
+  isCancelled: () => boolean,
+): Promise<string> {
+  // Build messages: history (as simple strings) + current user message
+  const messages: AnthropicMessage[] = history.map((m) => ({
+    role: m.role,
+    content: m.content,
+  }))
+
+  let fullText = ''
+
+  for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
+    if (isCancelled()) break
+
+    onChunk({ type: 'status', state: 'thinking' })
+
+    const response = await callAnthropic(
+      baseUrl, apiKey, model, systemPrompt, messages, toolDefs, onChunk,
+    )
+
+    // Accumulate text
+    if (response.text) {
+      fullText += response.text
+    }
+
+    // If no tool calls, we're done
+    if (response.toolUses.length === 0 || response.stopReason !== 'tool_use') {
+      break
+    }
+
+    // Add assistant message (with tool_use) to conversation
+    const assistantContent: AnthropicContentBlock[] = []
+    if (response.text) {
+      assistantContent.push({ type: 'text', text: response.text })
+    }
+    for (const tu of response.toolUses) {
+      assistantContent.push({ type: 'tool_use', id: tu.id, name: tu.name, input: tu.input })
+    }
+    messages.push({ role: 'assistant', content: assistantContent })
+
+    // Execute tools and add results
+    const toolResults: AnthropicContentBlock[] = []
+    for (const tu of response.toolUses) {
+      if (isCancelled()) break
+      const result = await executeTool(tu, toolContext)
+      toolResults.push({
+        type: 'tool_result',
+        tool_use_id: tu.id,
+        content: result.content,
+        is_error: result.isError,
+      })
+    }
+    if (toolResults.length > 0) {
+      messages.push({ role: 'user', content: toolResults })
+    }
+  }
+
+  return fullText
+}
+
+/** Single Anthropic API call with streaming */
+async function callAnthropic(
+  baseUrl: string,
+  apiKey: string,
+  model: string,
+  systemPrompt: string,
+  messages: AnthropicMessage[],
+  toolDefs: ReturnType<typeof getToolDefinitions>,
+  onChunk: (chunk: StreamChunk) => void,
+): Promise<LLMResponse> {
   const url = `${baseUrl}/v1/messages`
-  console.log(`[LLM] Anthropic fetch: ${url}, model=${model}, messages=${messages.length}`)
+  const body: Record<string, unknown> = {
+    model,
+    max_tokens: 8192,
+    system: systemPrompt,
+    messages,
+    stream: true,
+  }
+  if (toolDefs.length > 0) {
+    body.tools = toolDefs
+    body.tool_choice = { type: 'auto' }
+  }
+
   const response = await fetch(url, {
     method: 'POST',
     headers: {
@@ -97,19 +265,13 @@ async function streamAnthropic(
       'x-api-key': apiKey,
       'anthropic-version': '2023-06-01',
     },
-    body: JSON.stringify({
-      model,
-      max_tokens: 4096,
-      messages,
-      stream: true,
-    }),
-    signal: AbortSignal.timeout(30000),
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(120000),
   })
 
-  console.log(`[LLM] Anthropic response: ${response.status} ${response.statusText}`)
   if (!response.ok) {
     const errText = await response.text().catch(() => '')
-    throw new Error(`Anthropic API ${response.status}: ${errText.slice(0, 200)}`)
+    throw new Error(`Anthropic API ${response.status}: ${errText.slice(0, 300)}`)
   }
 
   if (!response.body) throw new Error('No response body')
@@ -120,6 +282,17 @@ async function streamAnthropic(
   const decoder = new TextDecoder()
   let buffer = ''
   let fullText = ''
+
+  // Collect content blocks by index
+  const blocks = new Map<number, {
+    type: 'text' | 'tool_use'
+    text: string
+    toolId: string
+    toolName: string
+    inputJson: string
+  }>()
+
+  let stopReason: LLMResponse['stopReason'] = 'other'
 
   while (true) {
     const { done, value } = await reader.read()
@@ -136,9 +309,41 @@ async function streamAnthropic(
       const data = trimmed.slice(6)
       try {
         const event = JSON.parse(data)
-        if (event.type === 'content_block_delta' && event.delta?.text) {
-          fullText += event.delta.text
-          onChunk({ type: 'content_delta', text: event.delta.text })
+
+        if (event.type === 'content_block_start') {
+          const idx = event.index
+          const block = event.content_block
+          if (block.type === 'text') {
+            blocks.set(idx, { type: 'text', text: '', toolId: '', toolName: '', inputJson: '' })
+          } else if (block.type === 'tool_use') {
+            blocks.set(idx, {
+              type: 'tool_use',
+              text: '',
+              toolId: block.id || '',
+              toolName: block.name || '',
+              inputJson: '',
+            })
+          }
+        } else if (event.type === 'content_block_delta') {
+          const idx = event.index
+          const delta = event.delta
+          const block = blocks.get(idx)
+          if (!block) continue
+
+          if (delta.type === 'text_delta' && delta.text) {
+            block.text += delta.text
+            fullText += delta.text
+            onChunk({ type: 'content_delta', text: delta.text })
+          } else if (delta.type === 'input_json_delta' && delta.partial_json) {
+            block.inputJson += delta.partial_json
+          }
+        } else if (event.type === 'message_delta') {
+          if (event.delta?.stop_reason) {
+            const sr = event.delta.stop_reason
+            if (sr === 'end_turn') stopReason = 'end_turn'
+            else if (sr === 'tool_use') stopReason = 'tool_use'
+            else if (sr === 'max_tokens') stopReason = 'max_tokens'
+          }
         }
       } catch {
         // Skip malformed SSE lines
@@ -146,44 +351,132 @@ async function streamAnthropic(
     }
   }
 
-  // Save assistant response
-  if (fullText) {
-    await sessionService.addMessage(sessionId, 'assistant', fullText)
+  // Parse tool uses from collected blocks
+  const toolUses: ToolUse[] = []
+  for (const [, block] of [...blocks.entries()].sort((a, b) => a[0] - b[0])) {
+    if (block.type === 'tool_use') {
+      let input: Record<string, unknown> = {}
+      if (block.inputJson) {
+        try {
+          input = JSON.parse(block.inputJson)
+        } catch {
+          input = {}
+        }
+      }
+      toolUses.push({ id: block.toolId, name: block.toolName, input })
+    }
   }
+
+  return { text: fullText, toolUses, stopReason }
 }
 
-/**
- * OpenAI Chat Completions API 流式调用
- */
-async function streamOpenAI(
-  sessionId: string,
+// ─── OpenAI agentic loop ─────────────────────────────────────
+
+async function runOpenAILoop(
   baseUrl: string,
   apiKey: string,
   model: string,
-  messages: ChatMessage[],
+  systemPrompt: string,
+  toolDefs: ReturnType<typeof getToolDefinitions>,
+  history: Array<{ role: 'user' | 'assistant'; content: string }>,
+  toolContext: ToolContext,
   onChunk: (chunk: StreamChunk) => void,
-): Promise<void> {
+  isCancelled: () => boolean,
+): Promise<string> {
+  // Build messages: system + history (as simple strings)
+  const messages: OpenAIMessage[] = [
+    { role: 'system', content: systemPrompt },
+    ...history.map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content })),
+  ]
+
+  let fullText = ''
+
+  for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
+    if (isCancelled()) break
+
+    onChunk({ type: 'status', state: 'thinking' })
+
+    const response = await callOpenAI(
+      baseUrl, apiKey, model, messages, toolDefs, onChunk,
+    )
+
+    if (response.text) {
+      fullText += response.text
+    }
+
+    // If no tool calls, we're done
+    if (response.toolUses.length === 0 || response.stopReason !== 'tool_use') {
+      break
+    }
+
+    // Add assistant message (with tool_calls) to conversation
+    const assistantMsg: OpenAIMessage = {
+      role: 'assistant',
+      content: response.text || null,
+      tool_calls: response.toolUses.map((tu) => ({
+        id: tu.id,
+        type: 'function' as const,
+        function: { name: tu.name, arguments: JSON.stringify(tu.input) },
+      })),
+    }
+    messages.push(assistantMsg)
+
+    // Add tool results
+    for (const tu of response.toolUses) {
+      if (isCancelled()) break
+      const result = await executeTool(tu, toolContext)
+      messages.push({
+        role: 'tool',
+        content: result.content,
+        tool_call_id: tu.id,
+      })
+    }
+  }
+
+  return fullText
+}
+
+/** Single OpenAI API call with streaming */
+async function callOpenAI(
+  baseUrl: string,
+  apiKey: string,
+  model: string,
+  messages: OpenAIMessage[],
+  toolDefs: ReturnType<typeof getToolDefinitions>,
+  onChunk: (chunk: StreamChunk) => void,
+): Promise<LLMResponse> {
   const url = `${baseUrl}/chat/completions`
-  console.log(`[LLM] OpenAI fetch: ${url}, model=${model}, messages=${messages.length}`)
+  const body: Record<string, unknown> = {
+    model,
+    max_tokens: 8192,
+    messages,
+    stream: true,
+  }
+  if (toolDefs.length > 0) {
+    body.tools = toolDefs.map((t) => ({
+      type: 'function',
+      function: {
+        name: t.name,
+        description: t.description,
+        parameters: t.input_schema,
+      },
+    }))
+    body.tool_choice = 'auto'
+  }
+
   const response = await fetch(url, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${apiKey}`,
     },
-    body: JSON.stringify({
-      model,
-      max_tokens: 4096,
-      messages,
-      stream: true,
-    }),
-    signal: AbortSignal.timeout(30000),
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(120000),
   })
 
-  console.log(`[LLM] OpenAI response: ${response.status} ${response.statusText}`)
   if (!response.ok) {
     const errText = await response.text().catch(() => '')
-    throw new Error(`OpenAI API ${response.status}: ${errText.slice(0, 200)}`)
+    throw new Error(`OpenAI API ${response.status}: ${errText.slice(0, 300)}`)
   }
 
   if (!response.body) throw new Error('No response body')
@@ -194,6 +487,10 @@ async function streamOpenAI(
   const decoder = new TextDecoder()
   let buffer = ''
   let fullText = ''
+
+  // Collect tool calls by index
+  const toolCallMap = new Map<number, { id: string; name: string; arguments: string }>()
+  let finishReason = ''
 
   while (true) {
     const { done, value } = await reader.read()
@@ -212,10 +509,32 @@ async function streamOpenAI(
 
       try {
         const event = JSON.parse(data)
-        const delta = event.choices?.[0]?.delta?.content
-        if (delta) {
-          fullText += delta
-          onChunk({ type: 'content_delta', text: delta })
+        const choice = event.choices?.[0]
+        if (!choice) continue
+
+        const delta = choice.delta
+
+        // Text content
+        if (delta?.content) {
+          fullText += delta.content
+          onChunk({ type: 'content_delta', text: delta.content })
+        }
+
+        // Tool calls
+        if (delta?.tool_calls) {
+          for (const tc of delta.tool_calls) {
+            const idx = tc.index
+            const existing = toolCallMap.get(idx) || { id: '', name: '', arguments: '' }
+            if (tc.id) existing.id = tc.id
+            if (tc.function?.name) existing.name = tc.function.name
+            if (tc.function?.arguments) existing.arguments += tc.function.arguments
+            toolCallMap.set(idx, existing)
+          }
+        }
+
+        // Finish reason
+        if (choice.finish_reason) {
+          finishReason = choice.finish_reason
         }
       } catch {
         // Skip malformed SSE lines
@@ -223,8 +542,48 @@ async function streamOpenAI(
     }
   }
 
-  // Save assistant response
-  if (fullText) {
-    await sessionService.addMessage(sessionId, 'assistant', fullText)
+  // Parse tool uses
+  const toolUses: ToolUse[] = []
+  for (const [, tc] of [...toolCallMap.entries()].sort((a, b) => a[0] - b[0])) {
+    let input: Record<string, unknown> = {}
+    if (tc.arguments) {
+      try {
+        input = JSON.parse(tc.arguments)
+      } catch {
+        input = {}
+      }
+    }
+    toolUses.push({ id: tc.id || `call_${Date.now()}_${Math.random()}`, name: tc.name, input })
+  }
+
+  let stopReason: LLMResponse['stopReason'] = 'other'
+  if (finishReason === 'stop') stopReason = 'end_turn'
+  else if (finishReason === 'tool_calls') stopReason = 'tool_use'
+  else if (finishReason === 'length') stopReason = 'length'
+
+  return { text: fullText, toolUses, stopReason }
+}
+
+// ─── 工具执行 ────────────────────────────────────────────────
+
+async function executeTool(
+  toolUse: ToolUse,
+  context: ToolContext,
+): Promise<{ content: string; isError: boolean }> {
+  const tool = getTool(toolUse.name)
+  if (!tool) {
+    return { content: `Error: unknown tool "${toolUse.name}"`, isError: true }
+  }
+
+  console.log(`[Tool] Executing ${toolUse.name}: ${JSON.stringify(toolUse.input).slice(0, 200)}`)
+
+  try {
+    const result = await tool.execute(toolUse.input, context)
+    console.log(`[Tool] ${toolUse.name} result: ${result.content.slice(0, 200)}`)
+    return { content: result.content, isError: result.isError === true }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    console.error(`[Tool] ${toolUse.name} error: ${msg}`)
+    return { content: `Error executing tool ${toolUse.name}: ${msg}`, isError: true }
   }
 }

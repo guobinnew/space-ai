@@ -21,6 +21,8 @@ type SessionProcess = {
   workDir: string
   /** Active LLM streaming task (if any) */
   activeStream: AbortController | null
+  /** Cancelled flag — set by stopSession, checked by agentic loop */
+  cancelled: boolean
   /** Output callback — forwards to client WebSocket */
   outputCallback: ((chunk: StreamChunk) => void) | null
 }
@@ -46,6 +48,7 @@ class ConversationService {
       sessionId,
       workDir,
       activeStream: null,
+      cancelled: false,
       outputCallback: onOutput,
     }
 
@@ -71,12 +74,18 @@ class ConversationService {
       proc.activeStream.abort()
     }
 
+    proc.cancelled = false
     proc.activeStream = new AbortController()
 
     // Stream LLM response, forwarding chunks to the client
-    await streamChat(sessionId, content, (chunk: StreamChunk) => {
-      proc.outputCallback?.(chunk)
-    })
+    await streamChat(
+      sessionId,
+      content,
+      (chunk: StreamChunk) => {
+        proc.outputCallback?.(chunk)
+      },
+      () => proc.cancelled,
+    )
   }
 
   /**
@@ -86,6 +95,7 @@ class ConversationService {
     const proc = this.sessions.get(sessionId)
     if (!proc) return
 
+    proc.cancelled = true
     if (proc.activeStream) {
       proc.activeStream.abort()
       proc.activeStream = null
