@@ -31,6 +31,8 @@ export function ActiveSession({ sessionId }: { sessionId: string }) {
   const [editorOpen, setEditorOpen] = useState(false);
   const [chatWidth, setChatWidth] = useState(DEFAULT_CHAT_WIDTH);
   const [dragging, setDragging] = useState(false);
+  const [mode, setMode] = useState<'code' | 'office'>('code');
+  const [emptyInput, setEmptyInput] = useState('');
   const containerRef = useRef<HTMLDivElement>(null);
   const isDragging = useRef(false);
   const startX = useRef(0);
@@ -41,6 +43,7 @@ export function ActiveSession({ sessionId }: { sessionId: string }) {
   const sessionState = getSession(sessionId);
   const isGenerating = sessionState.chatState === 'thinking' || sessionState.chatState === 'streaming';
   const isActive = sessionState.chatState !== 'idle';
+  const isEmpty = sessionState.messages.length === 0 && !isActive && !sessionState.streamingText;
 
   /** 格式化相对时间 */
   const formatRelativeTime = (isoTime: string): string => {
@@ -113,7 +116,14 @@ export function ActiveSession({ sessionId }: { sessionId: string }) {
   }, []);
 
   const handleSend = (content: string) => {
-    sendMessage(sessionId, content);
+    // Prepend mode hint for the first message
+    if (isEmpty) {
+      const modeDesc = mode === 'code' ? '专注于代码编写、调试和架构设计' : '专注于文档撰写、数据分析和日常任务';
+      const modeHint = `[${mode === 'code' ? '代码开发' : '日常办公'}模式] ${modeDesc}\n\n${content}`;
+      sendMessage(sessionId, modeHint);
+    } else {
+      sendMessage(sessionId, content);
+    }
   };
 
   const handleStop = () => {
@@ -275,48 +285,129 @@ export function ActiveSession({ sessionId }: { sessionId: string }) {
           </div>
         </div>
 
-        {/* Messages */}
-        <div ref={messagesContainerRef} className="flex-1 overflow-y-auto px-4">
-          <MessageList
-            messages={sessionState.messages}
-            streamingText={sessionState.streamingText}
-            thinkingText={sessionState.thinkingText}
-            chatState={sessionState.chatState}
-            toolCalls={sessionState.toolCalls}
-            pendingQuestion={sessionState.pendingQuestion}
-            pendingPlan={sessionState.pendingPlan}
-            onAnswerQuestion={(answer) => answerQuestion(sessionId, answer)}
-            onRespondPlan={(response) => respondPlan(sessionId, response)}
-          />
-        </div>
+        {/* Empty state: welcome screen with mode selector */}
+        {isEmpty ? (
+          <div className="flex flex-1 flex-col overflow-hidden">
+            <div className="flex flex-1 flex-col items-center justify-center overflow-y-auto px-8 py-8">
+              <div className="flex max-w-md flex-col items-center text-center">
+                <img src="/author.png" alt="Smart Space" className="mb-6 h-28 w-auto" />
+                <h1 className="mb-2 text-3xl font-bold tracking-tight text-[var(--color-text-primary)]" style={{ fontFamily: 'var(--font-headline)' }}>
+                  {t('empty.title')}
+                </h1>
+                <p className="text-base text-[var(--color-text-secondary)]">
+                  开始一个新的会话。Smart Space 已准备好帮你完成代码开发和日常工作。
+                </p>
+                <p className="mt-4 text-xs text-[var(--color-text-tertiary)]">选择工作模式，切换 AI 专注领域</p>
 
-        {/* Input */}
-        <div className="px-4 py-3 border-t border-[var(--color-border)] flex-shrink-0">
-          <ChatInput
-            onSend={handleSend}
-            onStop={handleStop}
-            isGenerating={isGenerating}
-            usage={sessionState.usage}
-          />
-          {/* Work directory bar + disclaimer */}
-          <div className="max-w-3xl mx-auto mt-2 px-1 flex items-center justify-between gap-3">
-            <div
-              onClick={!hasMessages && !isGenerating ? handlePickDir : undefined}
-              className={`flex items-center gap-2 pl-2.5 pr-3 py-1.5 rounded-full border border-[var(--color-border)] bg-[var(--color-surface-container)] text-[11px] text-[var(--color-text-secondary)] select-text transition-colors hover:bg-[var(--color-surface-hover)] ${!hasMessages && !isGenerating ? 'cursor-pointer' : 'cursor-default'}`}
-              title={hasMessages ? '已有消息，不可更改工作目录' : (workDir || '设置工作目录')}
-            >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-[var(--color-text-tertiary)]">
-                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
-              </svg>
-              <span className="truncate max-w-[280px] sm:max-w-[360px] select-text">
-                {workDir || '设置工作目录'}
-              </span>
+                {/* Mode switcher */}
+                <div className="mt-3 inline-flex items-center rounded-full border border-[var(--color-border)] bg-[var(--color-surface-container-low)] p-1">
+                  <button
+                    onClick={() => setMode('code')}
+                    className={`flex items-center gap-1.5 rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${mode === 'code' ? 'text-white' : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]'}`}
+                    style={mode === 'code' ? { background: 'var(--gradient-btn-primary)' } : undefined}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="16 18 22 12 16 6" /><polyline points="8 6 2 12 8 18" /></svg>
+                    代码开发
+                  </button>
+                  <button
+                    onClick={() => setMode('office')}
+                    className={`flex items-center gap-1.5 rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${mode === 'office' ? 'text-white' : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]'}`}
+                    style={mode === 'office' ? { background: 'var(--gradient-btn-primary)' } : undefined}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>
+                    日常办公
+                  </button>
+                </div>
+
+                <p className="mt-4 text-sm text-[var(--color-text-tertiary)]">
+                  {mode === 'code' ? '专注于代码编写、调试和架构设计' : '专注于文档撰写、数据分析和日常任务'}
+                </p>
+              </div>
             </div>
-            <span className="text-[11px] text-[var(--color-text-tertiary)]/60 whitespace-nowrap">
-              {t('chat.aiDisclaimer')}
-            </span>
+
+            {/* Input area for empty state */}
+            <div className="flex justify-center px-8 pb-6">
+              <div className="w-full max-w-3xl">
+                <div className="flex items-end gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-container-low)] p-3 focus-within:border-[var(--color-border-focus)] transition-colors">
+                  <textarea
+                    value={emptyInput}
+                    onChange={(e) => setEmptyInput(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); const txt = emptyInput.trim(); if (txt) { handleSend(txt); setEmptyInput(''); } } }}
+                    className="flex-1 resize-none border-0 bg-transparent text-sm text-[var(--color-text-primary)] outline-none placeholder:text-[var(--color-text-tertiary)]"
+                    placeholder={t('empty.placeholder')}
+                    rows={2}
+                    style={{ maxHeight: '120px' }}
+                  />
+                  <button
+                    onClick={() => { const txt = emptyInput.trim(); if (txt) { handleSend(txt); setEmptyInput(''); } }}
+                    disabled={!emptyInput.trim()}
+                    className="flex-shrink-0 px-4 py-1.5 text-xs font-semibold rounded-lg text-[var(--color-btn-primary-fg)] transition-all hover:brightness-105 disabled:opacity-30"
+                    style={{ background: 'var(--gradient-btn-primary)', boxShadow: 'var(--shadow-button-primary)' }}
+                  >
+                    {t('session.send')}
+                  </button>
+                </div>
+                {/* Work directory bar */}
+                <div className="mt-2 px-1 flex items-center justify-between gap-3">
+                  <div
+                    onClick={!hasMessages && !isGenerating ? handlePickDir : undefined}
+                    className={`flex items-center gap-2 pl-2.5 pr-3 py-1.5 rounded-full border border-[var(--color-border)] bg-[var(--color-surface-container)] text-[11px] text-[var(--color-text-secondary)] select-text transition-colors hover:bg-[var(--color-surface-hover)] ${!hasMessages && !isGenerating ? 'cursor-pointer' : 'cursor-default'}`}
+                    title={hasMessages ? '已有消息，不可更改工作目录' : (workDir || '设置工作目录')}
+                  >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-[var(--color-text-tertiary)]"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" /></svg>
+                    <span className="truncate max-w-[280px] sm:max-w-[360px] select-text">{workDir || '设置工作目录'}</span>
+                  </div>
+                  <span className="text-[11px] text-[var(--color-text-tertiary)]/60 whitespace-nowrap">{t('chat.aiDisclaimer')}</span>
+                </div>
+              </div>
+            </div>
           </div>
-        </div>
+        ) : (
+          <>
+            {/* Messages */}
+            <div ref={messagesContainerRef} className="flex-1 overflow-y-auto px-4">
+              <MessageList
+                messages={sessionState.messages}
+                streamingText={sessionState.streamingText}
+                thinkingText={sessionState.thinkingText}
+                chatState={sessionState.chatState}
+                toolCalls={sessionState.toolCalls}
+                pendingQuestion={sessionState.pendingQuestion}
+                pendingPlan={sessionState.pendingPlan}
+                onAnswerQuestion={(answer) => answerQuestion(sessionId, answer)}
+                onRespondPlan={(response) => respondPlan(sessionId, response)}
+              />
+            </div>
+
+            {/* Input */}
+            <div className="px-4 py-3 border-t border-[var(--color-border)] flex-shrink-0">
+              <ChatInput
+                onSend={handleSend}
+                onStop={handleStop}
+                isGenerating={isGenerating}
+                usage={sessionState.usage}
+              />
+              {/* Work directory bar + disclaimer */}
+              <div className="max-w-3xl mx-auto mt-2 px-1 flex items-center justify-between gap-3">
+                <div
+                  onClick={!hasMessages && !isGenerating ? handlePickDir : undefined}
+                  className={`flex items-center gap-2 pl-2.5 pr-3 py-1.5 rounded-full border border-[var(--color-border)] bg-[var(--color-surface-container)] text-[11px] text-[var(--color-text-secondary)] select-text transition-colors hover:bg-[var(--color-surface-hover)] ${!hasMessages && !isGenerating ? 'cursor-pointer' : 'cursor-default'}`}
+                  title={hasMessages ? '已有消息，不可更改工作目录' : (workDir || '设置工作目录')}
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-[var(--color-text-tertiary)]">
+                    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+                  </svg>
+                  <span className="truncate max-w-[280px] sm:max-w-[360px] select-text">
+                    {workDir || '设置工作目录'}
+                  </span>
+                </div>
+                <span className="text-[11px] text-[var(--color-text-tertiary)]/60 whitespace-nowrap">
+                  {t('chat.aiDisclaimer')}
+                </span>
+              </div>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Resize handle */}
