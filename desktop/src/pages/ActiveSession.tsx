@@ -290,7 +290,7 @@ export function ActiveSession({ sessionId }: { sessionId: string }) {
         </div>
 
         {/* Input */}
-        <div className="px-4 pt-3 border-t border-[var(--color-border)] flex-shrink-0">
+        <div className="px-4 py-3 border-t border-[var(--color-border)] flex-shrink-0">
           <ChatInput
             onSend={handleSend}
             onStop={handleStop}
