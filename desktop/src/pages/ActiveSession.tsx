@@ -300,19 +300,18 @@ export function ActiveSession({ sessionId }: { sessionId: string }) {
           />
           {/* Work directory bar + disclaimer */}
           <div className="max-w-3xl mx-auto mt-2 px-1 flex items-center justify-between gap-3">
-            <button
-              onClick={hasMessages ? undefined : handlePickDir}
-              disabled={isGenerating || hasMessages}
-              className="flex items-center gap-2 pl-2.5 pr-3 py-1.5 rounded-full border border-[var(--color-border)] bg-[var(--color-surface-container)] text-left text-[11px] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] transition-colors disabled:cursor-not-allowed"
+            <div
+              onClick={!hasMessages && !isGenerating ? handlePickDir : undefined}
+              className={`flex items-center gap-2 pl-2.5 pr-3 py-1.5 rounded-full border border-[var(--color-border)] bg-[var(--color-surface-container)] text-[11px] text-[var(--color-text-secondary)] select-text transition-colors hover:bg-[var(--color-surface-hover)] ${!hasMessages && !isGenerating ? 'cursor-pointer' : 'cursor-default'}`}
               title={hasMessages ? '已有消息，不可更改工作目录' : (workDir || '设置工作目录')}
             >
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-[var(--color-text-tertiary)]">
                 <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
               </svg>
-              <span className="truncate max-w-[280px] sm:max-w-[360px]">
+              <span className="truncate max-w-[280px] sm:max-w-[360px] select-text">
                 {workDir || '设置工作目录'}
               </span>
-            </button>
+            </div>
             <span className="text-[11px] text-[var(--color-text-tertiary)]/60 whitespace-nowrap">
               {t('chat.aiDisclaimer')}
             </span>
