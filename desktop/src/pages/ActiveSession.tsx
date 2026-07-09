@@ -188,6 +188,9 @@ export function ActiveSession({ sessionId }: { sessionId: string }) {
           <div className="flex flex-col min-w-0 gap-0.5">
             <span className="text-sm font-medium text-[var(--color-text-primary)] truncate">
               {session?.title || t('session.title')}
+              <span className="ml-2 text-[10px] font-normal px-1.5 py-0.5 rounded-full bg-[var(--color-brand)]/10 text-[var(--color-brand)] align-middle">
+                {mode === 'code' ? '代码开发' : '日常办公'}
+              </span>
             </span>
             <div className="flex items-center gap-1.5 text-[10px] text-[var(--color-text-tertiary)]">
               {isActive && (
