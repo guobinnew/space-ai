@@ -72,6 +72,7 @@ export function ActiveSession({ sessionId }: { sessionId: string }) {
           messages={sessionState.messages}
           streamingText={sessionState.streamingText}
           chatState={sessionState.chatState}
+          toolCalls={sessionState.toolCalls}
         />
       </div>
 

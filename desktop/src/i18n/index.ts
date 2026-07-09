@@ -75,6 +75,21 @@ const translations: Record<Locale, Record<string, string>> = {
     'chat.empty': '开始新对话',
     'chat.responsePlaceholder': '收到消息。会话功能开发中，暂不支持 AI 回复。',
 
+    // Tool calls
+    'tool.running': '运行中...',
+    'tool.completed': '已完成',
+    'tool.error': '错误',
+    'tool.toolInput': '工具输入',
+    'tool.toolOutput': '工具输出',
+    'tool.errorOutput': '错误输出',
+    'tool.linesOutput': '{count} 行输出',
+    'tool.readFileContents': '读取文件内容',
+    'tool.createFile': '创建文件',
+    'tool.updateFileContents': '更新文件内容',
+    'tool.linesCreated': '创建 {count} 行',
+    'tool.linesChanged': '修改 {count} 行',
+    'thinking.label': '思考',
+
     // Settings
     'settings.general': '通用',
     'settings.providers': '服务商',
@@ -267,6 +282,21 @@ const translations: Record<Locale, Record<string, string>> = {
     'chat.creating': 'Creating...',
     'chat.empty': 'Start a new conversation',
     'chat.responsePlaceholder': 'Message received. Chat feature is under development, AI replies not supported yet.',
+
+    // Tool calls
+    'tool.running': 'Running...',
+    'tool.completed': 'Completed',
+    'tool.error': 'Error',
+    'tool.toolInput': 'Tool Input',
+    'tool.toolOutput': 'Tool Output',
+    'tool.errorOutput': 'Error Output',
+    'tool.linesOutput': '{count} lines output',
+    'tool.readFileContents': 'Read file contents',
+    'tool.createFile': 'Create file',
+    'tool.updateFileContents': 'Update file contents',
+    'tool.linesCreated': '{count} lines created',
+    'tool.linesChanged': '{count} lines changed',
+    'thinking.label': 'Thinking',
 
     // Settings
     'settings.general': 'General',

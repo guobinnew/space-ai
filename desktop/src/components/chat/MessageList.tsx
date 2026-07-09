@@ -2,31 +2,34 @@
  * MessageList — 消息列表组件
  *
  * 参照 smart-code chat/MessageList.tsx 复刻，简化版。
- * 渲染用户消息、助手消息、错误消息和流式文本。
+ * 渲染用户消息、助手消息、错误消息、工具调用块和流式文本。
  */
 
 import { useEffect, useRef } from 'react';
-import type { UIMessage, ChatState } from '../../types/chat';
+import type { UIMessage, ChatState, ToolCallInfo } from '../../types/chat';
 import { UserMessage } from './UserMessage';
 import { AssistantMessage } from './AssistantMessage';
 import { StreamingIndicator } from './StreamingIndicator';
+import { ToolCallBlock } from './ToolCallBlock';
+import { ThinkingBlock } from './ThinkingBlock';
 import { useTranslation } from '../../i18n';
 
 type MessageListProps = {
   messages: UIMessage[];
   streamingText: string;
   chatState: ChatState;
+  toolCalls: ToolCallInfo[];
 };
 
-export function MessageList({ messages, streamingText, chatState }: MessageListProps) {
+export function MessageList({ messages, streamingText, chatState, toolCalls }: MessageListProps) {
   const t = useTranslation();
   const endRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages.length, streamingText]);
+  }, [messages.length, streamingText, toolCalls.length]);
 
-  if (messages.length === 0 && !streamingText && chatState === 'idle') {
+  if (messages.length === 0 && !streamingText && chatState === 'idle' && toolCalls.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-center">
         <div
@@ -39,6 +42,9 @@ export function MessageList({ messages, streamingText, chatState }: MessageListP
       </div>
     );
   }
+
+  const hasRunningTool = toolCalls.some((tc) => tc.status === 'running');
+  const showThinking = chatState === 'thinking' && !streamingText && toolCalls.length === 0;
 
   return (
     <div className="max-w-3xl mx-auto flex flex-col gap-4 py-4">
@@ -61,13 +67,28 @@ export function MessageList({ messages, streamingText, chatState }: MessageListP
         return null;
       })}
 
+      {/* Tool call blocks (current round) */}
+      {toolCalls.length > 0 && (
+        <div className="flex flex-col gap-1">
+          {toolCalls.map((tc) => (
+            <ToolCallBlock key={tc.id} toolCall={tc} />
+          ))}
+        </div>
+      )}
+
+      {/* Thinking block — shown when thinking and no text yet and no running tools */}
+      {showThinking && <ThinkingBlock isActive />}
+
+      {/* Thinking indicator when tools are running but no streaming text */}
+      {hasRunningTool && !streamingText && <StreamingIndicator />}
+
       {/* Streaming text */}
       {streamingText && (
         <AssistantMessage content={streamingText} createdAt="" streaming />
       )}
 
-      {/* Thinking indicator */}
-      {chatState === 'thinking' && !streamingText && (
+      {/* Thinking indicator (no streaming text, no tool calls) */}
+      {chatState === 'thinking' && !streamingText && toolCalls.length === 0 && (
         <StreamingIndicator />
       )}
 

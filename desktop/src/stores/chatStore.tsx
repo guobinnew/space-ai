@@ -58,6 +58,7 @@ function createInitialSessionState(): PerSessionChatState {
     messages: [],
     chatState: 'idle',
     streamingText: '',
+    toolCalls: [],
   };
 }
 
@@ -134,6 +135,38 @@ export function ChatProvider({ children }: { children: ReactNode }) {
             }));
             break;
 
+          case 'tool_call':
+            updateSession(sessionId, (prev) => ({
+              ...prev,
+              chatState: 'thinking',
+              toolCalls: [
+                ...prev.toolCalls,
+                {
+                  id: msg.toolCallId,
+                  toolName: msg.toolName,
+                  input: msg.input,
+                  status: 'running',
+                },
+              ],
+            }));
+            break;
+
+          case 'tool_result':
+            updateSession(sessionId, (prev) => ({
+              ...prev,
+              toolCalls: prev.toolCalls.map((tc) =>
+                tc.id === msg.toolCallId
+                  ? {
+                      ...tc,
+                      result: msg.result,
+                      isError: msg.isError,
+                      status: msg.isError ? 'error' : 'completed',
+                    }
+                  : tc,
+              ),
+            }));
+            break;
+
           case 'message_complete': {
             let completedText = '';
             updateSession(sessionId, (prev) => {
@@ -202,6 +235,8 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         ...prev,
         messages: [...prev.messages, userMsg],
         chatState: 'thinking',
+        streamingText: '',
+        toolCalls: [],
       }));
 
       wsManager.send(sessionId, { type: 'user_message', content });

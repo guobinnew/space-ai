@@ -23,6 +23,8 @@ export type StreamChunk =
   | { type: 'content_start' }
   | { type: 'content_delta'; text: string }
   | { type: 'status'; state: 'thinking' | 'streaming' | 'idle' }
+  | { type: 'tool_call'; toolCallId: string; toolName: string; input: Record<string, unknown> }
+  | { type: 'tool_result'; toolCallId: string; result: string; isError: boolean }
   | { type: 'message_complete' }
   | { type: 'error'; message: string }
 
@@ -219,7 +221,11 @@ async function runAnthropicLoop(
     const toolResults: AnthropicContentBlock[] = []
     for (const tu of response.toolUses) {
       if (isCancelled()) break
+      // Notify frontend: tool call started
+      onChunk({ type: 'tool_call', toolCallId: tu.id, toolName: tu.name, input: tu.input })
       const result = await executeTool(tu, toolContext)
+      // Notify frontend: tool result
+      onChunk({ type: 'tool_result', toolCallId: tu.id, result: result.content, isError: result.isError })
       toolResults.push({
         type: 'tool_result',
         tool_use_id: tu.id,
@@ -424,7 +430,11 @@ async function runOpenAILoop(
     // Add tool results
     for (const tu of response.toolUses) {
       if (isCancelled()) break
+      // Notify frontend: tool call started
+      onChunk({ type: 'tool_call', toolCallId: tu.id, toolName: tu.name, input: tu.input })
       const result = await executeTool(tu, toolContext)
+      // Notify frontend: tool result
+      onChunk({ type: 'tool_result', toolCallId: tu.id, result: result.content, isError: result.isError })
       messages.push({
         role: 'tool',
         content: result.content,
