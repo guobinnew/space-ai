@@ -34,7 +34,7 @@ const translations: Record<Locale, Record<string, string>> = {
 
     // HomePage
     'home.welcome': '欢迎使用 Smart Space',
-    'home.subtitle': '桌面客户端 + 内嵌服务端',
+    'home.subtitle': '已准备好帮助你构建、调试和规划你的项目。',
     'home.serverStatus': '服务状态',
     'home.backend': '后端服务',
     'home.checking': '检测中',
@@ -349,7 +349,7 @@ const translations: Record<Locale, Record<string, string>> = {
 
     // HomePage
     'home.welcome': 'Welcome to Smart Space',
-    'home.subtitle': 'Desktop Client + Embedded Server',
+    'home.subtitle': 'Ready to help you build, debug, and plan your projects.',
     'home.serverStatus': 'Server Status',
     'home.backend': 'Backend Service',
     'home.checking': 'Checking',
