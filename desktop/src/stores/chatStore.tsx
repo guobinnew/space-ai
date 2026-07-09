@@ -215,7 +215,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
           case 'message_complete': {
             let completedText = '';
             updateSession(sessionId, (prev) => {
-              if (!prev.streamingText) return { ...prev, chatState: 'idle', thinkingText: '', toolCalls: [] };
+              if (!prev.streamingText) return { ...prev, chatState: 'idle', toolCalls: [] };
               completedText = prev.streamingText;
               const assistantMsg: UIMessage = {
                 type: 'assistant_text',
@@ -227,7 +227,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
                 ...prev,
                 messages: [...prev.messages, assistantMsg],
                 streamingText: '',
-                thinkingText: '',
+                // Keep thinkingText so ThinkingBlock remains visible after completion
                 toolCalls: [],
                 chatState: 'idle',
                 pendingQuestion: null,

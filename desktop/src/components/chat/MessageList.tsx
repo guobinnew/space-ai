@@ -61,7 +61,6 @@ export function MessageList({
   }
 
   const hasRunningTool = toolCalls.some((tc) => tc.status === 'running');
-  const isThinking = chatState === 'thinking';
 
   return (
     <div className="max-w-3xl mx-auto flex flex-col gap-3 py-4">
@@ -111,9 +110,9 @@ export function MessageList({
         />
       )}
 
-      {/* ThinkingBlock — always visible while assistant is active, click to expand/collapse content */}
-      {(isThinking || chatState === 'streaming') && (
-        <ThinkingBlock content={thinkingText} isActive={isThinking || chatState === 'streaming'} />
+      {/* ThinkingBlock — always visible once assistant starts, click to expand/collapse content */}
+      {(chatState !== 'idle' || thinkingText) && (
+        <ThinkingBlock content={thinkingText} isActive={chatState !== 'idle'} />
       )}
 
       {/* Thinking indicator when tools are running but no streaming text */}
