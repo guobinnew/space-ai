@@ -2,10 +2,12 @@
  * AssistantMessage — 助手消息气泡
  *
  * 参照 smart-code chat/AssistantMessage.tsx。
- * 带动画头像 + MarkdownRenderer 渲染。
+ * 带动画头像 + MarkdownRenderer 渲染 + 复制按钮。
  */
 
 import { MarkdownRenderer } from '../markdown/MarkdownRenderer';
+import { MessageActionBar } from './MessageActionBar';
+import { useTranslation } from '../../i18n';
 
 /** Animated robot face with blinking eyes */
 function AgentAvatar() {
@@ -15,9 +17,7 @@ function AgentAvatar() {
       className="h-full w-full"
       xmlns="http://www.w3.org/2000/svg"
     >
-      {/* Background circle */}
       <circle cx="18" cy="18" r="17" fill="currentColor" opacity="0.12" />
-      {/* Robot head outline */}
       <rect
         x="8"
         y="10"
@@ -28,17 +28,12 @@ function AgentAvatar() {
         stroke="currentColor"
         strokeWidth="1.5"
       />
-      {/* Antenna */}
       <line x1="18" y1="10" x2="18" y2="6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
       <circle cx="18" cy="5" r="1.5" fill="currentColor" />
-      {/* Eyes - blinking animation */}
       <g className="animate-blink origin-center">
-        {/* Left eye */}
         <rect x="11" y="15" width="5" height="5" rx="1.5" fill="currentColor" />
-        {/* Right eye */}
         <rect x="20" y="15" width="5" height="5" rx="1.5" fill="currentColor" />
       </g>
-      {/* Mouth - smile curve */}
       <path
         d="M13 24 Q18 27 23 24"
         fill="none"
@@ -59,8 +54,10 @@ export function AssistantMessage({
   createdAt: string;
   streaming?: boolean;
 }) {
+  const t = useTranslation();
+
   return (
-    <div className="flex items-start gap-2 mb-3">
+    <div className="group flex items-start gap-2 mb-3">
       {/* Agent avatar */}
       <div className="shrink-0 pt-0.5">
         <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--color-brand)]/15 text-[var(--color-brand)]">
@@ -77,8 +74,16 @@ export function AssistantMessage({
           )}
         </div>
         {createdAt && !streaming && (
-          <div className="text-[10px] text-[var(--color-text-tertiary)] mt-1 ml-1">
-            {new Date(createdAt).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}
+          <div className="flex items-center gap-2 mt-1 ml-1">
+            <span className="text-[10px] text-[var(--color-text-tertiary)]">
+              {new Date(createdAt).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}
+            </span>
+            {!streaming && (
+              <MessageActionBar
+                copyText={content}
+                copyLabel={t('chat.copyReply')}
+              />
+            )}
           </div>
         )}
       </div>
