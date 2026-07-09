@@ -111,18 +111,13 @@ export function MessageList({
         />
       )}
 
-      {/* ThinkingBlock — shows when there's thinking content (live or completed) */}
-      {thinkingText && (
-        <ThinkingBlock content={thinkingText} isActive={isThinking || (chatState === 'streaming' && !!thinkingText)} />
-      )}
-
-      {/* StreamingIndicator — thinking (or streaming waiting for content) with no text yet */}
-      {!streamingText && !thinkingText && toolCalls.length === 0 && (isThinking || chatState === 'streaming') && (
-        <StreamingIndicator />
+      {/* ThinkingBlock — always visible while assistant is active, click to expand/collapse content */}
+      {(isThinking || chatState === 'streaming') && (
+        <ThinkingBlock content={thinkingText} isActive={isThinking || chatState === 'streaming'} />
       )}
 
       {/* Thinking indicator when tools are running but no streaming text */}
-      {hasRunningTool && !streamingText && <StreamingIndicator />}
+      {hasRunningTool && !streamingText && !thinkingText && <StreamingIndicator />}
 
       {/* Streaming text */}
       {streamingText && (
