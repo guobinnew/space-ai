@@ -110,18 +110,23 @@ export function MessageList({
         />
       )}
 
-      {/* ThinkingBlock — always visible once assistant starts, click to expand/collapse content */}
-      {(chatState !== 'idle' || thinkingText) && (
-        <ThinkingBlock content={thinkingText} isActive={chatState !== 'idle'} />
+      {/* Current round: ThinkingBlock above streaming text */}
+      {(chatState !== 'idle' || streamingText) && (
+        <>
+          {/* ThinkingBlock with current thinking content */}
+          {(thinkingText || chatState !== 'idle') && (
+            <ThinkingBlock content={thinkingText} isActive={chatState !== 'idle'} />
+          )}
+
+          {/* Streaming text */}
+          {streamingText && (
+            <AssistantMessage content={streamingText} createdAt="" streaming />
+          )}
+        </>
       )}
 
-      {/* Thinking indicator when tools are running but no streaming text */}
-      {hasRunningTool && !streamingText && !thinkingText && <StreamingIndicator />}
-
-      {/* Streaming text */}
-      {streamingText && (
-        <AssistantMessage content={streamingText} createdAt="" streaming />
-      )}
+      {/* Thinking indicator when tools are running but no streaming or thinking text */}
+      {hasRunningTool && !streamingText && !thinkingText && chatState === 'idle' && <StreamingIndicator />}
 
       <div ref={endRef} />
     </div>
