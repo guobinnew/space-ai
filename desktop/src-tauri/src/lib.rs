@@ -145,6 +145,14 @@ fn start_server_sidecar(app: &tauri::App) -> Result<Child, String> {
         }
     };
 
+    // In dev mode, set CWD to the sidecar's directory so Bun --hot can
+    // properly detect the project root and watch files for changes.
+    if !is_compiled {
+        if let Some(sidecar_dir) = sidecar_path.parent() {
+            cmd.current_dir(sidecar_dir);
+        }
+    }
+
     let child = cmd
         .arg("server")
         .arg("--app-root")
