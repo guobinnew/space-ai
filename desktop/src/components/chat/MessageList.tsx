@@ -43,7 +43,19 @@ export function MessageList({
   const endRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: 'smooth' });
+    const el = endRef.current;
+    if (!el) return;
+    // Find the scrollable container (parent of this MessageList wrapper)
+    // DOM: div.flex-1.overflow-y-auto > div.max-w-3xl > div(ref)
+    const scrollParent = el.parentElement?.parentElement;
+    if (!scrollParent) return;
+    // Only auto-scroll if user is within 100px of the bottom
+    // (avoids fighting user-initiated scroll when reviewing history)
+    const distanceFromBottom =
+      scrollParent.scrollHeight - scrollParent.scrollTop - scrollParent.clientHeight;
+    if (distanceFromBottom < 100) {
+      scrollParent.scrollTop = scrollParent.scrollHeight;
+    }
   }, [messages.length, streamingText, thinkingText, toolCalls.length]);
 
   if (messages.length === 0 && !streamingText && chatState === 'idle' && toolCalls.length === 0) {
