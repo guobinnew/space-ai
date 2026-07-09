@@ -32,7 +32,6 @@ export function ActiveSession({ sessionId }: { sessionId: string }) {
   const [chatWidth, setChatWidth] = useState(DEFAULT_CHAT_WIDTH);
   const [dragging, setDragging] = useState(false);
   const [mode, setMode] = useState<'code' | 'office'>('code');
-  const [emptyInput, setEmptyInput] = useState('');
   const containerRef = useRef<HTMLDivElement>(null);
   const isDragging = useRef(false);
   const startX = useRef(0);
@@ -331,39 +330,24 @@ export function ActiveSession({ sessionId }: { sessionId: string }) {
             </div>
 
             {/* Input area for empty state */}
-            <div className="flex justify-center px-8 pb-6">
-              <div className="w-full max-w-3xl">
-                <div className="flex items-end gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-container-low)] p-3 focus-within:border-[var(--color-border-focus)] transition-colors">
-                  <textarea
-                    value={emptyInput}
-                    onChange={(e) => setEmptyInput(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); const txt = emptyInput.trim(); if (txt) { handleSend(txt); setEmptyInput(''); } } }}
-                    className="flex-1 resize-none border-0 bg-transparent text-sm text-[var(--color-text-primary)] outline-none placeholder:text-[var(--color-text-tertiary)]"
-                    placeholder={t('empty.placeholder')}
-                    rows={2}
-                    style={{ maxHeight: '120px' }}
-                  />
-                  <button
-                    onClick={() => { const txt = emptyInput.trim(); if (txt) { handleSend(txt); setEmptyInput(''); } }}
-                    disabled={!emptyInput.trim()}
-                    className="flex-shrink-0 px-4 py-1.5 text-xs font-semibold rounded-lg text-[var(--color-btn-primary-fg)] transition-all hover:brightness-105 disabled:opacity-30"
-                    style={{ background: 'var(--gradient-btn-primary)', boxShadow: 'var(--shadow-button-primary)' }}
-                  >
-                    {t('session.send')}
-                  </button>
+            <div className="px-4 py-3 border-t border-[var(--color-border)] flex-shrink-0">
+              <ChatInput
+                onSend={handleSend}
+                onStop={handleStop}
+                isGenerating={isGenerating}
+                usage={sessionState.usage}
+              />
+              {/* Work directory bar + disclaimer */}
+              <div className="max-w-3xl mx-auto mt-2 px-1 flex items-center justify-between gap-3">
+                <div
+                  onClick={!hasMessages && !isGenerating ? handlePickDir : undefined}
+                  className={`flex items-center gap-2 pl-2.5 pr-3 py-1.5 rounded-full border border-[var(--color-border)] bg-[var(--color-surface-container)] text-[11px] text-[var(--color-text-secondary)] select-text transition-colors hover:bg-[var(--color-surface-hover)] ${!hasMessages && !isGenerating ? 'cursor-pointer' : 'cursor-default'}`}
+                  title={hasMessages ? '已有消息，不可更改工作目录' : (workDir || '设置工作目录')}
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-[var(--color-text-tertiary)]"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" /></svg>
+                  <span className="truncate max-w-[280px] sm:max-w-[360px] select-text">{workDir || '设置工作目录'}</span>
                 </div>
-                {/* Work directory bar */}
-                <div className="mt-2 px-1 flex items-center justify-between gap-3">
-                  <div
-                    onClick={!hasMessages && !isGenerating ? handlePickDir : undefined}
-                    className={`flex items-center gap-2 pl-2.5 pr-3 py-1.5 rounded-full border border-[var(--color-border)] bg-[var(--color-surface-container)] text-[11px] text-[var(--color-text-secondary)] select-text transition-colors hover:bg-[var(--color-surface-hover)] ${!hasMessages && !isGenerating ? 'cursor-pointer' : 'cursor-default'}`}
-                    title={hasMessages ? '已有消息，不可更改工作目录' : (workDir || '设置工作目录')}
-                  >
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-[var(--color-text-tertiary)]"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" /></svg>
-                    <span className="truncate max-w-[280px] sm:max-w-[360px] select-text">{workDir || '设置工作目录'}</span>
-                  </div>
-                  <span className="text-[11px] text-[var(--color-text-tertiary)]/60 whitespace-nowrap">{t('chat.aiDisclaimer')}</span>
-                </div>
+                <span className="text-[11px] text-[var(--color-text-tertiary)]/60 whitespace-nowrap">{t('chat.aiDisclaimer')}</span>
               </div>
             </div>
           </div>
