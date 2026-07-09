@@ -130,17 +130,17 @@ fn start_server_sidecar(app: &tauri::App) -> Result<Child, String> {
     let mut cmd = if is_compiled {
         Command::new(&sidecar_path)
     } else {
-        // Dev mode: run .ts with bun
+        // Dev mode: run .ts with bun --hot (auto-reload on code changes)
         #[cfg(target_os = "windows")]
         {
             let mut c = Command::new("cmd");
-            c.arg("/C").arg("bun").arg("run").arg(&sidecar_path);
+            c.arg("/C").arg("bun").arg("--hot").arg("run").arg(&sidecar_path);
             c
         }
         #[cfg(not(target_os = "windows"))]
         {
             let mut c = Command::new("bun");
-            c.arg("run").arg(&sidecar_path);
+            c.arg("--hot").arg("run").arg(&sidecar_path);
             c
         }
     };
