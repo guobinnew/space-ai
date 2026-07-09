@@ -114,7 +114,7 @@ export function AssistantMessage({
       <div className="min-w-0 max-w-[85%]">
         <div
           ref={bubbleRef}
-          className="rounded-[20px] rounded-tl-[8px] px-4 py-2.5 text-sm bg-[var(--color-surface-container-low)] border border-[var(--color-border)]/60 text-[var(--color-text-primary)] shadow-sm break-words"
+          className="rounded-[20px] rounded-tl-[8px] px-4 py-3 text-base bg-[var(--color-surface-container-low)] border border-[var(--color-border)]/60 text-[var(--color-text-primary)] shadow-sm break-words"
         >
           <MarkdownRenderer content={content} />
           {streaming && (
