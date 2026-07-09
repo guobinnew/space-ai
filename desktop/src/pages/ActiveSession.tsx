@@ -38,6 +38,21 @@ export function ActiveSession({ sessionId }: { sessionId: string }) {
 
   const sessionState = getSession(sessionId);
   const isGenerating = sessionState.chatState === 'thinking' || sessionState.chatState === 'streaming';
+  const isActive = sessionState.chatState !== 'idle';
+
+  /** 格式化相对时间 */
+  const formatRelativeTime = (isoTime: string): string => {
+    const diff = Date.now() - new Date(isoTime).getTime()
+    const seconds = Math.floor(diff / 1000)
+    if (seconds < 60) return t('session.timeJustNow')
+    const minutes = Math.floor(seconds / 60)
+    if (minutes < 60) return t('session.timeMinutes', { n: minutes })
+    const hours = Math.floor(minutes / 60)
+    if (hours < 24) return t('session.timeHours', { n: hours })
+    const days = Math.floor(hours / 24)
+    if (days < 7) return t('session.timeDays', { n: days })
+    return new Date(isoTime).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })
+  }
 
   // Get session workDir
   const session = sessions.find((s) => s.id === sessionId);
@@ -112,11 +127,31 @@ export function ActiveSession({ sessionId }: { sessionId: string }) {
         style={editorOpen ? { width: chatWidth } : undefined}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-2.5 border-b border-[var(--color-border)] flex-shrink-0">
-          <div className="flex items-center gap-2 min-w-0">
+        <div className="flex items-center justify-between px-4 py-2 border-b border-[var(--color-border)] flex-shrink-0">
+          <div className="flex flex-col min-w-0 gap-0.5">
             <span className="text-sm font-medium text-[var(--color-text-primary)] truncate">
               {session?.title || t('session.title')}
             </span>
+            <div className="flex items-center gap-1.5 text-[10px] text-[var(--color-text-tertiary)]">
+              {isActive && (
+                <span className="flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-success)] animate-pulse" />
+                  <span>{t('session.active')}</span>
+                </span>
+              )}
+              {session?.messageCount !== undefined && session.messageCount > 0 && (
+                <>
+                  {isActive && <span>·</span>}
+                  <span>{t('session.messageCount', { count: session.messageCount })}</span>
+                </>
+              )}
+              {session?.modifiedAt && (
+                <>
+                  <span>·</span>
+                  <span>{formatRelativeTime(session.modifiedAt)}</span>
+                </>
+              )}
+            </div>
           </div>
           <div className="flex items-center gap-1 flex-shrink-0">
             {/* Toggle editor panel */}

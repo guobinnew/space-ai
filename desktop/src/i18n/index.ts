@@ -60,6 +60,12 @@ const translations: Record<Locale, Record<string, string>> = {
     'session.title': '会话',
     'session.close': '关闭',
     'session.delete': '删除会话',
+    'session.active': '活跃中',
+    'session.messageCount': '{count} 条消息',
+    'session.timeJustNow': '刚刚',
+    'session.timeMinutes': '{n} 分钟前',
+    'session.timeHours': '{n} 小时前',
+    'session.timeDays': '{n} 天前',
     'session.rename': '重命名',
     'session.deleteConfirm': '确定删除此会话吗？',
     'session.newTitle': '新会话',
@@ -286,6 +292,12 @@ const translations: Record<Locale, Record<string, string>> = {
     'session.title': 'Session',
     'session.close': 'Close',
     'session.delete': 'Delete Session',
+    'session.active': 'Active',
+    'session.messageCount': '{count} messages',
+    'session.timeJustNow': 'just now',
+    'session.timeMinutes': '{n}m ago',
+    'session.timeHours': '{n}h ago',
+    'session.timeDays': '{n}d ago',
     'session.rename': 'Rename',
     'session.deleteConfirm': 'Delete this session?',
     'session.newTitle': 'New Session',
@@ -466,15 +478,27 @@ export function useTranslation() {
   const { locale } = useUIStore();
   const dict = translations[locale] || translations.zh;
 
-  const t = (key: string): string => {
-    return dict[key] || translations.zh[key] || key;
+  const t = (key: string, params?: Record<string, string | number>): string => {
+    let str = dict[key] || translations.zh[key] || key;
+    if (params) {
+      for (const [k, v] of Object.entries(params)) {
+        str = str.replace(new RegExp(`\\{${k}\\}`, 'g'), String(v));
+      }
+    }
+    return str;
   };
 
   return t;
 }
 
 /** Non-hook version for use outside React components. */
-export function translate(key: string, locale: Locale = 'zh'): string {
+export function translate(key: string, locale: Locale = 'zh', params?: Record<string, string | number>): string {
   const dict = translations[locale] || translations.zh;
-  return dict[key] || translations.zh[key] || key;
+  let str = dict[key] || translations.zh[key] || key;
+  if (params) {
+    for (const [k, v] of Object.entries(params)) {
+      str = str.replace(new RegExp(`\\{${k}\\}`, 'g'), String(v));
+    }
+  }
+  return str;
 }
