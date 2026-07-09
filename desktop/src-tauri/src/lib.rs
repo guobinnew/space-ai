@@ -178,8 +178,6 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
             // Start the single Server sidecar process.
-            // It lives for the entire app lifecycle; CLI sidecars (per session)
-            // are spawned by the Server sidecar's JS code via Bun.spawn.
             match start_server_sidecar(app) {
                 Ok(child) => {
                     app.manage(ServerSidecar(Mutex::new(Some(child))));
@@ -189,6 +187,22 @@ pub fn run() {
                     app.manage(ServerSidecar(Mutex::new(None)));
                 }
             }
+
+            // Fallback: auto-close splash after 15s if the frontend hasn't
+            // called close_splashscreen yet (e.g. JS still loading).
+            let app_handle = app.handle().clone();
+            std::thread::spawn(move || {
+                std::thread::sleep(std::time::Duration::from_secs(15));
+                if let Some(splash) = app_handle.get_webview_window("splash") {
+                    println!("[SmartSpace] Auto-closing splash (15s timeout)");
+                    let _ = splash.close();
+                }
+                if let Some(main) = app_handle.get_webview_window("main") {
+                    let _ = main.show();
+                    let _ = main.set_focus();
+                }
+            });
+
             Ok(())
         })
         .on_window_event(|window, event| {
