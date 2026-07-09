@@ -159,7 +159,7 @@ export class SessionService {
     }
   }
 
-  async addMessage(id: string, role: 'user' | 'assistant', content: string): Promise<ChatMessage> {
+  async addMessage(id: string, role: 'user' | 'assistant', content: string, thinking?: string): Promise<ChatMessage> {
     const session = await this.readSessionFile(id)
     if (!session) throw ApiError.notFound(`Session not found: ${id}`)
 
@@ -168,6 +168,7 @@ export class SessionService {
       role,
       content,
       createdAt: new Date().toISOString(),
+      ...(thinking ? { thinking } : {}),
     }
 
     session.messages.push(message)

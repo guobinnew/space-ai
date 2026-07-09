@@ -22,6 +22,8 @@ export type ChatMessage = {
   role: 'user' | 'assistant'
   content: string
   createdAt: string
+  /** Extended thinking content from Anthropic, only for assistant messages */
+  thinking?: string
 }
 
 export type CreateSessionInput = {

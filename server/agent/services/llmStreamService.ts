@@ -155,14 +155,17 @@ export async function streamChat(
   onChunk({ type: 'content_start' })
 
   let fullText = ''
+  let thinking = ''
   const cancelCheck = isCancelled || (() => false)
 
   try {
     if (format === 'anthropic') {
-      fullText = await runAnthropicLoop(
+      const result = await runAnthropicLoop(
         baseUrl, apiKey, model, systemPrompt, toolDefs, history,
         toolContext, onChunk, cancelCheck,
       )
+      fullText = result.text
+      thinking = result.thinking
     } else {
       fullText = await runOpenAILoop(
         baseUrl, apiKey, model, systemPrompt, toolDefs, history,
@@ -179,10 +182,10 @@ export async function streamChat(
     onChunk({ type: 'status', state: 'idle' })
   }
 
-  // Save assistant response (only the final text, not tool calls)
+  // Save assistant response (text + thinking content)
   if (fullText) {
     try {
-      await sessionService.addMessage(sessionId, 'assistant', fullText)
+      await sessionService.addMessage(sessionId, 'assistant', fullText, thinking)
     } catch (err) {
       console.error(`[LLM] Failed to save assistant message: ${err}`)
     }
@@ -201,7 +204,7 @@ async function runAnthropicLoop(
   toolContext: ToolContext,
   onChunk: (chunk: StreamChunk) => void,
   isCancelled: () => boolean,
-): Promise<string> {
+): Promise<{ text: string; thinking: string }> {
   // Build messages: history (as simple strings) + current user message
   const messages: AnthropicMessage[] = history.map((m) => ({
     role: m.role,
@@ -209,6 +212,7 @@ async function runAnthropicLoop(
   }))
 
   let fullText = ''
+  let accumulatedThinking = ''
 
   for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
     if (isCancelled()) break
@@ -227,6 +231,13 @@ async function runAnthropicLoop(
     // Accumulate text
     if (response.text) {
       fullText += response.text
+    }
+
+    // Accumulate thinking content from all rounds
+    for (const tb of response.thinkingBlocks) {
+      if (tb.thinking) {
+        accumulatedThinking += (accumulatedThinking ? '\n' : '') + tb.thinking
+      }
     }
 
     // If no tool calls, we're done

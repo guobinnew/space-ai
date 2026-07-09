@@ -95,12 +95,17 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     async (sessionId: string) => {
       try {
         const data = await sessionsApi.getMessages(sessionId);
-        const uiMessages: UIMessage[] = data.messages.map((m) =>
-          m.role === 'user'
+        let thinkingText = '';
+        const uiMessages: UIMessage[] = data.messages.map((m) => {
+          // Restore thinking text from the last assistant message that has it
+          if (m.role === 'assistant' && (m as any).thinking) {
+            thinkingText = (m as any).thinking;
+          }
+          return m.role === 'user'
             ? { type: 'user_text', id: m.id, content: m.content, createdAt: m.createdAt }
-            : { type: 'assistant_text', id: m.id, content: m.content, createdAt: m.createdAt },
-        );
-        updateSession(sessionId, (prev) => ({ ...prev, messages: uiMessages }));
+            : { type: 'assistant_text', id: m.id, content: m.content, createdAt: m.createdAt };
+        });
+        updateSession(sessionId, (prev) => ({ ...prev, messages: uiMessages, thinkingText }));
       } catch {
         // Ignore load errors
       }
