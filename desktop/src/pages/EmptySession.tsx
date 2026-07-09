@@ -1,8 +1,8 @@
 /**
  * EmptySession — 空会话页面
  *
- * 参照 smart-code EmptySession.tsx 复刻。
- * 居中欢迎信息 + 输入框，输入后创建新会话并连接 WS。
+ * 显示欢迎信息 + 工作模式选择 + 输入框。
+ * 输入后创建新会话并连接 WS。
  */
 
 import { useState, useRef } from 'react';
@@ -11,6 +11,13 @@ import { useSessionStore } from '../stores/sessionStore';
 import { useChatStore } from '../stores/chatStore';
 import { useUIStore } from '../stores/uiStore';
 
+type WorkMode = 'code' | 'office';
+
+const modeDesc: Record<WorkMode, string> = {
+  code: '专注于代码编写、调试和架构设计',
+  office: '专注于文档撰写、数据分析和日常任务',
+};
+
 export function EmptySession() {
   const t = useTranslation();
   const { createSession } = useSessionStore();
@@ -18,6 +25,7 @@ export function EmptySession() {
   const { openTab, defaultWorkDir } = useUIStore();
   const [input, setInput] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [mode, setMode] = useState<WorkMode>('code');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const handleSubmit = async () => {
@@ -28,9 +36,9 @@ export function EmptySession() {
       const sessionId = await createSession(defaultWorkDir || undefined);
       openTab(sessionId, '新会话', 'session');
       connectToSession(sessionId);
-      // Small delay to let WS connect
       setTimeout(() => {
-        sendMessage(sessionId, text);
+        const modeHint = `[${mode === 'code' ? '代码开发' : '日常办公'}模式] ${modeDesc[mode]}\n\n${text}`;
+        sendMessage(sessionId, modeHint);
       }, 300);
     } catch (err) {
       console.error('Failed to create session:', err);
@@ -52,20 +60,62 @@ export function EmptySession() {
       <div className="flex flex-1 flex-col items-center justify-center overflow-y-auto px-8 py-8">
         <div className="flex flex-col items-center gap-6">
           <div className="flex max-w-md flex-col items-center text-center">
-            <div
-              className="mb-6 h-20 w-20 rounded-[22px] flex items-center justify-center text-white text-3xl font-bold"
-              style={{ background: 'var(--gradient-btn-primary)', boxShadow: 'var(--shadow-dropdown)' }}
-            >
-              S
-            </div>
+            {/* Author image */}
+            <img
+              src="/author.png"
+              alt="Smart Space"
+              className="mb-6 h-28 w-auto"
+            />
             <h1
-              className="mb-2 text-2xl font-bold tracking-tight text-[var(--color-text-primary)]"
+              className="mb-2 text-3xl font-bold tracking-tight text-[var(--color-text-primary)]"
               style={{ fontFamily: 'var(--font-headline)' }}
             >
               {t('empty.title')}
             </h1>
-            <p className="text-sm text-[var(--color-text-secondary)]">
-              {t('empty.subtitle')}
+            <p className="text-base text-[var(--color-text-secondary)]">
+              开始一个新的会话。Smart Space 已准备好帮你完成代码开发和日常工作。
+            </p>
+            <p className="mt-4 text-xs text-[var(--color-text-tertiary)]">
+              选择工作模式，切换 AI 专注领域
+            </p>
+
+            {/* Mode switcher */}
+            <div className="mt-3 inline-flex items-center rounded-full border border-[var(--color-border)] bg-[var(--color-surface-container-low)] p-1">
+              <button
+                onClick={() => setMode('code')}
+                className={`flex items-center gap-1.5 rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
+                  mode === 'code'
+                    ? 'text-white'
+                    : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]'
+                }`}
+                style={mode === 'code' ? { background: 'var(--gradient-btn-primary)' } : undefined}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="16 18 22 12 16 6" />
+                  <polyline points="8 6 2 12 8 18" />
+                </svg>
+                代码开发
+              </button>
+              <button
+                onClick={() => setMode('office')}
+                className={`flex items-center gap-1.5 rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
+                  mode === 'office'
+                    ? 'text-white'
+                    : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]'
+                }`}
+                style={mode === 'office' ? { background: 'var(--gradient-btn-primary)' } : undefined}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <polyline points="14 2 14 8 20 8" />
+                </svg>
+                日常办公
+              </button>
+            </div>
+
+            {/* Mode description */}
+            <p className="mt-4 text-sm text-[var(--color-text-tertiary)]">
+              {modeDesc[mode]}
             </p>
           </div>
         </div>
