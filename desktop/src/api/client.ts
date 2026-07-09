@@ -7,6 +7,11 @@
 
 const BASE_URL = 'http://127.0.0.1:3721'
 
+/** Returns the base URL for API requests (also used for binary file URLs). */
+export function getBaseUrl(): string {
+  return BASE_URL
+}
+
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
   const res = await fetch(`${BASE_URL}${path}`, {
     method,

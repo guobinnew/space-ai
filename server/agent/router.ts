@@ -13,6 +13,7 @@ import { handleComputerUseApi } from './api/computerUse'
 import { handleMemoryApi } from './api/memory'
 import { handleSettingsApi } from './api/settings'
 import { handleFilesystemApi } from './api/filesystem'
+import { handleGitApi } from './api/git'
 import { ApiError, errorResponse } from './middleware/errorHandler'
 
 export async function handleApiRequest(req: Request, url: URL): Promise<Response> {
@@ -46,6 +47,9 @@ export async function handleApiRequest(req: Request, url: URL): Promise<Response
 
       case 'filesystem':
         return await handleFilesystemApi(req, url, segments)
+
+      case 'git':
+        return await handleGitApi(req, url, segments)
 
       case 'health':
         return Response.json({ status: 'ok', timestamp: new Date().toISOString() })

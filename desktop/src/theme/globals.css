@@ -1,5 +1,23 @@
 @import "tailwindcss";
 
+/* Material Symbols Outlined icon font */
+@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200');
+
+.material-symbols-outlined {
+  font-family: 'Material Symbols Outlined';
+  font-weight: normal;
+  font-style: normal;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  -webkit-font-feature-settings: 'liga';
+  -webkit-font-smoothing: antialiased;
+}
+
 /* ─── Tailwind Theme (matches smart-code design system) ─── */
 @theme {
   --color-primary: #8F482F;
@@ -234,3 +252,43 @@ button, input, textarea, select, a, [role="button"] {
   to { transform: rotate(360deg); }
 }
 .animate-spin { animation: spin 1s linear infinite; }
+
+/* ─── Editor styles ─── */
+
+/* Hide scrollbar but keep scrolling */
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Glass panel (used by Modal) */
+.glass-panel {
+  backdrop-filter: blur(20px);
+}
+
+/* ─── Git gutter decorations (Monaco editor) ─── */
+.git-line-added {
+  background: rgba(88, 124, 12, 0.15);
+}
+.git-line-modified {
+  background: rgba(226, 192, 141, 0.15);
+}
+.git-margin-added {
+  background: #587c0c;
+}
+.git-margin-modified {
+  background: #e2c08d;
+}
+.git-margin-deleted {
+  background: #94151b;
+}
+.git-deleted-line::before {
+  content: '';
+  display: block;
+  height: 2px;
+  background: #94151b;
+}
+

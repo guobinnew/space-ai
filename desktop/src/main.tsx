@@ -2,6 +2,8 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 import './theme/globals.css';
+// Configure Monaco editor workers and languages (side-effect import)
+import './components/editor/monacoLoader';
 
 // Initialize theme before render to avoid a flash of the wrong theme.
 try {
