@@ -24,6 +24,7 @@ export const WEB_SEARCH_TOOL_NAME = 'WebSearch'
 export const ASK_USER_QUESTION_TOOL_NAME = 'AskUserQuestion'
 export const ENTER_PLAN_MODE_TOOL_NAME = 'EnterPlanMode'
 export const EXIT_PLAN_MODE_TOOL_NAME = 'ExitPlanMode'
+export const SKILL_TOOL_NAME = 'Skill'
 
 // ─── 提示词各段 ───────────────────────────────────────────────
 
@@ -238,6 +239,34 @@ async function getUserContext(workDir: string): Promise<string | null> {
   return sections.join('\n\n')
 }
 
+// ─── 技能上下文 ───────────────────────────────────────────────
+
+async function getSkillsSection(): Promise<string | null> {
+  try {
+    const { skillService } = await import('../services/skillService')
+    const skills = await skillService.listSkills()
+
+    if (skills.length === 0) return null
+
+    const userInvocable = skills.filter((s) => s.userInvocable)
+    if (userInvocable.length === 0) return null
+
+    const lines = userInvocable.map((s) => {
+      const desc = s.description ? `: ${s.description}` : ''
+      return ` - ${s.name}${desc}`
+    })
+
+    return [
+      '# Available skills',
+      `The following skills are available. Use the ${SKILL_TOOL_NAME} tool to invoke a skill when it matches the user's request. Users can also invoke skills via "/<skill-name>" shorthand.`,
+      ...lines,
+    ].join('\n')
+  } catch {
+    // Skills not available — skip
+    return null
+  }
+}
+
 // ─── Shell/OS 信息 ────────────────────────────────────────────
 
 function getShellInfoLine(): string {
@@ -285,9 +314,10 @@ export async function getSystemPrompt(
   locale: 'zh' | 'en' = 'zh',
 ): Promise<string> {
   // 并行获取异步上下文
-  const [gitContext, userContext] = await Promise.all([
+  const [gitContext, userContext, skillsSection] = await Promise.all([
     getGitContext(workDir),
     getUserContext(workDir),
+    getSkillsSection(),
   ])
 
   const sections: (string | null)[] = [
@@ -300,6 +330,7 @@ export async function getSystemPrompt(
     getToneAndStyleSection(),
     getOutputEfficiencySection(),
     getLanguageSection(locale),
+    skillsSection,
     computeEnvInfo(workDir, modelId),
     gitContext,
     userContext,

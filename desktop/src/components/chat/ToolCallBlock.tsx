@@ -93,6 +93,11 @@ const TOOL_ICONS: Record<string, JSX.Element> = {
       <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
     </svg>
   ),
+  Skill: (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 2l3 7 7 3-7 3-3 7-3-7-7-3 7-3z" />
+    </svg>
+  ),
 };
 
 const DEFAULT_ICON = (
@@ -130,6 +135,8 @@ function getToolSummary(toolName: string, input: Record<string, unknown>): strin
       return '';
     case 'ExitPlanMode':
       return typeof obj.plan === 'string' ? 'plan' : '';
+    case 'Skill':
+      return typeof obj.skill === 'string' ? obj.skill : '';
     default:
       return '';
   }

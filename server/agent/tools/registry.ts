@@ -18,6 +18,7 @@ import { webSearchTool } from './WebSearchTool'
 import { askUserQuestionTool } from './AskUserQuestionTool'
 import { enterPlanModeTool } from './EnterPlanModeTool'
 import { exitPlanModeTool } from './ExitPlanModeTool'
+import { skillTool } from './SkillTool'
 
 /** 所有内建工具 */
 const builtinTools: Tool[] = [
@@ -34,6 +35,7 @@ const builtinTools: Tool[] = [
   askUserQuestionTool,
   enterPlanModeTool,
   exitPlanModeTool,
+  skillTool,
 ]
 
 /** 工具名 → 工具实例 映射 */
