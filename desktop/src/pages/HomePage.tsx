@@ -253,7 +253,8 @@ export function HomePage() {
         </div>
 
         {/* ── Footer ── */}
-        <div className="text-center">
+        <div className="flex flex-col items-center gap-4">
+          <img src="/author.png" alt="author" className="h-28 w-auto opacity-70 hover:opacity-100 transition-opacity" />
           <p className="text-[10px] text-[var(--color-text-tertiary)]/60">
             Smart Space
             <span className="ml-1">v1.0.0</span>
