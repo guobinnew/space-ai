@@ -125,13 +125,31 @@ export function ActiveSession({ sessionId }: { sessionId: string }) {
 
   // Scroll-to-top / scroll-to-bottom ref
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const scrollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [scrolling, setScrolling] = useState<'top' | 'bottom' | null>(null);
+
+  const finishScroll = useCallback(() => {
+    setScrolling(null);
+    scrollTimerRef.current = null;
+  }, []);
+
   const scrollToTop = useCallback(() => {
-    messagesContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
-  }, []);
-  const scrollToBottom = useCallback(() => {
+    if (scrolling) return;
     const el = messagesContainerRef.current;
-    if (el) el.scrollTop = el.scrollHeight;
-  }, []);
+    if (!el) return;
+    setScrolling('top');
+    el.scrollTo({ top: 0, behavior: 'smooth' });
+    scrollTimerRef.current = setTimeout(finishScroll, 500);
+  }, [scrolling, finishScroll]);
+
+  const scrollToBottom = useCallback(() => {
+    if (scrolling) return;
+    const el = messagesContainerRef.current;
+    if (!el) return;
+    setScrolling('bottom');
+    el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+    scrollTimerRef.current = setTimeout(finishScroll, 500);
+  }, [scrolling, finishScroll]);
 
   return (
     <div ref={containerRef} className="flex flex-1 overflow-hidden bg-[var(--color-surface)]">
@@ -174,7 +192,12 @@ export function ActiveSession({ sessionId }: { sessionId: string }) {
             {/* Scroll to top */}
             <button
               onClick={scrollToTop}
-              className="flex items-center justify-center rounded-md p-1.5 text-[var(--color-text-tertiary)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-secondary)] transition-colors"
+              disabled={scrolling !== null}
+              className={`flex items-center justify-center rounded-md p-1.5 transition-colors ${
+                scrolling !== null
+                  ? 'text-[var(--color-text-disabled)] opacity-30 cursor-not-allowed'
+                  : 'text-[var(--color-text-tertiary)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-secondary)]'
+              }`}
               title={t('session.scrollToTop')}
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -184,7 +207,12 @@ export function ActiveSession({ sessionId }: { sessionId: string }) {
             {/* Scroll to bottom */}
             <button
               onClick={scrollToBottom}
-              className="flex items-center justify-center rounded-md p-1.5 text-[var(--color-text-tertiary)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-secondary)] transition-colors"
+              disabled={scrolling !== null}
+              className={`flex items-center justify-center rounded-md p-1.5 transition-colors ${
+                scrolling !== null
+                  ? 'text-[var(--color-text-disabled)] opacity-30 cursor-not-allowed'
+                  : 'text-[var(--color-text-tertiary)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-secondary)]'
+              }`}
               title={t('session.scrollToBottom')}
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
