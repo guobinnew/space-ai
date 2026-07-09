@@ -3,4 +3,4 @@
  */
 
 export { getTool, getToolDefinitions, getToolNames } from './registry'
-export type { Tool, ToolDefinition, ToolResult, ToolContext, ToolInputJSONSchema } from './types'
+export type { Tool, ToolDefinition, ToolResult, ToolContext, ToolInputJSONSchema, AskUserRequest } from './types'

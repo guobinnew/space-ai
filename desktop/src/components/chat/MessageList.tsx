@@ -6,12 +6,14 @@
  */
 
 import { useEffect, useRef } from 'react';
-import type { UIMessage, ChatState, ToolCallInfo } from '../../types/chat';
+import type { UIMessage, ChatState, ToolCallInfo, PendingQuestion, PendingPlan } from '../../types/chat';
 import { UserMessage } from './UserMessage';
 import { AssistantMessage } from './AssistantMessage';
 import { StreamingIndicator } from './StreamingIndicator';
 import { ToolCallBlock } from './ToolCallBlock';
 import { ThinkingBlock } from './ThinkingBlock';
+import { AskUserQuestionModal } from './AskUserQuestionModal';
+import { PlanApprovalModal } from './PlanApprovalModal';
 import { useTranslation } from '../../i18n';
 
 type MessageListProps = {
@@ -19,9 +21,22 @@ type MessageListProps = {
   streamingText: string;
   chatState: ChatState;
   toolCalls: ToolCallInfo[];
+  pendingQuestion: PendingQuestion | null;
+  pendingPlan: PendingPlan | null;
+  onAnswerQuestion: (answer: string) => void;
+  onRespondPlan: (response: string) => void;
 };
 
-export function MessageList({ messages, streamingText, chatState, toolCalls }: MessageListProps) {
+export function MessageList({
+  messages,
+  streamingText,
+  chatState,
+  toolCalls,
+  pendingQuestion,
+  pendingPlan,
+  onAnswerQuestion,
+  onRespondPlan,
+}: MessageListProps) {
   const t = useTranslation();
   const endRef = useRef<HTMLDivElement>(null);
 
@@ -74,6 +89,24 @@ export function MessageList({ messages, streamingText, chatState, toolCalls }: M
             <ToolCallBlock key={tc.id} toolCall={tc} />
           ))}
         </div>
+      )}
+
+      {/* Ask user question modal */}
+      {pendingQuestion && (
+        <AskUserQuestionModal
+          questions={pendingQuestion.questions}
+          onAnswer={onAnswerQuestion}
+        />
+      )}
+
+      {/* Plan approval modal */}
+      {pendingPlan && (
+        <PlanApprovalModal
+          plan={pendingPlan.plan}
+          isEnterMode={pendingPlan.isEnterMode}
+          onApprove={() => onRespondPlan('approved')}
+          onReject={() => onRespondPlan('rejected')}
+        />
       )}
 
       {/* Thinking block — shown when thinking and no text yet and no running tools */}

@@ -50,6 +50,17 @@ function extractPartial(body: Record<string, unknown>): Partial<GeneralSettings>
     partial.notifyOnCompletion = body.notifyOnCompletion
   }
 
+  if (body.webSearch !== undefined) {
+    if (typeof body.webSearch !== 'object' || body.webSearch === null) {
+      throw ApiError.badRequest('webSearch must be an object')
+    }
+    const ws = body.webSearch as Record<string, unknown>
+    partial.webSearch = {
+      provider: (ws.provider === 'zhipu' ? 'zhipu' : 'none'),
+      apiKey: typeof ws.apiKey === 'string' ? ws.apiKey : '',
+    }
+  }
+
   return partial
 }
 

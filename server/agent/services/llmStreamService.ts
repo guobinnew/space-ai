@@ -15,7 +15,7 @@ import { ProviderService } from './providerService'
 import { settingService } from './settingService'
 import { getSystemPrompt } from '../constants/prompts'
 import { getToolDefinitions, getTool } from '../tools'
-import type { ToolContext } from '../tools'
+import type { ToolContext, AskUserRequest } from '../tools'
 import type { ApiFormat } from '../types/provider'
 
 const providerService = new ProviderService()
@@ -26,6 +26,8 @@ export type StreamChunk =
   | { type: 'status'; state: 'thinking' | 'streaming' | 'idle' }
   | { type: 'tool_call'; toolCallId: string; toolName: string; input: Record<string, unknown> }
   | { type: 'tool_result'; toolCallId: string; result: string; isError: boolean }
+  | { type: 'ask_question'; requestId: string; questions: unknown[] }
+  | { type: 'plan_proposal'; requestId: string; plan: string }
   | { type: 'message_complete' }
   | { type: 'error'; message: string }
 
@@ -86,6 +88,7 @@ export async function streamChat(
   userContent: string,
   onChunk: (chunk: StreamChunk) => void,
   isCancelled?: () => boolean,
+  askUser?: (request: AskUserRequest) => Promise<string>,
 ): Promise<void> {
   console.log(`[LLM] streamChat start: sessionId=${sessionId}, content="${userContent.slice(0, 50)}..."`)
 
@@ -137,7 +140,7 @@ export async function streamChat(
   // The last message is the current user message (already saved by conversationService)
   // Use all messages except we'll let the loop handle it
 
-  const toolContext: ToolContext = { workDir, sessionId }
+  const toolContext: ToolContext = { workDir, sessionId, askUser }
 
   onChunk({ type: 'status', state: 'thinking' })
   onChunk({ type: 'content_start' })

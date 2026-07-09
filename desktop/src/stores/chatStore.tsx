@@ -11,7 +11,7 @@ import { createContext, useContext, useState, useCallback, type ReactNode } from
 import { wsManager, type ServerMessage } from '../api/websocket';
 import { sessionsApi } from '../api/sessions';
 import { useUIStore } from './uiStore';
-import type { UIMessage, PerSessionChatState } from '../types/chat';
+import type { UIMessage, PerSessionChatState, QuestionItem } from '../types/chat';
 
 /** Server sidecar 固定端口 */
 const SERVER_PORT = 3721;
@@ -47,6 +47,8 @@ interface ChatStoreState {
   disconnectSession: (sessionId: string) => void;
   sendMessage: (sessionId: string, content: string) => void;
   stopGeneration: (sessionId: string) => void;
+  answerQuestion: (sessionId: string, answer: string) => void;
+  respondPlan: (sessionId: string, response: string) => void;
   getSession: (sessionId: string) => PerSessionChatState;
   loadHistory: (sessionId: string) => Promise<void>;
 }
@@ -59,6 +61,8 @@ function createInitialSessionState(): PerSessionChatState {
     chatState: 'idle',
     streamingText: '',
     toolCalls: [],
+    pendingQuestion: null,
+    pendingPlan: null,
   };
 }
 
@@ -167,6 +171,27 @@ export function ChatProvider({ children }: { children: ReactNode }) {
             }));
             break;
 
+          case 'ask_question':
+            updateSession(sessionId, (prev) => ({
+              ...prev,
+              pendingQuestion: {
+                requestId: msg.requestId,
+                questions: msg.questions as QuestionItem[],
+              },
+            }));
+            break;
+
+          case 'plan_proposal':
+            updateSession(sessionId, (prev) => ({
+              ...prev,
+              pendingPlan: {
+                requestId: msg.requestId,
+                plan: msg.plan,
+                isEnterMode: msg.plan === '__ENTER_PLAN_MODE__',
+              },
+            }));
+            break;
+
           case 'message_complete': {
             let completedText = '';
             updateSession(sessionId, (prev) => {
@@ -183,6 +208,8 @@ export function ChatProvider({ children }: { children: ReactNode }) {
                 messages: [...prev.messages, assistantMsg],
                 streamingText: '',
                 chatState: 'idle',
+                pendingQuestion: null,
+                pendingPlan: null,
               };
             });
 
@@ -237,6 +264,8 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         chatState: 'thinking',
         streamingText: '',
         toolCalls: [],
+        pendingQuestion: null,
+        pendingPlan: null,
       }));
 
       wsManager.send(sessionId, { type: 'user_message', content });
@@ -252,6 +281,22 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     [updateSession],
   );
 
+  const answerQuestion = useCallback(
+    (sessionId: string, answer: string) => {
+      wsManager.send(sessionId, { type: 'question_answer', answer });
+      updateSession(sessionId, (prev) => ({ ...prev, pendingQuestion: null, chatState: 'thinking' }));
+    },
+    [],
+  );
+
+  const respondPlan = useCallback(
+    (sessionId: string, response: string) => {
+      wsManager.send(sessionId, { type: 'plan_response', response });
+      updateSession(sessionId, (prev) => ({ ...prev, pendingPlan: null, chatState: 'thinking' }));
+    },
+    [],
+  );
+
   return (
     <ChatContext.Provider
       value={{
@@ -260,6 +305,8 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         disconnectSession,
         sendMessage,
         stopGeneration,
+        answerQuestion,
+        respondPlan,
         getSession,
         loadHistory,
       }}

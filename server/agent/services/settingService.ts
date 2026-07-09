@@ -21,11 +21,17 @@ import * as os from 'os'
 import { ApiError } from '../middleware/errorHandler'
 
 /** 通用设置字段（由本服务管理） */
+export interface WebSearchConfig {
+  provider: 'zhipu' | 'none'
+  apiKey: string
+}
+
 export interface GeneralSettings {
   theme: 'dark' | 'light'
   locale: 'zh' | 'en'
   defaultWorkDir: string
   notifyOnCompletion: boolean
+  webSearch: WebSearchConfig
 }
 
 /** settings.json 中由本服务管理的字段 key 列表 */
@@ -34,6 +40,7 @@ const GENERAL_KEYS: (keyof GeneralSettings)[] = [
   'locale',
   'defaultWorkDir',
   'notifyOnCompletion',
+  'webSearch',
 ]
 
 const DEFAULT_SETTINGS: GeneralSettings = {
@@ -41,6 +48,7 @@ const DEFAULT_SETTINGS: GeneralSettings = {
   locale: 'zh',
   defaultWorkDir: '',
   notifyOnCompletion: false,
+  webSearch: { provider: 'none', apiKey: '' },
 }
 
 export class SettingService {
@@ -85,6 +93,13 @@ export class SettingService {
         else if (key === 'locale' && (v === 'zh' || v === 'en')) result.locale = v
         else if (key === 'defaultWorkDir' && typeof v === 'string') result.defaultWorkDir = v
         else if (key === 'notifyOnCompletion' && typeof v === 'boolean') result.notifyOnCompletion = v
+        else if (key === 'webSearch' && typeof v === 'object' && v !== null) {
+          const ws = v as Record<string, unknown>
+          result.webSearch = {
+            provider: (ws.provider === 'zhipu' ? 'zhipu' : 'none'),
+            apiKey: typeof ws.apiKey === 'string' ? ws.apiKey : '',
+          }
+        }
       }
     }
     return result

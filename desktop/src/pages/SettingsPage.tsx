@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useUIStore } from '../stores/uiStore';
 import type { Theme } from '../stores/uiStore';
+import { settingsApi } from '../api/settings';
 import { ProviderSettings } from '../components/settings/ProviderSettings';
 import { SkillsSettings } from '../components/settings/SkillsSettings';
 import { ComputerUseSettings } from '../components/settings/ComputerUseSettings';
@@ -105,6 +106,21 @@ function CategoryButton({
 function GeneralSettings() {
   const t = useTranslation();
   const { theme, setTheme, locale, setLocale, defaultWorkDir, setDefaultWorkDir, notifyOnCompletion, setNotifyOnCompletion } = useUIStore();
+  const [webSearchProvider, setWebSearchProvider] = useState<'zhipu' | 'none'>('none');
+  const [webSearchApiKey, setWebSearchApiKey] = useState('');
+
+  useEffect(() => {
+    void settingsApi.get().then(({ settings }) => {
+      setWebSearchProvider(settings.webSearch.provider);
+      setWebSearchApiKey(settings.webSearch.apiKey);
+    }).catch(() => {});
+  }, []);
+
+  const updateWebSearch = (provider: 'zhipu' | 'none', apiKey: string) => {
+    setWebSearchProvider(provider);
+    setWebSearchApiKey(apiKey);
+    void settingsApi.update({ webSearch: { provider, apiKey } }).catch(() => {});
+  };
 
   const themes: Array<{ value: Theme; label: string }> = [
     { value: 'light', label: t('settings.general.light') },
@@ -212,6 +228,35 @@ function GeneralSettings() {
           {notifyOnCompletion ? t('settings.general.notificationOn') : t('settings.general.notificationOff')}
         </span>
       </label>
+
+      {/* Web Search */}
+      <h2 className="text-base font-semibold text-[var(--color-text-primary)] mb-1 mt-8">{t('settings.webSearch')}</h2>
+      <p className="text-sm text-[var(--color-text-tertiary)] mb-3">{t('settings.webSearchDesc')}</p>
+      <div className="flex flex-col gap-3">
+        <div>
+          <label className="text-xs text-[var(--color-text-tertiary)] mb-1 block">{t('settings.webSearchProvider')}</label>
+          <select
+            value={webSearchProvider}
+            onChange={(e) => updateWebSearch(e.target.value as 'zhipu' | 'none', webSearchApiKey)}
+            className="w-full h-9 px-3 text-sm rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-primary)] outline-none focus:border-[var(--color-border-focus)]"
+          >
+            <option value="none">{t('settings.webSearchNotConfigured')}</option>
+            <option value="zhipu">Zhipu (BigModel)</option>
+          </select>
+        </div>
+        {webSearchProvider !== 'none' && (
+          <div>
+            <label className="text-xs text-[var(--color-text-tertiary)] mb-1 block">{t('settings.webSearchApiKey')}</label>
+            <input
+              type="password"
+              value={webSearchApiKey}
+              onChange={(e) => updateWebSearch(webSearchProvider, e.target.value)}
+              className="w-full h-9 px-3 text-sm rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-primary)] outline-none focus:border-[var(--color-border-focus)]"
+              placeholder={t('settings.webSearchApiKeyPlaceholder')}
+            />
+          </div>
+        )}
+      </div>
     </div>
   );
 }

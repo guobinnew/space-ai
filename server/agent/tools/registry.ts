@@ -14,6 +14,10 @@ import { grepTool } from './GrepTool'
 import { todoWriteTool } from './TodoWriteTool'
 import { webFetchTool } from './WebFetchTool'
 import { notebookEditTool } from './NotebookEditTool'
+import { webSearchTool } from './WebSearchTool'
+import { askUserQuestionTool } from './AskUserQuestionTool'
+import { enterPlanModeTool } from './EnterPlanModeTool'
+import { exitPlanModeTool } from './ExitPlanModeTool'
 
 /** 所有内建工具 */
 const builtinTools: Tool[] = [
@@ -26,6 +30,10 @@ const builtinTools: Tool[] = [
   todoWriteTool,
   webFetchTool,
   notebookEditTool,
+  webSearchTool,
+  askUserQuestionTool,
+  enterPlanModeTool,
+  exitPlanModeTool,
 ]
 
 /** 工具名 → 工具实例 映射 */

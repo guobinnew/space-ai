@@ -14,12 +14,25 @@ export type ToolInputJSONSchema = {
   [key: string]: unknown
 }
 
+/** 向用户提问的请求 */
+export interface AskUserRequest {
+  /** 请求 ID（用于匹配回答） */
+  id: string
+  /** 请求类型: 'question' | 'plan' */
+  kind: 'question' | 'plan'
+  /** 问题列表（AskUserQuestion）或计划内容（ExitPlanMode） */
+  questions?: unknown[]
+  plan?: string
+}
+
 /** 工具执行上下文 */
 export interface ToolContext {
   /** 工作目录（Bash 命令的 cwd，Glob/Grep 的默认搜索路径） */
   workDir: string
   /** 会话 ID */
   sessionId: string
+  /** 向用户提问并等待回答（返回 JSON string） */
+  askUser?: (request: AskUserRequest) => Promise<string>
 }
 
 /** 工具执行结果 */

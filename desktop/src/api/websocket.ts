@@ -12,6 +12,8 @@ type ServerMessage =
   | { type: 'status'; state: 'thinking' | 'streaming' | 'idle' }
   | { type: 'tool_call'; toolCallId: string; toolName: string; input: Record<string, unknown> }
   | { type: 'tool_result'; toolCallId: string; result: string; isError: boolean }
+  | { type: 'ask_question'; requestId: string; questions: unknown[] }
+  | { type: 'plan_proposal'; requestId: string; plan: string }
   | { type: 'message_complete' }
   | { type: 'error'; message: string }
   | { type: 'pong' }
@@ -20,6 +22,8 @@ type ClientMessage =
   | { type: 'user_message'; content: string }
   | { type: 'stop_generation' }
   | { type: 'ping' }
+  | { type: 'question_answer'; answer: string }
+  | { type: 'plan_response'; response: string }
 
 type MessageHandler = (msg: ServerMessage) => void
 

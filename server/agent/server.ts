@@ -202,7 +202,7 @@ export function startServer(port = PORT, host = HOST) {
         if (ws.data.channel !== 'client') return
 
         try {
-          const data = JSON.parse(text) as { type: string; content?: string }
+          const data = JSON.parse(text) as { type: string; content?: string; answer?: string; response?: string }
 
           if (data.type === 'ping') {
             ws.send(JSON.stringify({ type: 'pong' }))
@@ -213,14 +213,22 @@ export function startServer(port = PORT, host = HOST) {
             const sessionId = ws.data.sessionId
             const userContent = data.content
 
-            // Delegate to conversationService — it manages the CLI sidecar
-            // and streams LLM response chunks back via the outputCallback
             await conversationService.sendMessage(sessionId, userContent)
           }
 
           if (data.type === 'stop_generation') {
             conversationService.stopSession(ws.data.sessionId)
             ws.send(JSON.stringify({ type: 'status', state: 'idle' }))
+          }
+
+          // User answered a question (AskUserQuestion)
+          if (data.type === 'question_answer' && data.answer !== undefined) {
+            conversationService.handleUserResponse(ws.data.sessionId, data.answer)
+          }
+
+          // User responded to a plan proposal (EnterPlanMode/ExitPlanMode)
+          if (data.type === 'plan_response' && data.response !== undefined) {
+            conversationService.handleUserResponse(ws.data.sessionId, data.response)
           }
         } catch (err) {
           console.error(`[WS] Error processing message:`, err)

@@ -24,10 +24,41 @@ export type ToolCallInfo = {
   status: ToolCallStatus
 }
 
+/** 向用户提问的选项 */
+export type QuestionOption = {
+  label: string
+  description: string
+}
+
+/** 向用户提问的问题 */
+export type QuestionItem = {
+  question: string
+  header: string
+  options: QuestionOption[]
+  multiSelect?: boolean
+}
+
+/** 待回答的问题（AskUserQuestion 工具触发） */
+export type PendingQuestion = {
+  requestId: string
+  questions: QuestionItem[]
+}
+
+/** 待审批的计划（ExitPlanMode 工具触发） */
+export type PendingPlan = {
+  requestId: string
+  plan: string
+  isEnterMode?: boolean
+}
+
 export type PerSessionChatState = {
   messages: UIMessage[]
   chatState: ChatState
   streamingText: string
   /** 当前轮的工具调用列表（sendMessage 时清空） */
   toolCalls: ToolCallInfo[]
+  /** 待回答的问题（AskUserQuestion） */
+  pendingQuestion: PendingQuestion | null
+  /** 待审批的计划（EnterPlanMode/ExitPlanMode） */
+  pendingPlan: PendingPlan | null
 }

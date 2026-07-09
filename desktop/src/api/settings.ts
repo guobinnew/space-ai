@@ -7,11 +7,17 @@
 
 import { api } from './client'
 
+export interface WebSearchConfig {
+  provider: 'zhipu' | 'none'
+  apiKey: string
+}
+
 export interface GeneralSettings {
   theme: 'dark' | 'light'
   locale: 'zh' | 'en'
   defaultWorkDir: string
   notifyOnCompletion: boolean
+  webSearch: WebSearchConfig
 }
 
 type SettingsResponse = { settings: GeneralSettings }

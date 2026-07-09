@@ -14,7 +14,7 @@ import { useTranslation } from '../i18n';
 
 export function ActiveSession({ sessionId }: { sessionId: string }) {
   const t = useTranslation();
-  const { connectToSession, disconnectSession, sendMessage, stopGeneration, getSession } = useChatStore();
+  const { connectToSession, disconnectSession, sendMessage, stopGeneration, answerQuestion, respondPlan, getSession } = useChatStore();
   const { closeTab } = useUIStore();
   // Use a ref to track if this is the first mount vs a re-render cleanup
   const isConnectedRef = useRef(false);
@@ -73,6 +73,10 @@ export function ActiveSession({ sessionId }: { sessionId: string }) {
           streamingText={sessionState.streamingText}
           chatState={sessionState.chatState}
           toolCalls={sessionState.toolCalls}
+          pendingQuestion={sessionState.pendingQuestion}
+          pendingPlan={sessionState.pendingPlan}
+          onAnswerQuestion={(answer) => answerQuestion(sessionId, answer)}
+          onRespondPlan={(response) => respondPlan(sessionId, response)}
         />
       </div>
 

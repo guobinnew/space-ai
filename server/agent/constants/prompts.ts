@@ -20,6 +20,10 @@ export const GREP_TOOL_NAME = 'Grep'
 export const TODO_WRITE_TOOL_NAME = 'TodoWrite'
 export const WEB_FETCH_TOOL_NAME = 'WebFetch'
 export const NOTEBOOK_EDIT_TOOL_NAME = 'NotebookEdit'
+export const WEB_SEARCH_TOOL_NAME = 'WebSearch'
+export const ASK_USER_QUESTION_TOOL_NAME = 'AskUserQuestion'
+export const ENTER_PLAN_MODE_TOOL_NAME = 'EnterPlanMode'
+export const EXIT_PLAN_MODE_TOOL_NAME = 'ExitPlanMode'
 
 // ─── 提示词各段 ───────────────────────────────────────────────
 
