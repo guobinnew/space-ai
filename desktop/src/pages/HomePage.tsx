@@ -28,6 +28,7 @@ function formatRelativeTime(isoTime: string, t: (k: string, vars?: Record<string
 export function HomePage() {
   const t = useTranslation();
   const [serverStatus, setServerStatus] = useState<ServerStatus>('checking');
+  const [allSessions, setAllSessions] = useState<SessionListItem[]>([]);
   const [recentSessions, setRecentSessions] = useState<SessionListItem[]>([]);
   const [loadingSessions, setLoadingSessions] = useState(false);
   const { openTab } = useUIStore();
@@ -53,11 +54,12 @@ export function HomePage() {
     return () => { cancelled = true; };
   }, []);
 
-  // Load recent sessions
+  // Load all sessions + compute stats + recent list
   const loadRecent = useCallback(async () => {
     setLoadingSessions(true);
     try {
       const data = await sessionsApi.list();
+      setAllSessions(data.sessions);
       // Sort by modifiedAt descending, take top 10
       const sorted = [...data.sessions]
         .sort((a, b) => new Date(b.modifiedAt || b.createdAt).getTime() - new Date(a.modifiedAt || a.createdAt).getTime())
@@ -73,6 +75,15 @@ export function HomePage() {
   useEffect(() => {
     void loadRecent();
   }, [loadRecent]);
+
+  // Compute stats
+  const totalSessions = allSessions.length;
+  const totalMessages = allSessions.reduce((sum, s) => sum + (s.messageCount || 0), 0);
+  const todayStr = new Date().toLocaleDateString('zh-CN');
+  const todaySessions = allSessions.filter((s) => {
+    const d = s.modifiedAt || s.createdAt;
+    return d && new Date(d).toLocaleDateString('zh-CN') === todayStr;
+  }).length;
 
   const handleNewSession = useCallback(() => {
     const id = `session-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -111,12 +122,28 @@ export function HomePage() {
           </div>
         </div>
 
+        {/* ── Stats ── */}
+        <div className="grid grid-cols-3 gap-3 mb-10">
+          <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-container-low)] px-4 py-3.5">
+            <div className="text-lg font-bold text-[var(--color-text-primary)]">{totalSessions}</div>
+            <div className="text-xs text-[var(--color-text-tertiary)] mt-0.5">{t('home.totalSessions')}</div>
+          </div>
+          <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-container-low)] px-4 py-3.5">
+            <div className="text-lg font-bold text-[var(--color-text-primary)]">{todaySessions}</div>
+            <div className="text-xs text-[var(--color-text-tertiary)] mt-0.5">{t('home.todaySessions')}</div>
+          </div>
+          <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-container-low)] px-4 py-3.5">
+            <div className="text-lg font-bold text-[var(--color-text-primary)]">{totalMessages}</div>
+            <div className="text-xs text-[var(--color-text-tertiary)] mt-0.5">{t('home.totalMessages')}</div>
+          </div>
+        </div>
+
         {/* ── Quick Actions ── */}
         <div className="mb-10">
           <h2 className="text-xs font-semibold text-[var(--color-text-tertiary)] uppercase tracking-wider mb-3">
             {t('home.quickActions')}
           </h2>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 gap-3">
             <button
               onClick={handleNewSession}
               className="group rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-container-low)] p-5 text-left hover:border-[var(--color-brand)]/40 hover:bg-[var(--color-surface-container)] transition-all"
@@ -128,19 +155,6 @@ export function HomePage() {
               </div>
               <div className="text-sm font-medium text-[var(--color-text-primary)]">{t('home.newChat')}</div>
               <div className="text-xs text-[var(--color-text-tertiary)] mt-0.5">{t('home.newChatDesc')}</div>
-            </button>
-
-            <button
-              className="group rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-container-low)] p-5 text-left hover:border-[var(--color-brand)]/40 hover:bg-[var(--color-surface-container)] transition-all"
-            >
-              <div className="w-10 h-10 rounded-lg bg-[var(--color-warning)]/10 flex items-center justify-center mb-3 group-hover:bg-[var(--color-warning)]/15 transition-colors">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--color-warning)]">
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                  <polyline points="14 2 14 8 20 8" />
-                </svg>
-              </div>
-              <div className="text-sm font-medium text-[var(--color-text-primary)]">{t('home.openExplorer')}</div>
-              <div className="text-xs text-[var(--color-text-tertiary)] mt-0.5">{t('home.openExplorerDesc')}</div>
             </button>
 
             <button
