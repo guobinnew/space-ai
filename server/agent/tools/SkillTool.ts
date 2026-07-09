@@ -58,8 +58,10 @@ Important:
     try {
       const skill = await skillService.getSkill(skillName)
 
-      // 返回技能内容给 LLM
+      // 返回技能内容给 LLM（含 basePath 供访问技能资源）
       let result = `# Skill: ${skill.name}\n\n${skill.description ? `**Description:** ${skill.description}\n\n` : ''}`
+
+      result += `**Base directory for this skill:** ${skill.basePath}\n\n`
 
       if (args) {
         result += `**Arguments:** ${args}\n\n`

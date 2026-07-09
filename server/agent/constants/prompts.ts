@@ -250,8 +250,10 @@ async function getSkillsSection(): Promise<string | null> {
     if (userInvocable.length === 0) return null
 
     const lines = userInvocable.map((s) => {
-      const desc = s.description ? `: ${s.description}` : ''
-      return ` - ${s.name}${desc}`
+      let line = ` - **${s.name}**`
+      if (s.description) line += `: ${s.description}`
+      if (s.basePath) line += ` \`${s.basePath}\``
+      return line
     })
 
     return [

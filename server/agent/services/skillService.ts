@@ -26,21 +26,74 @@ export interface SkillMeta {
   source: 'builtin' | 'user' | 'project'
   userInvocable: boolean
   tokenEstimate?: number
+  /** Directory path containing the skill files */
+  basePath?: string
 }
 
 export interface SkillDetail extends SkillMeta {
   content: string
+  /** Directory path containing the skill files */
+  basePath: string
 }
 
 const SKILL_FILENAME = 'SKILL.md'
 
 export class SkillService {
-  private getConfigDir(): string {
-    return process.env.SPACEAI_CONFIG_DIR || path.join(os.homedir(), '.spaceai')
+  private configDir: string
+  private claudeConfigDir: string
+
+  constructor() {
+    this.configDir = process.env.SPACEAI_CONFIG_DIR || path.join(os.homedir(), '.spaceai')
+    this.claudeConfigDir = path.join(os.homedir(), '.claude')
   }
 
   private getSkillsDir(): string {
-    return path.join(this.getConfigDir(), 'skills')
+    return path.join(this.configDir, 'skills')
+  }
+
+  private getClaudeSkillsDir(): string {
+    return path.join(this.claudeConfigDir, 'skills')
+  }
+
+  /** Scan a single skills directory, returns skills found */
+  private async scanSkillsDir(skillsDir: string): Promise<SkillMeta[]> {
+    let entries: import('fs').Dirent[]
+    try {
+      entries = await fs.readdir(skillsDir, { withFileTypes: true })
+    } catch {
+      return []
+    }
+
+    const skills: SkillMeta[] = []
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue
+      const detail = await this.loadSkill(path.join(skillsDir, entry.name), entry.name)
+      if (detail) {
+        const { content: _content, ...meta } = detail
+        skills.push(meta)
+      }
+    }
+    return skills
+  }
+
+  /** Scan a single skills directory, returns full SkillDetail */
+  private async scanSkillsDirDetailed(skillsDir: string): Promise<SkillDetail[]> {
+    let entries: import('fs').Dirent[]
+    try {
+      entries = await fs.readdir(skillsDir, { withFileTypes: true })
+    } catch {
+      return []
+    }
+
+    const skills: SkillDetail[] = []
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue
+      const detail = await this.loadSkill(path.join(skillsDir, entry.name), entry.name)
+      if (detail) {
+        skills.push(detail)
+      }
+    }
+    return skills
   }
 
   /** 解析 SKILL.md 的 frontmatter 与正文 */
@@ -113,42 +166,33 @@ export class SkillService {
       source: 'user',
       userInvocable: meta.userInvocable ?? true,
       content,
+      basePath: dirPath,
       tokenEstimate: this.estimateTokens(raw),
     }
     return detail
   }
 
-  /** 列出所有 skills（不含正文） */
+  /** 列出所有 skills（不含正文），扫描 ~/.spaceai/skills/ + ~/.claude/skills/ */
   async listSkills(): Promise<SkillMeta[]> {
-    const skillsDir = this.getSkillsDir()
-    let entries: import('fs').Dirent[]
-    try {
-      entries = await fs.readdir(skillsDir, { withFileTypes: true })
-    } catch (err: unknown) {
-      if ((err as NodeJS.ErrnoException).code === 'ENOENT') return []
-      throw ApiError.internal(`Failed to read skills directory: ${err}`)
-    }
+    const [spaceai, claude] = await Promise.all([
+      this.scanSkillsDir(this.getSkillsDir()),
+      this.scanSkillsDir(this.getClaudeSkillsDir()),
+    ])
 
-    const skills: SkillMeta[] = []
-    for (const entry of entries) {
-      if (!entry.isDirectory()) continue
-      const detail = await this.loadSkill(path.join(skillsDir, entry.name), entry.name)
-      if (detail) {
-        // 去除 content
-        const { content: _content, ...meta } = detail
-        skills.push(meta)
-      }
-    }
-    return skills
+    // Merge: spaceai takes priority (same name replaces claude version)
+    const dedup = new Map<string, SkillMeta>()
+    for (const s of claude) dedup.set(s.name, s)
+    for (const s of spaceai) dedup.set(s.name, s)
+    return Array.from(dedup.values())
   }
 
-  /** 获取单个 skill 详情（含正文） */
+  /** 获取单个 skill 详情（含正文），先查 ~/.spaceai/skills/ 再查 ~/.claude/skills/ */
   async getSkill(name: string): Promise<SkillDetail> {
-    const skillsDir = this.getSkillsDir()
-    const dirPath = path.join(skillsDir, name)
-    const detail = await this.loadSkill(dirPath, name)
-    if (!detail) throw ApiError.notFound(`Skill not found: ${name}`)
-    return detail
+    let detail = await this.loadSkill(path.join(this.getSkillsDir(), name), name)
+    if (detail) return detail
+    detail = await this.loadSkill(path.join(this.getClaudeSkillsDir(), name), name)
+    if (detail) return detail
+    throw ApiError.notFound(`Skill not found: ${name}`)
   }
 }
 
