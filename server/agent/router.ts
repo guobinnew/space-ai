@@ -12,6 +12,7 @@ import { handleSkillsApi } from './api/skills'
 import { handleComputerUseApi } from './api/computerUse'
 import { handleMemoryApi } from './api/memory'
 import { handleSettingsApi } from './api/settings'
+import { handleFilesystemApi } from './api/filesystem'
 import { ApiError, errorResponse } from './middleware/errorHandler'
 
 export async function handleApiRequest(req: Request, url: URL): Promise<Response> {
@@ -42,6 +43,9 @@ export async function handleApiRequest(req: Request, url: URL): Promise<Response
 
       case 'settings':
         return await handleSettingsApi(req, url, segments)
+
+      case 'filesystem':
+        return await handleFilesystemApi(req, url, segments)
 
       case 'health':
         return Response.json({ status: 'ok', timestamp: new Date().toISOString() })
