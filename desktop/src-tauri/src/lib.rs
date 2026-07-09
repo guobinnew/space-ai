@@ -192,9 +192,9 @@ pub fn run() {
             // called close_splashscreen yet (e.g. JS still loading).
             let app_handle = app.handle().clone();
             std::thread::spawn(move || {
-                std::thread::sleep(std::time::Duration::from_secs(15));
+                std::thread::sleep(std::time::Duration::from_secs(10));
                 if let Some(splash) = app_handle.get_webview_window("splash") {
-                    println!("[SmartSpace] Auto-closing splash (15s timeout)");
+                    println!("[SmartSpace] Auto-closing splash (10s timeout)");
                     let _ = splash.close();
                 }
                 if let Some(main) = app_handle.get_webview_window("main") {
