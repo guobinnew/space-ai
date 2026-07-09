@@ -300,8 +300,7 @@ const translations: Record<Locale, Record<string, string>> = {
     'settings.memory.deleteConfirm': '确定删除此记忆条目？',
 
     // Common
-    'chat.copyReply': '复制回复',
-    'chat.copyPrompt': '复制提示词',
+    'chat.copy': '复制',
     'chat.copyAsImage': '复制为图片',
     'chat.copiedImage': '图片已复制',
     'chat.copied': '已复制',
@@ -603,8 +602,7 @@ const translations: Record<Locale, Record<string, string>> = {
     'settings.memory.deleteConfirm': 'Delete this memory entry?',
 
     // Common
-    'chat.copyReply': 'Copy reply',
-    'chat.copyPrompt': 'Copy prompt',
+    'chat.copy': 'Copy',
     'chat.copyAsImage': 'Copy as image',
     'chat.copiedImage': 'Image copied',
     'chat.copied': 'Copied',

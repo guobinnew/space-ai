@@ -128,7 +128,7 @@ export function AssistantMessage({
             </span>
             <MessageActionBar
               copyText={content}
-              copyLabel={t('chat.copyReply')}
+              copyLabel={t('chat.copy')}
               onCopyImage={handleCopyImage}
             />
           </div>

@@ -20,7 +20,7 @@ export function UserMessage({ content, createdAt }: { content: string; createdAt
           <div className="flex items-center justify-end gap-2 mt-1 mr-1">
             <MessageActionBar
               copyText={content}
-              copyLabel={t('chat.copyPrompt')}
+              copyLabel={t('chat.copy')}
             />
             <span className="text-[10px] text-[var(--color-text-tertiary)]">
               {new Date(createdAt).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}
