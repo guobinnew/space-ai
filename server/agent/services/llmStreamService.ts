@@ -28,6 +28,7 @@ export type StreamChunk =
   | { type: 'tool_result'; toolCallId: string; result: string; isError: boolean }
   | { type: 'ask_question'; requestId: string; questions: unknown[] }
   | { type: 'plan_proposal'; requestId: string; plan: string }
+  | { type: 'usage'; inputTokens: number; outputTokens: number }
   | { type: 'message_complete' }
   | { type: 'error'; message: string }
 
@@ -49,6 +50,10 @@ interface LLMResponse {
   toolUses: ToolUse[]
   /** 停止原因 */
   stopReason: 'end_turn' | 'tool_use' | 'max_tokens' | 'stop' | 'length' | 'other'
+  /** 输入 token 数（上下文使用量） */
+  inputTokens: number
+  /** 输出 token 数 */
+  outputTokens: number
 }
 
 // ─── Anthropic 消息格式 ──────────────────────────────────────
@@ -210,6 +215,11 @@ async function runAnthropicLoop(
       baseUrl, apiKey, model, systemPrompt, messages, toolDefs, onChunk,
     )
 
+    // Send usage info to frontend
+    if (response.inputTokens > 0 || response.outputTokens > 0) {
+      onChunk({ type: 'usage', inputTokens: response.inputTokens, outputTokens: response.outputTokens })
+    }
+
     // Accumulate text
     if (response.text) {
       fullText += response.text
@@ -312,6 +322,8 @@ async function callAnthropic(
   }>()
 
   let stopReason: LLMResponse['stopReason'] = 'other'
+  let inputTokens = 0
+  let outputTokens = 0
 
   while (true) {
     const { done, value } = await reader.read()
@@ -363,6 +375,12 @@ async function callAnthropic(
             else if (sr === 'tool_use') stopReason = 'tool_use'
             else if (sr === 'max_tokens') stopReason = 'max_tokens'
           }
+          if (event.usage?.output_tokens) {
+            outputTokens = event.usage.output_tokens
+          }
+        } else if (event.type === 'message_start' && event.message?.usage) {
+          inputTokens = event.message.usage.input_tokens || 0
+          outputTokens = event.message.usage.output_tokens || 0
         }
       } catch {
         // Skip malformed SSE lines
@@ -386,7 +404,7 @@ async function callAnthropic(
     }
   }
 
-  return { text: fullText, toolUses, stopReason }
+  return { text: fullText, toolUses, stopReason, inputTokens, outputTokens }
 }
 
 // ─── OpenAI agentic loop ─────────────────────────────────────
@@ -418,6 +436,11 @@ async function runOpenAILoop(
     const response = await callOpenAI(
       baseUrl, apiKey, model, messages, toolDefs, onChunk,
     )
+
+    // Send usage info to frontend
+    if (response.inputTokens > 0 || response.outputTokens > 0) {
+      onChunk({ type: 'usage', inputTokens: response.inputTokens, outputTokens: response.outputTokens })
+    }
 
     if (response.text) {
       fullText += response.text
@@ -474,6 +497,7 @@ async function callOpenAI(
     max_tokens: 8192,
     messages,
     stream: true,
+    stream_options: { include_usage: true },
   }
   if (toolDefs.length > 0) {
     body.tools = toolDefs.map((t) => ({
@@ -514,6 +538,8 @@ async function callOpenAI(
   // Collect tool calls by index
   const toolCallMap = new Map<number, { id: string; name: string; arguments: string }>()
   let finishReason = ''
+  let inputTokens = 0
+  let outputTokens = 0
 
   while (true) {
     const { done, value } = await reader.read()
@@ -559,6 +585,12 @@ async function callOpenAI(
         if (choice.finish_reason) {
           finishReason = choice.finish_reason
         }
+
+        // Usage (in the last chunk when stream_options.include_usage is true)
+        if (event.usage) {
+          inputTokens = event.usage.prompt_tokens || 0
+          outputTokens = event.usage.completion_tokens || 0
+        }
       } catch {
         // Skip malformed SSE lines
       }
@@ -584,7 +616,7 @@ async function callOpenAI(
   else if (finishReason === 'tool_calls') stopReason = 'tool_use'
   else if (finishReason === 'length') stopReason = 'length'
 
-  return { text: fullText, toolUses, stopReason }
+  return { text: fullText, toolUses, stopReason, inputTokens, outputTokens }
 }
 
 // ─── 工具执行 ────────────────────────────────────────────────

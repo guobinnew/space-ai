@@ -61,4 +61,6 @@ export type PerSessionChatState = {
   pendingQuestion: PendingQuestion | null
   /** 待审批的计划（EnterPlanMode/ExitPlanMode） */
   pendingPlan: PendingPlan | null
+  /** 上下文使用量（token 数） */
+  usage: { inputTokens: number; outputTokens: number } | null
 }

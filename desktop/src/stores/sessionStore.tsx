@@ -19,6 +19,7 @@ interface SessionState {
   createSession: (workDir?: string) => Promise<string>;
   deleteSession: (id: string) => Promise<void>;
   renameSession: (id: string, title: string) => Promise<void>;
+  updateWorkDir: (id: string, workDir: string) => Promise<void>;
   loadMessages: (id: string) => Promise<void>;
   sendMessage: (id: string, content: string) => Promise<void>;
   clearError: () => void;
@@ -75,6 +76,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const renameSession = useCallback(async (id: string, title: string) => {
     await sessionsApi.rename(id, title);
     setSessions((prev) => prev.map((s) => (s.id === id ? { ...s, title } : s)));
+  }, []);
+
+  const updateWorkDir = useCallback(async (id: string, workDir: string) => {
+    await sessionsApi.updateWorkDir(id, workDir);
+    setSessions((prev) => prev.map((s) => (s.id === id ? { ...s, workDir } : s)));
   }, []);
 
   const loadMessages = useCallback(async (id: string) => {
@@ -150,6 +156,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         createSession,
         deleteSession,
         renameSession,
+        updateWorkDir,
         loadMessages,
         sendMessage,
         clearError,

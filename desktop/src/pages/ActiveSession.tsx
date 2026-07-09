@@ -83,9 +83,11 @@ export function ActiveSession({ sessionId }: { sessionId: string }) {
       {/* Input */}
       <div className="px-6 py-4 border-t border-[var(--color-border)] flex-shrink-0">
         <ChatInput
+          sessionId={sessionId}
           onSend={handleSend}
           onStop={handleStop}
           isGenerating={isGenerating}
+          usage={sessionState.usage}
         />
       </div>
     </div>

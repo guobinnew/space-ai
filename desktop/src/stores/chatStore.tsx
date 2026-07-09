@@ -63,6 +63,7 @@ function createInitialSessionState(): PerSessionChatState {
     toolCalls: [],
     pendingQuestion: null,
     pendingPlan: null,
+    usage: null,
   };
 }
 
@@ -189,6 +190,13 @@ export function ChatProvider({ children }: { children: ReactNode }) {
                 plan: msg.plan,
                 isEnterMode: msg.plan === '__ENTER_PLAN_MODE__',
               },
+            }));
+            break;
+
+          case 'usage':
+            updateSession(sessionId, (prev) => ({
+              ...prev,
+              usage: { inputTokens: msg.inputTokens, outputTokens: msg.outputTokens },
             }));
             break;
 

@@ -104,18 +104,25 @@ async function deleteSession(sessionId: string): Promise<Response> {
 }
 
 async function patchSession(req: Request, sessionId: string): Promise<Response> {
-  let body: { title?: string }
+  let body: { title?: string; workDir?: string }
   try {
     body = (await req.json()) as typeof body
   } catch {
     throw ApiError.badRequest('Invalid JSON body')
   }
 
-  if (!body.title || typeof body.title !== 'string') {
-    throw ApiError.badRequest('title is required')
+  if (body.title !== undefined && typeof body.title === 'string' && body.title.trim()) {
+    await sessionService.renameSession(sessionId, body.title)
   }
 
-  await sessionService.renameSession(sessionId, body.title)
+  if (body.workDir !== undefined && typeof body.workDir === 'string') {
+    await sessionService.updateWorkDir(sessionId, body.workDir)
+  }
+
+  if (body.title === undefined && body.workDir === undefined) {
+    throw ApiError.badRequest('title or workDir is required')
+  }
+
   return Response.json({ ok: true })
 }
 

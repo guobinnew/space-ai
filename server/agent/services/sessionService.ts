@@ -141,6 +141,24 @@ export class SessionService {
     }
   }
 
+  async updateWorkDir(id: string, workDir: string): Promise<void> {
+    const session = await this.readSessionFile(id)
+    if (!session) throw ApiError.notFound(`Session not found: ${id}`)
+
+    session.workDir = workDir
+    session.modifiedAt = new Date().toISOString()
+    await this.writeSessionFile(session)
+
+    // Update index
+    const index = await this.readIndex()
+    const item = index.find((s) => s.id === id)
+    if (item) {
+      item.workDir = workDir
+      item.modifiedAt = session.modifiedAt
+      await this.writeIndex(index)
+    }
+  }
+
   async addMessage(id: string, role: 'user' | 'assistant', content: string): Promise<ChatMessage> {
     const session = await this.readSessionFile(id)
     if (!session) throw ApiError.notFound(`Session not found: ${id}`)

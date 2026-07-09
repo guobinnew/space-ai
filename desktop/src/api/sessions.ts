@@ -36,6 +36,10 @@ export const sessionsApi = {
     return api.patch<{ ok: true }>(`/api/sessions/${encodeURIComponent(id)}`, { title })
   },
 
+  updateWorkDir(id: string, workDir: string) {
+    return api.patch<{ ok: true }>(`/api/sessions/${encodeURIComponent(id)}`, { workDir })
+  },
+
   addMessage(id: string, role: 'user' | 'assistant', content: string) {
     return api.post<MessageResponse>(
       `/api/sessions/${encodeURIComponent(id)}/messages`,
