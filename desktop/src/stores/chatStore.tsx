@@ -47,6 +47,7 @@ interface ChatStoreState {
   disconnectSession: (sessionId: string) => void;
   sendMessage: (sessionId: string, content: string) => void;
   stopGeneration: (sessionId: string) => void;
+  clearMessages: (sessionId: string) => void;
   answerQuestion: (sessionId: string, answer: string) => void;
   respondPlan: (sessionId: string, response: string) => void;
   getSession: (sessionId: string) => PerSessionChatState;
@@ -304,6 +305,13 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     [updateSession],
   );
 
+  const clearMessages = useCallback(
+    (sessionId: string) => {
+      updateSession(sessionId, () => createInitialSessionState());
+    },
+    [updateSession],
+  );
+
   const answerQuestion = useCallback(
     (sessionId: string, answer: string) => {
       wsManager.send(sessionId, { type: 'question_answer', answer });
@@ -328,6 +336,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         disconnectSession,
         sendMessage,
         stopGeneration,
+        clearMessages,
         answerQuestion,
         respondPlan,
         getSession,
