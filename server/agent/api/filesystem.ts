@@ -47,7 +47,7 @@ const BINARY_EXTENSIONS = new Set([
   '.wasm', '.class', '.o', '.a', '.lib', '.pyc', '.pyo',
 ])
 
-const MAX_TEXT_FILE_SIZE = 2 * 1024 * 1024 // 2MB
+const MAX_TEXT_FILE_SIZE = 10 * 1024 * 1024 // 10MB
 
 function isWithinRoot(targetPath: string, rootPath: string): boolean {
   if (targetPath === rootPath) return true
@@ -303,7 +303,7 @@ async function handleReadFile(url: URL): Promise<Response> {
       throw ApiError.badRequest('Not a file')
     }
     if (stat.size > MAX_TEXT_FILE_SIZE) {
-      throw ApiError.badRequest('File too large (max 2MB)')
+      throw ApiError.badRequest('File too large (max 10MB)')
     }
 
     const content = fs.readFileSync(resolvedPath, 'utf8')
