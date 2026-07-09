@@ -303,7 +303,7 @@ export function ActiveSession({ sessionId }: { sessionId: string }) {
             <button
               onClick={hasMessages ? undefined : handlePickDir}
               disabled={isGenerating || hasMessages}
-              className="flex items-center gap-1.5 w-full text-left text-[11px] text-[var(--color-text-tertiary)]/60 hover:text-[var(--color-text-tertiary)] transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+              className="flex items-center gap-1.5 w-full text-left text-[11px] text-[var(--color-text-tertiary)]/80 hover:text-[var(--color-text-tertiary)] transition-colors disabled:cursor-not-allowed"
               title={hasMessages ? '已有消息，不可更改工作目录' : (workDir || '设置工作目录')}
             >
               <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
