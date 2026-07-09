@@ -123,6 +123,16 @@ export function ActiveSession({ sessionId }: { sessionId: string }) {
     closeTab(sessionId);
   };
 
+  // Scroll-to-top / scroll-to-bottom ref
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const scrollToTop = useCallback(() => {
+    messagesContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
+  const scrollToBottom = useCallback(() => {
+    const el = messagesContainerRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, []);
+
   return (
     <div ref={containerRef} className="flex flex-1 overflow-hidden bg-[var(--color-surface)]">
       {/* Drag overlay */}
@@ -161,6 +171,26 @@ export function ActiveSession({ sessionId }: { sessionId: string }) {
             </div>
           </div>
           <div className="flex items-center gap-1 flex-shrink-0">
+            {/* Scroll to top */}
+            <button
+              onClick={scrollToTop}
+              className="flex items-center justify-center rounded-md p-1.5 text-[var(--color-text-tertiary)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-secondary)] transition-colors"
+              title={t('session.scrollToTop')}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="18 15 12 9 6 15" />
+              </svg>
+            </button>
+            {/* Scroll to bottom */}
+            <button
+              onClick={scrollToBottom}
+              className="flex items-center justify-center rounded-md p-1.5 text-[var(--color-text-tertiary)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-secondary)] transition-colors"
+              title={t('session.scrollToBottom')}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+            </button>
             {/* Toggle editor panel */}
             {workDir && (
               <button
@@ -205,7 +235,7 @@ export function ActiveSession({ sessionId }: { sessionId: string }) {
         </div>
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto px-4">
+        <div ref={messagesContainerRef} className="flex-1 overflow-y-auto px-4">
           <MessageList
             messages={sessionState.messages}
             streamingText={sessionState.streamingText}
