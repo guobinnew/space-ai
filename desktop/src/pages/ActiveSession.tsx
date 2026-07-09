@@ -298,21 +298,24 @@ export function ActiveSession({ sessionId }: { sessionId: string }) {
             isGenerating={isGenerating}
             usage={sessionState.usage}
           />
-          {/* Work directory bar */}
-          <div className="max-w-3xl mx-auto mt-1.5 px-1">
+          {/* Work directory bar + disclaimer */}
+          <div className="max-w-3xl mx-auto mt-2 px-1 flex items-center justify-between gap-3">
             <button
               onClick={hasMessages ? undefined : handlePickDir}
               disabled={isGenerating || hasMessages}
-              className="flex items-center gap-1.5 w-full text-left text-[11px] text-[var(--color-text-tertiary)]/80 hover:text-[var(--color-text-tertiary)] transition-colors disabled:cursor-not-allowed"
+              className="flex items-center gap-2 pl-2.5 pr-3 py-1.5 rounded-full border border-[var(--color-border)] bg-[var(--color-surface-container)] text-left text-[11px] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] transition-colors disabled:cursor-not-allowed"
               title={hasMessages ? '已有消息，不可更改工作目录' : (workDir || '设置工作目录')}
             >
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-[var(--color-text-tertiary)]">
                 <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
               </svg>
-              <span className="truncate">
+              <span className="truncate max-w-[280px] sm:max-w-[360px]">
                 {workDir || '设置工作目录'}
               </span>
             </button>
+            <span className="text-[11px] text-[var(--color-text-tertiary)]/60 whitespace-nowrap">
+              {t('chat.aiDisclaimer')}
+            </span>
           </div>
         </div>
       </div>
