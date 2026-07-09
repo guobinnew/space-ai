@@ -12,6 +12,7 @@
 import * as os from 'os'
 import { sessionService } from './sessionService'
 import { ProviderService } from './providerService'
+import { settingService } from './settingService'
 import { getSystemPrompt } from '../constants/prompts'
 import { getToolDefinitions, getTool } from '../tools'
 import type { ToolContext } from '../tools'
@@ -116,8 +117,17 @@ export async function streamChat(
   const model = provider.models.main
   const apiKey = provider.apiKey
 
-  // Build system prompt
-  const systemPrompt = getSystemPrompt(workDir, model)
+  // Get locale from settings for language preference in system prompt
+  let locale: 'zh' | 'en' = 'zh'
+  try {
+    const settings = await settingService.getGeneralSettings()
+    locale = settings.locale
+  } catch {
+    // Settings not available, use default
+  }
+
+  // Build system prompt (async: includes git context, CLAUDE.md, language, etc.)
+  const systemPrompt = await getSystemPrompt(workDir, model, locale)
 
   // Build tool definitions
   const toolDefs = getToolDefinitions()

@@ -8,6 +8,7 @@
 
 import * as os from 'os'
 import * as path from 'path'
+import * as fs from 'fs/promises'
 
 // ─── 工具名称常量 ─────────────────────────────────────────────
 export const BASH_TOOL_NAME = 'Bash'
@@ -118,6 +119,123 @@ function getToneAndStyleSection(): string {
   return ['# Tone and style', ...items.map((i) => ` - ${i}`)].join('\n')
 }
 
+// ─── CLI 前缀 ─────────────────────────────────────────────────
+
+function getCLIPrefix(): string {
+  return 'You are Smart Space, an AI coding assistant.'
+}
+
+// ─── 语言偏好 ─────────────────────────────────────────────────
+
+function getLanguageSection(locale: 'zh' | 'en'): string | null {
+  if (locale === 'zh') {
+    return `# Language
+Always respond in Chinese (Simplified). Use Chinese for all explanations, comments, and communications with the user. Technical terms and code identifiers should remain in their original form.`
+  }
+  // en is the default language of the prompt — no need to specify
+  return null
+}
+
+// ─── Git 系统上下文 ───────────────────────────────────────────
+
+async function runGitCommand(cwd: string, args: string): Promise<string> {
+  const isWindows = process.platform === 'win32'
+  const cmd = isWindows ? ['cmd', '/C', `git ${args}`] : ['git', ...args.split(' ')]
+  const proc = Bun.spawn({
+    cmd,
+    cwd,
+    stdout: 'pipe',
+    stderr: 'pipe',
+    stdin: 'ignore',
+  })
+  const output = await new Response(proc.stdout).text()
+  const exitCode = await proc.exited
+  if (exitCode !== 0) throw new Error(`git ${args} failed (exit ${exitCode})`)
+  return output
+}
+
+async function getGitContext(workDir: string): Promise<string | null> {
+  try {
+    const [branch, status, log] = await Promise.all([
+      runGitCommand(workDir, 'rev-parse --abbrev-ref HEAD'),
+      runGitCommand(workDir, 'status --short'),
+      runGitCommand(workDir, 'log --oneline -5'),
+    ])
+
+    const lines = [
+      '# Git context',
+      ` - Current branch: ${branch.trim() || 'unknown'}`,
+    ]
+    const statusTrimmed = status.trim()
+    if (statusTrimmed) {
+      // Truncate if too many changes
+      const statusLines = statusTrimmed.split('\n').slice(0, 20)
+      lines.push(` - Working tree status:`)
+      for (const s of statusLines) {
+        lines.push(`   ${s}`)
+      }
+      if (statusTrimmed.split('\n').length > 20) {
+        lines.push('   ... (more changes not shown)')
+      }
+    } else {
+      lines.push(' - Working tree status: clean')
+    }
+    const logTrimmed = log.trim()
+    if (logTrimmed) {
+      lines.push(' - Recent commits:')
+      for (const l of logTrimmed.split('\n')) {
+        lines.push(`   ${l}`)
+      }
+    }
+    return lines.join('\n')
+  } catch {
+    // Not a git repo or git not available
+    return null
+  }
+}
+
+// ─── 用户上下文（CLAUDE.md + 日期） ──────────────────────────
+
+async function getUserContext(workDir: string): Promise<string | null> {
+  const contextFiles = [
+    'CLAUDE.md',
+    '.claude/CLAUDE.md',
+    'SPACEAI.md',
+    '.spaceai/CLAUDE.md',
+  ]
+
+  const contents: string[] = []
+  for (const file of contextFiles) {
+    try {
+      const fullPath = path.join(workDir, file)
+      const content = await fs.readFile(fullPath, 'utf-8')
+      if (content.trim()) {
+        contents.push(`## ${file}\n${content.trim()}`)
+      }
+    } catch {
+      // File doesn't exist, skip
+    }
+  }
+
+  const now = new Date()
+  const dateStr = now.toLocaleDateString('zh-CN', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    weekday: 'long',
+  })
+
+  const sections: string[] = []
+  if (contents.length > 0) {
+    sections.push(`# Project context\n\nThe following project instruction files are loaded:\n\n${contents.join('\n\n')}`)
+  }
+  sections.push(`# Current date\nToday is ${dateStr}.`)
+
+  return sections.join('\n\n')
+}
+
+// ─── Shell/OS 信息 ────────────────────────────────────────────
+
 function getShellInfoLine(): string {
   const platform = process.platform
   const shell = process.env.SHELL || process.env.ComSpec || 'unknown'
@@ -148,11 +266,28 @@ export function computeEnvInfo(workDir: string, modelId: string): string {
 }
 
 /**
- * 构建完整系统提示词。
+ * 构建完整系统提示词（异步）。
+ *
+ * 参照 smart-code agent-system-prompt-analysis.md 的拼装流程：
+ *   CLI Prefix → Intro → System → Doing Tasks → Actions → Using Tools
+ *   → Tone → Output Efficiency → Language → Environment
+ *   → Git Context → User Context (CLAUDE.md + 日期)
+ *
  * 各段用双换行分隔，返回单个字符串。
  */
-export function getSystemPrompt(workDir: string, modelId: string): string {
-  return [
+export async function getSystemPrompt(
+  workDir: string,
+  modelId: string,
+  locale: 'zh' | 'en' = 'zh',
+): Promise<string> {
+  // 并行获取异步上下文
+  const [gitContext, userContext] = await Promise.all([
+    getGitContext(workDir),
+    getUserContext(workDir),
+  ])
+
+  const sections: (string | null)[] = [
+    getCLIPrefix(),
     getIntroSection(),
     getSystemSection(),
     getDoingTasksSection(),
@@ -160,6 +295,11 @@ export function getSystemPrompt(workDir: string, modelId: string): string {
     getUsingYourToolsSection(),
     getToneAndStyleSection(),
     getOutputEfficiencySection(),
+    getLanguageSection(locale),
     computeEnvInfo(workDir, modelId),
-  ].join('\n\n')
+    gitContext,
+    userContext,
+  ]
+
+  return sections.filter((s) => s !== null).join('\n\n')
 }
