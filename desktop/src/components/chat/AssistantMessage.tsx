@@ -2,9 +2,11 @@
  * AssistantMessage — 助手消息气泡
  *
  * 参照 smart-code chat/AssistantMessage.tsx。
- * 带动画头像 + MarkdownRenderer 渲染 + 复制按钮。
+ * 带动画头像 + MarkdownRenderer 渲染 + 复制按钮 + 复制为图片。
  */
 
+import { useRef, useCallback } from 'react';
+import { toBlob } from 'html-to-image';
 import { MarkdownRenderer } from '../markdown/MarkdownRenderer';
 import { MessageActionBar } from './MessageActionBar';
 import { useTranslation } from '../../i18n';
@@ -55,6 +57,49 @@ export function AssistantMessage({
   streaming?: boolean;
 }) {
   const t = useTranslation();
+  const bubbleRef = useRef<HTMLDivElement>(null);
+
+  const handleCopyImage = useCallback(async () => {
+    if (!bubbleRef.current) return false;
+
+    // Temporarily hide scrollbars on scrollable elements for clean capture
+    const scrollables: Array<{
+      el: HTMLElement;
+      overflow: string;
+      overflowX: string;
+      overflowY: string;
+    }> = [];
+    bubbleRef.current.querySelectorAll<HTMLElement>('*').forEach((el) => {
+      const cs = getComputedStyle(el);
+      const ox = cs.overflowX;
+      const oy = cs.overflowY;
+      if (ox === 'auto' || ox === 'scroll' || oy === 'auto' || oy === 'scroll') {
+        const s = el.style;
+        scrollables.push({ el, overflow: s.overflow, overflowX: s.overflowX, overflowY: s.overflowY });
+        s.overflow = 'visible';
+        s.overflowX = 'visible';
+        s.overflowY = 'visible';
+      }
+    });
+
+    try {
+      const blob = await toBlob(bubbleRef.current, {
+        pixelRatio: 2,
+        backgroundColor: getComputedStyle(bubbleRef.current).backgroundColor,
+      });
+      if (!blob) return false;
+      await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+      return true;
+    } catch {
+      return false;
+    } finally {
+      scrollables.forEach(({ el, overflow, overflowX, overflowY }) => {
+        el.style.overflow = overflow;
+        el.style.overflowX = overflowX;
+        el.style.overflowY = overflowY;
+      });
+    }
+  }, []);
 
   return (
     <div className="group flex items-start gap-2 mb-3">
@@ -67,7 +112,10 @@ export function AssistantMessage({
 
       {/* Message bubble */}
       <div className="min-w-0 max-w-[85%]">
-        <div className="rounded-[20px] rounded-tl-[8px] px-4 py-2.5 text-sm bg-[var(--color-surface-container-low)] border border-[var(--color-border)]/60 text-[var(--color-text-primary)] shadow-sm break-words">
+        <div
+          ref={bubbleRef}
+          className="rounded-[20px] rounded-tl-[8px] px-4 py-2.5 text-sm bg-[var(--color-surface-container-low)] border border-[var(--color-border)]/60 text-[var(--color-text-primary)] shadow-sm break-words"
+        >
           <MarkdownRenderer content={content} />
           {streaming && (
             <span className="inline-block w-1.5 h-4 ml-0.5 bg-[var(--color-brand)] animate-pulse align-middle" />
@@ -78,12 +126,11 @@ export function AssistantMessage({
             <span className="text-[10px] text-[var(--color-text-tertiary)]">
               {new Date(createdAt).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}
             </span>
-            {!streaming && (
-              <MessageActionBar
-                copyText={content}
-                copyLabel={t('chat.copyReply')}
-              />
-            )}
+            <MessageActionBar
+              copyText={content}
+              copyLabel={t('chat.copyReply')}
+              onCopyImage={handleCopyImage}
+            />
           </div>
         )}
       </div>
