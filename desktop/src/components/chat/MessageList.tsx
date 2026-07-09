@@ -113,11 +113,11 @@ export function MessageList({
 
       {/* ThinkingBlock — shows when there's thinking content (live or completed) */}
       {thinkingText && (
-        <ThinkingBlock content={thinkingText} isActive={isThinking} />
+        <ThinkingBlock content={thinkingText} isActive={isThinking || (chatState === 'streaming' && !!thinkingText)} />
       )}
 
-      {/* StreamingIndicator — thinking but no thinking text yet, and no running tools */}
-      {isThinking && !thinkingText && !streamingText && toolCalls.length === 0 && (
+      {/* StreamingIndicator — thinking (or streaming waiting for content) with no text yet */}
+      {!streamingText && !thinkingText && toolCalls.length === 0 && (isThinking || chatState === 'streaming') && (
         <StreamingIndicator />
       )}
 

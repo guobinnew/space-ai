@@ -124,7 +124,9 @@ export function ChatProvider({ children }: { children: ReactNode }) {
               ...prev,
               chatState: 'streaming',
               streamingText: '',
-              thinkingText: '',
+              // Don't clear thinkingText here — thinking_delta arrives
+              // from extended thinking AFTER content_start but BEFORE text_delta.
+              // Keeping it allows ThinkingBlock to display accumulated content.
             }));
             break;
 
