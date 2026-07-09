@@ -36,6 +36,8 @@ export function ChatInput({ sessionId, onSend, onStop, isGenerating, disabled, u
   // 获取当前 session 的 workDir
   const session = sessions.find((s) => s.id === sessionId);
   const workDir = session?.workDir || '';
+  // 工作目录冻结：一旦发送了消息（messageCount > 0），不可修改
+  const canChangeWorkDir = !session?.messageCount || session.messageCount === 0;
 
   // 加载活跃 provider 信息
   useEffect(() => {
@@ -97,7 +99,6 @@ export function ChatInput({ sessionId, onSend, onStop, isGenerating, disabled, u
 
   // 模型显示名称
   const modelName = activeProvider?.models?.main || '';
-  const providerName = activeProvider?.name || '';
 
   return (
     <div className="max-w-3xl mx-auto">
@@ -121,12 +122,12 @@ export function ChatInput({ sessionId, onSend, onStop, isGenerating, disabled, u
         <div className="flex items-center justify-between px-3 py-2 border-t border-[var(--color-border)] bg-[var(--color-surface-container-lowest)]">
           {/* Left: work dir + model */}
           <div className="flex items-center gap-2 min-w-0 flex-1">
-            {/* Work directory picker */}
+            {/* Work directory picker — frozen after first message */}
             <button
-              onClick={handlePickDir}
-              disabled={disabled}
-              className="flex items-center gap-1 px-2 py-1 text-[11px] rounded-md text-[var(--color-text-tertiary)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-secondary)] transition-colors max-w-[200px] disabled:opacity-50"
-              title={workDir || t('chat.setWorkDir')}
+              onClick={canChangeWorkDir ? handlePickDir : undefined}
+              disabled={disabled || !canChangeWorkDir}
+              className="flex items-center gap-1 px-2 py-1 text-[11px] rounded-md text-[var(--color-text-tertiary)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-secondary)] transition-colors max-w-[200px] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+              title={canChangeWorkDir ? (workDir || t('chat.setWorkDir')) : t('chat.workDirFrozen')}
             >
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
                 <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
@@ -194,27 +195,6 @@ export function ChatInput({ sessionId, onSend, onStop, isGenerating, disabled, u
             )}
           </div>
         </div>
-      </div>
-
-      {/* Footer: work dir full path + disclaimer */}
-      <div className="mt-2 flex items-center justify-between px-1">
-        {workDir ? (
-          <span className="text-[11px] text-[var(--color-text-quaternary)] truncate max-w-[60%]" title={workDir}>
-            {workDir}
-          </span>
-        ) : (
-          <button
-            onClick={handlePickDir}
-            className="text-[11px] text-[var(--color-brand)] hover:underline"
-          >
-            {t('chat.setWorkDir')}
-          </button>
-        )}
-        {providerName && (
-          <span className="text-[11px] text-[var(--color-text-quaternary)] flex-shrink-0">
-            {providerName}
-          </span>
-        )}
       </div>
     </div>
   );
