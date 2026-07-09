@@ -175,6 +175,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_notification::init())
+        .plugin(tauri_plugin_opener::init())
         .setup(|app| {
             // Start the single Server sidecar process.
             // It lives for the entire app lifecycle; CLI sidecars (per session)
