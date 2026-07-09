@@ -41,6 +41,7 @@ export function MessageList({
 }: MessageListProps) {
   const t = useTranslation();
   const endRef = useRef<HTMLDivElement>(null);
+  const initialScrollDone = useRef(false);
 
   useEffect(() => {
     const el = endRef.current;
@@ -49,8 +50,21 @@ export function MessageList({
     // DOM: div.flex-1.overflow-y-auto > div.max-w-3xl > div(ref)
     const scrollParent = el.parentElement?.parentElement;
     if (!scrollParent) return;
-    // Only auto-scroll if user is within 100px of the bottom
-    // (avoids fighting user-initiated scroll when reviewing history)
+
+    // Always scroll to bottom on first load (user opened the session).
+    // MessageList may mount with 0 messages (async loadHistory), so we
+    // set the flag only after messages actually appear.
+    if (!initialScrollDone.current) {
+      if (messages.length > 0) {
+        initialScrollDone.current = true;
+        requestAnimationFrame(() => {
+          scrollParent.scrollTop = scrollParent.scrollHeight;
+        });
+      }
+      return;
+    }
+
+    // For subsequent updates, only auto-scroll if user is within 100px of the bottom
     const distanceFromBottom =
       scrollParent.scrollHeight - scrollParent.scrollTop - scrollParent.clientHeight;
     if (distanceFromBottom < 100) {
