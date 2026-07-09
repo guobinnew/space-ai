@@ -296,12 +296,12 @@ async function callAnthropic(
   const url = `${baseUrl}/v1/messages`
   const body: Record<string, unknown> = {
     model,
-    max_tokens: 16000,
+    max_tokens: 32000,
     system: systemPrompt,
     messages,
     stream: true,
-    // Enable extended thinking
-    thinking: { type: 'enabled', budget_tokens: 10000 },
+    // Enable extended thinking (budget ~half of max for complex code generation)
+    thinking: { type: 'enabled', budget_tokens: 16000 },
   }
   if (toolDefs.length > 0) {
     body.tools = toolDefs
@@ -533,7 +533,7 @@ async function callOpenAI(
   const url = `${baseUrl}/chat/completions`
   const body: Record<string, unknown> = {
     model,
-    max_tokens: 8192,
+    max_tokens: 16000,
     messages,
     stream: true,
     stream_options: { include_usage: true },

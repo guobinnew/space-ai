@@ -77,7 +77,7 @@ const translations: Record<Locale, Record<string, string>> = {
     'session.startNew': '开始新对话',
 
     // Chat
-    'chat.thinking': '思考中...',
+    'chat.thinking': '深度思考中...',
     'chat.creating': '创建中...',
     'chat.empty': '开始新对话',
     'chat.responsePlaceholder': '收到消息。会话功能开发中，暂不支持 AI 回复。',
@@ -95,7 +95,7 @@ const translations: Record<Locale, Record<string, string>> = {
     'tool.updateFileContents': '更新文件内容',
     'tool.linesCreated': '创建 {count} 行',
     'tool.linesChanged': '修改 {count} 行',
-    'thinking.label': '思考',
+    'thinking.label': '深度思考',
     'chat.setWorkDir': '设置工作目录',
     'chat.workDirFrozen': '消息发送后不可修改工作目录',
     'editor.openPanel': '打开文件浏览器',
