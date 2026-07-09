@@ -290,7 +290,12 @@ export function ActiveSession({ sessionId }: { sessionId: string }) {
           <div className="flex flex-1 flex-col overflow-hidden">
             <div className="flex flex-1 flex-col items-center justify-center overflow-y-auto px-8 py-8">
               <div className="flex max-w-md flex-col items-center text-center">
-                <img src="/author.png" alt="Smart Space" className="mb-6 h-28 w-auto" />
+                <div
+                  className="mb-6 h-20 w-20 rounded-[22px] flex items-center justify-center text-white text-3xl font-bold"
+                  style={{ background: 'var(--gradient-btn-primary)', boxShadow: 'var(--shadow-dropdown)' }}
+                >
+                  S
+                </div>
                 <h1 className="mb-2 text-3xl font-bold tracking-tight text-[var(--color-text-primary)]" style={{ fontFamily: 'var(--font-headline)' }}>
                   {t('empty.title')}
                 </h1>
