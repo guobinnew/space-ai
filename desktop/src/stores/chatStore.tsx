@@ -60,6 +60,7 @@ function createInitialSessionState(): PerSessionChatState {
     messages: [],
     chatState: 'idle',
     streamingText: '',
+    thinkingText: '',
     toolCalls: [],
     pendingQuestion: null,
     pendingPlan: null,
@@ -123,6 +124,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
               ...prev,
               chatState: 'streaming',
               streamingText: '',
+              thinkingText: '',
             }));
             break;
 
@@ -130,6 +132,13 @@ export function ChatProvider({ children }: { children: ReactNode }) {
             updateSession(sessionId, (prev) => ({
               ...prev,
               streamingText: prev.streamingText + msg.text,
+            }));
+            break;
+
+          case 'thinking_delta':
+            updateSession(sessionId, (prev) => ({
+              ...prev,
+              thinkingText: prev.thinkingText + msg.text,
             }));
             break;
 
@@ -203,7 +212,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
           case 'message_complete': {
             let completedText = '';
             updateSession(sessionId, (prev) => {
-              if (!prev.streamingText) return { ...prev, chatState: 'idle' };
+              if (!prev.streamingText) return { ...prev, chatState: 'idle', thinkingText: '' };
               completedText = prev.streamingText;
               const assistantMsg: UIMessage = {
                 type: 'assistant_text',
@@ -215,6 +224,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
                 ...prev,
                 messages: [...prev.messages, assistantMsg],
                 streamingText: '',
+                thinkingText: '',
                 chatState: 'idle',
                 pendingQuestion: null,
                 pendingPlan: null,
@@ -238,6 +248,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
               messages: [...prev.messages, errorMsg],
               chatState: 'idle',
               streamingText: '',
+              thinkingText: '',
             }));
             break;
           }
@@ -271,6 +282,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         messages: [...prev.messages, userMsg],
         chatState: 'thinking',
         streamingText: '',
+        thinkingText: '',
         toolCalls: [],
         pendingQuestion: null,
         pendingPlan: null,

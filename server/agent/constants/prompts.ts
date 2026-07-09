@@ -199,14 +199,12 @@ async function getGitContext(workDir: string): Promise<string | null> {
   }
 }
 
-// ─── 用户上下文（CLAUDE.md + 日期） ──────────────────────────
+// ─── 用户上下文（SPACEAI.md + 日期） ──────────────────────────
 
 async function getUserContext(workDir: string): Promise<string | null> {
   const contextFiles = [
-    'CLAUDE.md',
-    '.claude/CLAUDE.md',
     'SPACEAI.md',
-    '.spaceai/CLAUDE.md',
+    '.spaceai/SPACEAI.md',
   ]
 
   const contents: string[] = []
@@ -304,7 +302,7 @@ export function computeEnvInfo(workDir: string, modelId: string): string {
  * 参照 smart-code agent-system-prompt-analysis.md 的拼装流程：
  *   CLI Prefix → Intro → System → Doing Tasks → Actions → Using Tools
  *   → Tone → Output Efficiency → Language → Environment
- *   → Git Context → User Context (CLAUDE.md + 日期)
+ *   → Git Context → User Context (SPACEAI.md + 日期)
  *
  * 各段用双换行分隔，返回单个字符串。
  */

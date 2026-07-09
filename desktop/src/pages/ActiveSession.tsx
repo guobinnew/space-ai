@@ -196,6 +196,7 @@ export function ActiveSession({ sessionId }: { sessionId: string }) {
           <MessageList
             messages={sessionState.messages}
             streamingText={sessionState.streamingText}
+            thinkingText={sessionState.thinkingText}
             chatState={sessionState.chatState}
             toolCalls={sessionState.toolCalls}
             pendingQuestion={sessionState.pendingQuestion}

@@ -1,8 +1,8 @@
 /**
  * MessageList — 消息列表组件
  *
- * 参照 smart-code chat/MessageList.tsx 复刻，简化版。
- * 渲染用户消息、助手消息、错误消息、工具调用块和流式文本。
+ * 参照 smart-code chat/MessageList.tsx，适配版。
+ * 渲染用户消息、助手消息（带头像）、思考块、工具调用块和流式文本。
  */
 
 import { useEffect, useRef } from 'react';
@@ -19,6 +19,7 @@ import { useTranslation } from '../../i18n';
 type MessageListProps = {
   messages: UIMessage[];
   streamingText: string;
+  thinkingText: string;
   chatState: ChatState;
   toolCalls: ToolCallInfo[];
   pendingQuestion: PendingQuestion | null;
@@ -30,6 +31,7 @@ type MessageListProps = {
 export function MessageList({
   messages,
   streamingText,
+  thinkingText,
   chatState,
   toolCalls,
   pendingQuestion,
@@ -42,7 +44,7 @@ export function MessageList({
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages.length, streamingText, toolCalls.length]);
+  }, [messages.length, streamingText, thinkingText, toolCalls.length]);
 
   if (messages.length === 0 && !streamingText && chatState === 'idle' && toolCalls.length === 0) {
     return (
@@ -59,10 +61,10 @@ export function MessageList({
   }
 
   const hasRunningTool = toolCalls.some((tc) => tc.status === 'running');
-  const showThinking = chatState === 'thinking' && !streamingText && toolCalls.length === 0;
+  const isThinking = chatState === 'thinking';
 
   return (
-    <div className="max-w-3xl mx-auto flex flex-col gap-4 py-4">
+    <div className="max-w-3xl mx-auto flex flex-col gap-3 py-4">
       {messages.map((msg) => {
         if (msg.type === 'user_text') {
           return <UserMessage key={msg.id} content={msg.content} createdAt={msg.createdAt} />;
@@ -72,7 +74,7 @@ export function MessageList({
         }
         if (msg.type === 'error') {
           return (
-            <div key={msg.id} className="flex justify-start">
+            <div key={msg.id} className="flex justify-start ml-10">
               <div className="max-w-[80%] rounded-xl px-4 py-2.5 text-sm border border-[var(--color-error)]/30 bg-[var(--color-error)]/5 text-[var(--color-error)]">
                 {msg.message}
               </div>
@@ -84,7 +86,7 @@ export function MessageList({
 
       {/* Tool call blocks (current round) */}
       {toolCalls.length > 0 && (
-        <div className="flex flex-col gap-1">
+        <div className="flex flex-col gap-1 ml-10">
           {toolCalls.map((tc) => (
             <ToolCallBlock key={tc.id} toolCall={tc} />
           ))}
@@ -109,8 +111,15 @@ export function MessageList({
         />
       )}
 
-      {/* Thinking block — shown when thinking and no text yet and no running tools */}
-      {showThinking && <ThinkingBlock isActive />}
+      {/* ThinkingBlock — shows when there's thinking content (live or completed) */}
+      {thinkingText && (
+        <ThinkingBlock content={thinkingText} isActive={isThinking} />
+      )}
+
+      {/* StreamingIndicator — thinking but no thinking text yet, and no running tools */}
+      {isThinking && !thinkingText && !streamingText && toolCalls.length === 0 && (
+        <StreamingIndicator />
+      )}
 
       {/* Thinking indicator when tools are running but no streaming text */}
       {hasRunningTool && !streamingText && <StreamingIndicator />}
@@ -118,11 +127,6 @@ export function MessageList({
       {/* Streaming text */}
       {streamingText && (
         <AssistantMessage content={streamingText} createdAt="" streaming />
-      )}
-
-      {/* Thinking indicator (no streaming text, no tool calls) */}
-      {chatState === 'thinking' && !streamingText && toolCalls.length === 0 && (
-        <StreamingIndicator />
       )}
 
       <div ref={endRef} />

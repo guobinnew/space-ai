@@ -23,6 +23,7 @@ const providerService = new ProviderService()
 export type StreamChunk =
   | { type: 'content_start' }
   | { type: 'content_delta'; text: string }
+  | { type: 'thinking_delta'; text: string }
   | { type: 'status'; state: 'thinking' | 'streaming' | 'idle' }
   | { type: 'tool_call'; toolCallId: string; toolName: string; input: Record<string, unknown> }
   | { type: 'tool_result'; toolCallId: string; result: string; isError: boolean }
@@ -54,6 +55,8 @@ interface LLMResponse {
   inputTokens: number
   /** 输出 token 数 */
   outputTokens: number
+  /** Thinking blocks (with signatures) for conversation history */
+  thinkingBlocks: Array<{ thinking: string; signature: string }>
 }
 
 // ─── Anthropic 消息格式 ──────────────────────────────────────
@@ -62,6 +65,7 @@ type AnthropicContentBlock =
   | { type: 'text'; text: string }
   | { type: 'tool_use'; id: string; name: string; input: Record<string, unknown> }
   | { type: 'tool_result'; tool_use_id: string; content: string; is_error?: boolean }
+  | { type: 'thinking'; thinking: string; signature: string }
 
 type AnthropicMessage = {
   role: 'user' | 'assistant'
@@ -134,7 +138,7 @@ export async function streamChat(
     // Settings not available, use default
   }
 
-  // Build system prompt (async: includes git context, CLAUDE.md, language, etc.)
+  // Build system prompt (async: includes git context, SPACEAI.md, language, etc.)
   const systemPrompt = await getSystemPrompt(workDir, model, locale)
 
   // Build tool definitions
@@ -232,6 +236,10 @@ async function runAnthropicLoop(
 
     // Add assistant message (with tool_use) to conversation
     const assistantContent: AnthropicContentBlock[] = []
+    // Include thinking blocks (required by Anthropic API for extended thinking)
+    for (const tb of response.thinkingBlocks) {
+      assistantContent.push({ type: 'thinking', thinking: tb.thinking, signature: tb.signature })
+    }
     if (response.text) {
       assistantContent.push({ type: 'text', text: response.text })
     }
@@ -277,10 +285,12 @@ async function callAnthropic(
   const url = `${baseUrl}/v1/messages`
   const body: Record<string, unknown> = {
     model,
-    max_tokens: 8192,
+    max_tokens: 16000,
     system: systemPrompt,
     messages,
     stream: true,
+    // Enable extended thinking
+    thinking: { type: 'enabled', budget_tokens: 10000 },
   }
   if (toolDefs.length > 0) {
     body.tools = toolDefs
@@ -314,16 +324,19 @@ async function callAnthropic(
 
   // Collect content blocks by index
   const blocks = new Map<number, {
-    type: 'text' | 'tool_use'
+    type: 'text' | 'tool_use' | 'thinking'
     text: string
     toolId: string
     toolName: string
     inputJson: string
+    thinking: string
+    signature: string
   }>()
 
   let stopReason: LLMResponse['stopReason'] = 'other'
   let inputTokens = 0
   let outputTokens = 0
+  const thinkingBlocks: Array<{ thinking: string; signature: string }> = []
 
   while (true) {
     const { done, value } = await reader.read()
@@ -345,7 +358,7 @@ async function callAnthropic(
           const idx = event.index
           const block = event.content_block
           if (block.type === 'text') {
-            blocks.set(idx, { type: 'text', text: '', toolId: '', toolName: '', inputJson: '' })
+            blocks.set(idx, { type: 'text', text: '', toolId: '', toolName: '', inputJson: '', thinking: '', signature: '' })
           } else if (block.type === 'tool_use') {
             blocks.set(idx, {
               type: 'tool_use',
@@ -353,7 +366,11 @@ async function callAnthropic(
               toolId: block.id || '',
               toolName: block.name || '',
               inputJson: '',
+              thinking: '',
+              signature: '',
             })
+          } else if (block.type === 'thinking') {
+            blocks.set(idx, { type: 'thinking', text: '', toolId: '', toolName: '', inputJson: '', thinking: '', signature: '' })
           }
         } else if (event.type === 'content_block_delta') {
           const idx = event.index
@@ -367,6 +384,17 @@ async function callAnthropic(
             onChunk({ type: 'content_delta', text: delta.text })
           } else if (delta.type === 'input_json_delta' && delta.partial_json) {
             block.inputJson += delta.partial_json
+          } else if (delta.type === 'thinking_delta' && delta.thinking) {
+            block.thinking += delta.thinking
+            onChunk({ type: 'thinking_delta', text: delta.thinking })
+          } else if (delta.type === 'signature_delta' && delta.signature) {
+            block.signature += delta.signature
+          }
+        } else if (event.type === 'content_block_stop') {
+          const idx = event.index
+          const block = blocks.get(idx)
+          if (block && block.type === 'thinking' && block.thinking) {
+            thinkingBlocks.push({ thinking: block.thinking, signature: block.signature })
           }
         } else if (event.type === 'message_delta') {
           if (event.delta?.stop_reason) {
@@ -404,7 +432,7 @@ async function callAnthropic(
     }
   }
 
-  return { text: fullText, toolUses, stopReason, inputTokens, outputTokens }
+  return { text: fullText, toolUses, stopReason, inputTokens, outputTokens, thinkingBlocks }
 }
 
 // ─── OpenAI agentic loop ─────────────────────────────────────
@@ -616,7 +644,7 @@ async function callOpenAI(
   else if (finishReason === 'tool_calls') stopReason = 'tool_use'
   else if (finishReason === 'length') stopReason = 'length'
 
-  return { text: fullText, toolUses, stopReason, inputTokens, outputTokens }
+  return { text: fullText, toolUses, stopReason, inputTokens, outputTokens, thinkingBlocks: [] }
 }
 
 // ─── 工具执行 ────────────────────────────────────────────────

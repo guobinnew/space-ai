@@ -55,6 +55,8 @@ export type PerSessionChatState = {
   messages: UIMessage[]
   chatState: ChatState
   streamingText: string
+  /** Thinking content from extended thinking (streamed in real-time) */
+  thinkingText: string
   /** 当前轮的工具调用列表（sendMessage 时清空） */
   toolCalls: ToolCallInfo[]
   /** 待回答的问题（AskUserQuestion） */

@@ -1,20 +1,108 @@
 /**
  * ThinkingBlock — 思考过程块
  *
- * 参照 smart-code chat/ThinkingBlock.tsx，简化版。
- * 显示"思考中"状态，带动画光标。可折叠。
+ * 参照 smart-code chat/ThinkingBlock.tsx。
+ * 支持实际思考内容显示，带预览、折叠、窗口化渲染。
  */
 
-import { useState } from 'react';
+import { useState, useEffect, useRef, useMemo, useLayoutEffect, memo, Component, type ReactNode } from 'react';
 import { useTranslation } from '../../i18n';
 
-type Props = {
-  isActive?: boolean;
-};
+const WINDOW_SIZE = 15000;
+const CHUNK_SIZE = 15000;
+const STREAMING_THROTTLE_CHARS = 300;
 
-export function ThinkingBlock({ isActive = false }: Props) {
+class ThinkingErrorBoundary extends Component<
+  { children: ReactNode },
+  { hasError: boolean }
+> {
+  state = { hasError: false }
+  static getDerivedStateFromError() {
+    return { hasError: true }
+  }
+  componentDidCatch(err: Error) {
+    console.error('[ThinkingBlock] render error:', err.message)
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="mt-1 rounded-lg border border-[var(--color-border)]/40 bg-[var(--color-surface-container-lowest)] p-2.5 text-[11px] text-[var(--color-text-tertiary)]">
+          Content too large to display
+        </div>
+      )
+    }
+    return this.props.children
+  }
+}
+
+function ThinkingBlockInner({ content, isActive = false }: { content?: string; isActive?: boolean }) {
   const t = useTranslation();
   const [expanded, setExpanded] = useState(false);
+  const [windowStart, setWindowStart] = useState(0);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const prevContentLenRef = useRef((content || '').length);
+  const prevIsActiveRef = useRef(isActive);
+  const scrollSaveRef = useRef<{ top: number; height: number } | null>(null);
+
+  const actualContent = content || '';
+
+  // Reset window to tail when streaming starts
+  if (isActive && !prevIsActiveRef.current) {
+    prevIsActiveRef.current = isActive;
+    prevContentLenRef.current = actualContent.length;
+    const tail = Math.max(0, actualContent.length - WINDOW_SIZE);
+    if (windowStart !== tail) setWindowStart(tail);
+  } else {
+    prevIsActiveRef.current = isActive;
+  }
+
+  // During streaming: slide window to follow the tail
+  if (isActive && actualContent.length !== prevContentLenRef.current) {
+    prevContentLenRef.current = actualContent.length;
+    const tail = Math.max(0, actualContent.length - WINDOW_SIZE);
+    if (windowStart !== tail) setWindowStart(tail);
+  }
+
+  // When streaming ends: reset window to tail of final content
+  if (!isActive && prevContentLenRef.current !== actualContent.length) {
+    prevContentLenRef.current = actualContent.length;
+    const tail = Math.max(0, actualContent.length - WINDOW_SIZE);
+    if (windowStart !== tail) setWindowStart(tail);
+  }
+
+  // Auto-scroll to bottom during streaming (only when viewing tail)
+  useEffect(() => {
+    if (expanded && isActive && contentRef.current && windowStart + WINDOW_SIZE >= actualContent.length) {
+      contentRef.current.scrollTop = contentRef.current.scrollHeight;
+    }
+  }, [actualContent, expanded, isActive, windowStart]);
+
+  // Preserve scroll position when earlier content is prepended
+  useLayoutEffect(() => {
+    const el = contentRef.current;
+    const saved = scrollSaveRef.current;
+    if (!el || !saved) return;
+    scrollSaveRef.current = null;
+    el.scrollTop = saved.top + (el.scrollHeight - saved.height);
+  }, [windowStart]);
+
+  const preview = useMemo(() => {
+    if (!actualContent) return '';
+    const idx = actualContent.indexOf('\n');
+    const firstLine = (idx >= 0 ? actualContent.slice(0, idx) : actualContent).replace(/\s+/g, ' ').trim();
+    return firstLine.length > 80 ? firstLine.slice(0, 80) + '...' : firstLine;
+  }, [actualContent]);
+
+  const hasEarlier = windowStart > 0;
+  const displayContent = actualContent.slice(windowStart);
+
+  const loadEarlier = () => {
+    const el = contentRef.current;
+    if (el) {
+      scrollSaveRef.current = { top: el.scrollTop, height: el.scrollHeight };
+    }
+    setWindowStart((prev) => Math.max(0, prev - CHUNK_SIZE));
+  };
 
   return (
     <div className="mb-2 ml-10">
@@ -30,25 +118,44 @@ export function ThinkingBlock({ isActive = false }: Props) {
           {t('thinking.label')}
           {isActive && <span className="thinking-dots" />}
         </span>
-        {isActive && !expanded && (
+        {!expanded && preview && (
+          <span className="min-w-0 flex-1 truncate font-mono text-[11px] text-[var(--color-text-tertiary)]">
+            {preview}
+            {isActive && <span className="thinking-inline-cursor" />}
+          </span>
+        )}
+        {!expanded && !preview && isActive && (
           <span className="thinking-inline-cursor" />
         )}
       </button>
       {expanded && (
-        <div className="mt-1 rounded-lg border border-[var(--color-border)]/40 bg-[var(--color-surface-container-lowest)] p-2.5 font-mono text-[11px] leading-[1.35] text-[var(--color-text-secondary)]">
-          {isActive ? (
-            <span className="thinking-cursor-container">
-              正在分析任务，规划工具调用步骤...
-              <span className="thinking-cursor" />
-            </span>
-          ) : (
-            <span className="text-[var(--color-text-tertiary)]">思考过程已完成</span>
-          )}
-        </div>
+        <ThinkingErrorBoundary>
+          <div
+            ref={contentRef}
+            className="mt-1 max-h-[300px] overflow-y-auto rounded-lg border border-[var(--color-border)]/40 bg-[var(--color-surface-container-lowest)] p-2.5 font-mono text-[11px] leading-[1.35] text-[var(--color-text-secondary)] whitespace-pre-wrap break-words"
+          >
+            {hasEarlier && (
+              <button
+                onClick={loadEarlier}
+                className="mb-2 block w-full rounded px-2 py-1 text-center text-[11px] text-[var(--color-brand)] hover:bg-[var(--color-surface-container)]/60 hover:underline"
+              >
+                Show earlier ({Math.round(windowStart / 1000)}k chars hidden)
+              </button>
+            )}
+            {displayContent || (isActive ? '正在分析任务...' : '思考过程已完成')}
+            {isActive && expanded && <span className="thinking-cursor" />}
+          </div>
+        </ThinkingErrorBoundary>
       )}
     </div>
   );
 }
+
+export const ThinkingBlock = memo(ThinkingBlockInner, (prev, next) => {
+  if (prev.isActive !== next.isActive) return false;
+  if (!next.isActive) return (prev.content || '') === (next.content || '');
+  return Math.abs((next.content || '').length - (prev.content || '').length) < STREAMING_THROTTLE_CHARS;
+});
 
 const thinkingStyles = `
 @keyframes thinking-cursor-blink {

@@ -9,6 +9,7 @@ type ServerMessage =
   | { type: 'connected'; sessionId: string }
   | { type: 'content_start' }
   | { type: 'content_delta'; text: string }
+  | { type: 'thinking_delta'; text: string }
   | { type: 'status'; state: 'thinking' | 'streaming' | 'idle' }
   | { type: 'tool_call'; toolCallId: string; toolName: string; input: Record<string, unknown> }
   | { type: 'tool_result'; toolCallId: string; result: string; isError: boolean }
