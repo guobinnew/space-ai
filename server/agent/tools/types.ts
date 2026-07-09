@@ -41,6 +41,8 @@ export interface ToolResult {
   content: string
   /** 是否为错误结果 */
   isError?: boolean
+  /** 注入到对话中的新消息（如技能内容），LLM 会将其视为用户消息继续处理 */
+  newMessages?: Array<{ role: 'user'; content: string }>
 }
 
 /** 工具接口 */

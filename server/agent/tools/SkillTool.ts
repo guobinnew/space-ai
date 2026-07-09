@@ -58,18 +58,22 @@ Important:
     try {
       const skill = await skillService.getSkill(skillName)
 
-      // 返回技能内容给 LLM（含 basePath 供访问技能资源）
-      let result = `# Skill: ${skill.name}\n\n${skill.description ? `**Description:** ${skill.description}\n\n` : ''}`
+      // Build skill content message (injected as newMessages so LLM treats it
+      // as a user request, not just a tool result — matching smart-code behavior)
+      let skillContent = `# Skill: ${skill.name}\n\n${skill.description ? `**Description:** ${skill.description}\n\n` : ''}`
 
-      result += `**Base directory for this skill:** ${skill.basePath}\n\n`
+      skillContent += `**Base directory for this skill:** ${skill.basePath}\n\n`
 
       if (args) {
-        result += `**Arguments:** ${args}\n\n`
+        skillContent += `**Arguments:** ${args}\n\n`
       }
 
-      result += `---\n\n${skill.content || '(No additional instructions)'}`
+      skillContent += `---\n\n${skill.content || '(No additional instructions)'}`
 
-      return { content: result }
+      return {
+        content: `Launching skill: ${skillName}`,
+        newMessages: [{ role: 'user', content: skillContent }],
+      }
     } catch {
       return {
         content: `Error: skill "${skillName}" not found. Check available skills in the system prompt.`,
