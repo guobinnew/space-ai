@@ -46,6 +46,10 @@ export async function handleSessionsApi(
       if (req.method === 'POST') {
         return await addMessage(req, sessionId)
       }
+      if (req.method === 'DELETE') {
+        await sessionService.clearMessages(sessionId)
+        return Response.json({ ok: true })
+      }
       throw new ApiError(405, `Method ${req.method} not allowed`, 'METHOD_NOT_ALLOWED')
     }
 

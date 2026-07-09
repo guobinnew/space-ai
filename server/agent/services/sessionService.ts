@@ -410,6 +410,30 @@ export class SessionService {
     }
     return null
   }
+
+  /** Clear all messages from JSONL, keeping only the session-meta line */
+  async clearMessages(id: string): Promise<void> {
+    const entries = await this.readJsonl(id)
+    if (entries.length === 0) throw ApiError.notFound(`Session not found: ${id}`)
+
+    const meta = entries.find((e) => e.type === 'session-meta')
+    if (!meta) throw ApiError.internal('Session meta not found')
+
+    // Rewrite JSONL with only the meta line + update timestamp
+    await this.ensureDirs()
+    const now = this.now()
+    const cleanMeta = { ...meta, timestamp: now }
+    await fs.writeFile(this.getJsonlPath(id), JSON.stringify(cleanMeta) + '\n', 'utf-8')
+
+    // Update index
+    const index = await this.readIndex()
+    const item = index.find((s) => s.id === id)
+    if (item) {
+      item.messageCount = 0
+      item.modifiedAt = now
+      await this.writeIndex(index)
+    }
+  }
 }
 
 export const sessionService = new SessionService()

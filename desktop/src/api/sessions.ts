@@ -46,4 +46,8 @@ export const sessionsApi = {
       { role, content },
     )
   },
+
+  clearMessages(id: string) {
+    return api.delete<{ ok: true }>(`/api/sessions/${encodeURIComponent(id)}/messages`)
+  },
 }

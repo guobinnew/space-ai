@@ -311,7 +311,12 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   );
 
   const clearMessages = useCallback(
-    (sessionId: string) => {
+    async (sessionId: string) => {
+      try {
+        await sessionsApi.clearMessages(sessionId);
+      } catch {
+        // Ignore server errors, still clear locally
+      }
       updateSession(sessionId, () => createInitialSessionState());
     },
     [updateSession],
