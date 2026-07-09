@@ -20,11 +20,13 @@ type ChatInputProps = {
   disabled?: boolean;
   /** 上下文使用量（来自 chatStore） */
   usage?: { inputTokens: number; outputTokens: number } | null;
+  /** 自定义 placeholder，默认使用 session.placeholder */
+  placeholder?: string;
 };
 
 type ActiveProvider = Pick<SavedProvider, 'id' | 'name' | 'models' | 'apiFormat'> & { models: { main: string } };
 
-export function ChatInput({ onSend, onStop, isGenerating, disabled, usage }: ChatInputProps) {
+export function ChatInput({ onSend, onStop, isGenerating, disabled, usage, placeholder }: ChatInputProps) {
   const t = useTranslation();
   const [input, setInput] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -91,7 +93,7 @@ export function ChatInput({ onSend, onStop, isGenerating, disabled, usage }: Cha
             onKeyDown={handleKeyDown}
             disabled={disabled}
             className="w-full resize-none border-0 bg-transparent text-sm text-[var(--color-text-primary)] outline-none placeholder:text-[var(--color-text-tertiary)] disabled:opacity-50"
-            placeholder={t('session.placeholder')}
+            placeholder={placeholder || t('session.placeholder')}
             rows={1}
             style={{ maxHeight: '120px' }}
           />

@@ -73,7 +73,7 @@ export function EmptySession() {
               {t('empty.title')}
             </h1>
             <p className="text-base text-[var(--color-text-secondary)]">
-              开始一个新的会话。Smart Space 已准备好帮你完成代码开发和日常工作。
+              Smart Space 已准备好帮你完成代码开发和日常工作。
             </p>
             <p className="mt-4 text-xs text-[var(--color-text-tertiary)]">
               选择工作模式，切换 AI 专注领域

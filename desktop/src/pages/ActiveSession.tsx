@@ -299,7 +299,7 @@ export function ActiveSession({ sessionId }: { sessionId: string }) {
                   {t('empty.title')}
                 </h1>
                 <p className="text-base text-[var(--color-text-secondary)]">
-                  开始一个新的会话。Smart Space 已准备好帮你完成代码开发和日常工作。
+                 Smart Space 已准备好帮你完成代码开发和日常工作。
                 </p>
                 <p className="mt-4 text-xs text-[var(--color-text-tertiary)]">选择工作模式，切换 AI 专注领域</p>
 
@@ -336,6 +336,7 @@ export function ActiveSession({ sessionId }: { sessionId: string }) {
                 onStop={handleStop}
                 isGenerating={isGenerating}
                 usage={sessionState.usage}
+                placeholder={t('empty.placeholder')}
               />
               {/* Work directory bar + disclaimer */}
               <div className="max-w-3xl mx-auto mt-2 px-1 flex items-center justify-between gap-3">
