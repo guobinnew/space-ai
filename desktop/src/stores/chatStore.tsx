@@ -214,7 +214,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
           case 'message_complete': {
             let completedText = '';
             updateSession(sessionId, (prev) => {
-              if (!prev.streamingText) return { ...prev, chatState: 'idle', thinkingText: '' };
+              if (!prev.streamingText) return { ...prev, chatState: 'idle', thinkingText: '', toolCalls: [] };
               completedText = prev.streamingText;
               const assistantMsg: UIMessage = {
                 type: 'assistant_text',
@@ -227,6 +227,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
                 messages: [...prev.messages, assistantMsg],
                 streamingText: '',
                 thinkingText: '',
+                toolCalls: [],
                 chatState: 'idle',
                 pendingQuestion: null,
                 pendingPlan: null,
