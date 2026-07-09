@@ -7,7 +7,6 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useTranslation } from '../../i18n';
-import { useSessionStore } from '../../stores/sessionStore';
 import { providersApi } from '../../api/providers';
 import type { SavedProvider } from '../../types/provider';
 
@@ -15,7 +14,6 @@ import type { SavedProvider } from '../../types/provider';
 const DEFAULT_CONTEXT_LIMIT = 200000;
 
 type ChatInputProps = {
-  sessionId: string;
   onSend: (content: string) => void;
   onStop: () => void;
   isGenerating: boolean;
@@ -26,18 +24,11 @@ type ChatInputProps = {
 
 type ActiveProvider = Pick<SavedProvider, 'id' | 'name' | 'models' | 'apiFormat'> & { models: { main: string } };
 
-export function ChatInput({ sessionId, onSend, onStop, isGenerating, disabled, usage }: ChatInputProps) {
+export function ChatInput({ onSend, onStop, isGenerating, disabled, usage }: ChatInputProps) {
   const t = useTranslation();
   const [input, setInput] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const { sessions, updateWorkDir } = useSessionStore();
   const [activeProvider, setActiveProvider] = useState<ActiveProvider | null>(null);
-
-  // 获取当前 session 的 workDir
-  const session = sessions.find((s) => s.id === sessionId);
-  const workDir = session?.workDir || '';
-  // 工作目录冻结：一旦发送了消息（messageCount > 0），不可修改
-  const canChangeWorkDir = !session?.messageCount || session.messageCount === 0;
 
   // 加载活跃 provider 信息
   useEffect(() => {
@@ -77,18 +68,6 @@ export function ChatInput({ sessionId, onSend, onStop, isGenerating, disabled, u
     }
   };
 
-  const handlePickDir = async () => {
-    try {
-      const { open } = await import('@tauri-apps/plugin-dialog');
-      const selected = await open({ directory: true, multiple: false });
-      if (typeof selected === 'string') {
-        await updateWorkDir(sessionId, selected);
-      }
-    } catch {
-      // Not in Tauri or dialog cancelled
-    }
-  };
-
   // 上下文占比计算
   const contextTokens = usage?.inputTokens || 0;
   const contextPercent = Math.min(100, Math.round((contextTokens / DEFAULT_CONTEXT_LIMIT) * 100));
@@ -120,23 +99,8 @@ export function ChatInput({ sessionId, onSend, onStop, isGenerating, disabled, u
 
         {/* Bottom toolbar */}
         <div className="flex items-center justify-between px-3 py-2 border-t border-[var(--color-border)] bg-[var(--color-surface-container-lowest)]">
-          {/* Left: work dir + model */}
+          {/* Left: model display */}
           <div className="flex items-center gap-2 min-w-0 flex-1">
-            {/* Work directory picker — frozen after first message */}
-            <button
-              onClick={canChangeWorkDir ? handlePickDir : undefined}
-              disabled={disabled || !canChangeWorkDir}
-              className="flex items-center gap-1 px-2 py-1 text-[11px] rounded-md text-[var(--color-text-tertiary)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-secondary)] transition-colors max-w-[200px] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent"
-              title={canChangeWorkDir ? (workDir || t('chat.setWorkDir')) : t('chat.workDirFrozen')}
-            >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
-                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
-              </svg>
-              <span className="truncate">
-                {workDir ? workDir.split(/[\\/]/).pop() : t('chat.setWorkDir')}
-              </span>
-            </button>
-
             {/* Model display */}
             {modelName && (
               <span className="flex items-center gap-1 px-2 py-1 text-[11px] rounded-md text-[var(--color-text-tertiary)] bg-[var(--color-surface-container-high)] flex-shrink-0">

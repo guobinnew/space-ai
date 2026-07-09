@@ -23,7 +23,7 @@ export function ActiveSession({ sessionId }: { sessionId: string }) {
   const t = useTranslation();
   const { connectToSession, disconnectSession, sendMessage, stopGeneration, clearMessages, answerQuestion, respondPlan, getSession } = useChatStore();
   const { closeTab } = useUIStore();
-  const { sessions } = useSessionStore();
+  const { sessions, updateWorkDir } = useSessionStore();
   const setExplorerRoot = useEditorStore((s) => s.setExplorerRoot);
   const isConnectedRef = useRef(false);
 
@@ -122,6 +122,18 @@ export function ActiveSession({ sessionId }: { sessionId: string }) {
   const handleClose = () => {
     closeTab(sessionId);
   };
+
+  const handlePickDir = useCallback(async () => {
+    try {
+      const { open } = await import('@tauri-apps/plugin-dialog');
+      const selected = await open({ directory: true, multiple: false });
+      if (typeof selected === 'string') {
+        await updateWorkDir(sessionId, selected);
+      }
+    } catch {
+      // Not in Tauri or dialog cancelled
+    }
+  }, [sessionId, updateWorkDir]);
 
   // Scroll-to-top / scroll-to-bottom ref
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -278,14 +290,29 @@ export function ActiveSession({ sessionId }: { sessionId: string }) {
         </div>
 
         {/* Input */}
-        <div className="px-4 py-3 border-t border-[var(--color-border)] flex-shrink-0">
+        <div className="px-4 pt-3 border-t border-[var(--color-border)] flex-shrink-0">
           <ChatInput
-            sessionId={sessionId}
             onSend={handleSend}
             onStop={handleStop}
             isGenerating={isGenerating}
             usage={sessionState.usage}
           />
+          {/* Work directory bar */}
+          <div className="max-w-3xl mx-auto mt-1.5 px-1">
+            <button
+              onClick={handlePickDir}
+              disabled={isGenerating}
+              className="flex items-center gap-1.5 w-full text-left text-[11px] text-[var(--color-text-tertiary)]/60 hover:text-[var(--color-text-tertiary)] transition-colors disabled:opacity-30"
+              title={workDir || '设置工作目录'}
+            >
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+              </svg>
+              <span className="truncate">
+                {workDir || '设置工作目录'}
+              </span>
+            </button>
+          </div>
         </div>
       </div>
 
