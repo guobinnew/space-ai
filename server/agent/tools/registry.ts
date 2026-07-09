@@ -11,6 +11,9 @@ import { fileWriteTool } from './FileWriteTool'
 import { fileEditTool } from './FileEditTool'
 import { globTool } from './GlobTool'
 import { grepTool } from './GrepTool'
+import { todoWriteTool } from './TodoWriteTool'
+import { webFetchTool } from './WebFetchTool'
+import { notebookEditTool } from './NotebookEditTool'
 
 /** 所有内建工具 */
 const builtinTools: Tool[] = [
@@ -20,6 +23,9 @@ const builtinTools: Tool[] = [
   fileEditTool,
   globTool,
   grepTool,
+  todoWriteTool,
+  webFetchTool,
+  notebookEditTool,
 ]
 
 /** 工具名 → 工具实例 映射 */

@@ -16,6 +16,9 @@ export const FILE_WRITE_TOOL_NAME = 'Write'
 export const FILE_EDIT_TOOL_NAME = 'Edit'
 export const GLOB_TOOL_NAME = 'Glob'
 export const GREP_TOOL_NAME = 'Grep'
+export const TODO_WRITE_TOOL_NAME = 'TodoWrite'
+export const WEB_FETCH_TOOL_NAME = 'WebFetch'
+export const NOTEBOOK_EDIT_TOOL_NAME = 'NotebookEdit'
 
 // ─── 提示词各段 ───────────────────────────────────────────────
 
@@ -77,6 +80,9 @@ function getUsingYourToolsSection(): string {
     `To search for files use ${GLOB_TOOL_NAME} instead of find or ls`,
     `To search the content of files, use ${GREP_TOOL_NAME} instead of grep or rg`,
     `Reserve using the ${BASH_TOOL_NAME} exclusively for system commands and terminal operations that require shell execution.`,
+    `Use ${TODO_WRITE_TOOL_NAME} to track your progress on multi-step tasks — update it as you complete each step.`,
+    `Use ${WEB_FETCH_TOOL_NAME} to retrieve content from web URLs when you need external information.`,
+    `Use ${NOTEBOOK_EDIT_TOOL_NAME} to edit Jupyter notebook (.ipynb) cells.`,
   ]
   const items = [
     `Do NOT use the ${BASH_TOOL_NAME} to run commands when a relevant dedicated tool is provided. Using dedicated tools allows the user to better understand and review your work:`,
