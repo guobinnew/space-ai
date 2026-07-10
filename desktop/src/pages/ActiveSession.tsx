@@ -61,7 +61,7 @@ export function ActiveSession({ sessionId }: { sessionId: string }) {
   // Get session workDir
   const session = sessions.find((s) => s.id === sessionId);
   const workDir = session?.workDir || '';
-  const hasMessages = (session?.messageCount ?? 0) > 0;
+  const hasMessages = sessionState.messages.length > 0;
 
   // Sync workDir to editorStore explorerRoot
   useEffect(() => {
