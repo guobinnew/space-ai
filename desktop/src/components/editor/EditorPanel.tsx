@@ -10,7 +10,7 @@ const MIN_EXPLORER_WIDTH = 200
 const MAX_EXPLORER_WIDTH = 400
 const DEFAULT_EXPLORER_WIDTH = 200
 
-export function EditorPanel() {
+export function EditorPanel({ rootDir }: { rootDir?: string } = {}) {
   const openFiles = useEditorStore((s) => s.openFiles)
   const activeFilePath = useEditorStore((s) => s.activeFilePath)
   const setActiveFile = useEditorStore((s) => s.setActiveFile)
@@ -263,7 +263,7 @@ export function EditorPanel() {
         className="shrink-0 border-l border-[var(--color-border)] bg-[var(--color-surface-sidebar)] overflow-hidden flex flex-col"
         style={{ width: explorerWidth }}
       >
-        <FileExplorer width={explorerWidth} />
+        <FileExplorer width={explorerWidth} root={rootDir} />
       </div>
     </div>
   )

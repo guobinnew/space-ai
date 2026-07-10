@@ -9,7 +9,6 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { useChatStore } from '../stores/chatStore';
 import { useUIStore } from '../stores/uiStore';
 import { useSessionStore } from '../stores/sessionStore';
-import { useEditorStore } from '../stores/editorStore';
 import { MessageList } from '../components/chat/MessageList';
 import { ChatInput } from '../components/chat/ChatInput';
 import { EditorPanel } from '../components/editor/EditorPanel';
@@ -24,7 +23,6 @@ export function ActiveSession({ sessionId }: { sessionId: string }) {
   const { connectToSession, disconnectSession, sendMessage, stopGeneration, clearMessages, answerQuestion, respondPlan, getSession } = useChatStore();
   const { closeTab } = useUIStore();
   const { sessions, updateWorkDir } = useSessionStore();
-  const setExplorerRoot = useEditorStore((s) => s.setExplorerRoot);
   const isConnectedRef = useRef(false);
 
   // Editor panel state
@@ -62,11 +60,6 @@ export function ActiveSession({ sessionId }: { sessionId: string }) {
   const session = sessions.find((s) => s.id === sessionId);
   const workDir = session?.workDir || '';
   const hasMessages = sessionState.messages.length > 0;
-
-  // Sync workDir to editorStore explorerRoot
-  useEffect(() => {
-    setExplorerRoot(workDir || null);
-  }, [workDir, setExplorerRoot]);
 
   // Only connect/disconnect when sessionId changes
   useEffect(() => {
@@ -418,7 +411,7 @@ export function ActiveSession({ sessionId }: { sessionId: string }) {
       {/* Editor panel (right) */}
       {editorOpen && workDir && (
         <div className="flex-1 min-w-0 overflow-hidden border-l border-[var(--color-border)]">
-          <EditorPanel />
+          <EditorPanel rootDir={workDir} />
         </div>
       )}
     </div>

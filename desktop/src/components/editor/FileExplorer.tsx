@@ -24,8 +24,9 @@ type ContextMenuState = {
 
 const FILE_WATCH_INTERVAL_MS = 5000
 
-export function FileExplorer({ width }: { width?: number } = {}) {
-  const root = useEditorStore((s) => s.explorerRoot)
+export function FileExplorer({ width, root: rootProp }: { width?: number; root?: string | null } = {}) {
+  const storeRoot = useEditorStore((s) => s.explorerRoot)
+  const root = rootProp !== undefined ? rootProp : storeRoot
   const openFile = useEditorStore((s) => s.openFile)
   const closeFile = useEditorStore((s) => s.closeFile)
   const activeFilePath = useEditorStore((s) => s.activeFilePath)
