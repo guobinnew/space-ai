@@ -200,7 +200,7 @@ export class SessionService {
       createdAt: meta?.createdAt || lastTimestamp,
       modifiedAt: indexItem?.modifiedAt || lastTimestamp,
       messageCount: messages.length,
-      workDir: meta?.workDir || indexItem?.workDir,
+      workDir: indexItem?.workDir || meta?.workDir,
       messages,
     }
   }
