@@ -6,6 +6,7 @@
  */
 
 import type { Tool, ToolResult, ToolContext, ToolInputJSONSchema } from './types'
+import { saveTasks } from '../services/taskService'
 
 export const TODO_WRITE_TOOL_NAME = 'TodoWrite'
 
@@ -80,6 +81,11 @@ todos: [
 
     // Store in session map
     sessionTodos.set(context.sessionId, todos)
+
+    // Persist to disk
+    await saveTasks(context.sessionId, todos).catch(() => {
+      // Ignore persistence errors — memory still works
+    })
 
     // Format summary
     const summary = todos

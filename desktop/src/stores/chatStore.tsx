@@ -10,6 +10,7 @@
 import { createContext, useContext, useState, useCallback, type ReactNode } from 'react';
 import { wsManager, type ServerMessage } from '../api/websocket';
 import { sessionsApi } from '../api/sessions';
+import { tasksApi } from '../api/tasks';
 import { useUIStore } from './uiStore';
 import type { UIMessage, PerSessionChatState, QuestionItem, TodoItem } from '../types/chat';
 
@@ -122,6 +123,21 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
       // Load history
       void loadHistory(sessionId);
+
+      // Load persisted task list
+      void (async () => {
+        try {
+          const data = await tasksApi.load(sessionId);
+          if (data.tasks.length > 0) {
+            updateSession(sessionId, (prev) => ({
+              ...prev,
+              todos: data.tasks as TodoItem[],
+            }));
+          }
+        } catch {
+          // Tasks file may not exist, ignore
+        }
+      })();
 
       // Register message handler
       wsManager.onMessage(sessionId, (msg: ServerMessage) => {
@@ -326,6 +342,8 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       } catch {
         // Ignore server errors, still clear locally
       }
+      // Also clear persisted tasks
+      tasksApi.clear(sessionId).catch(() => {});
       updateSession(sessionId, () => createInitialSessionState());
     },
     [updateSession],
