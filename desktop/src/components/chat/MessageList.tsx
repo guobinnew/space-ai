@@ -46,6 +46,9 @@ export function MessageList({
   const endRef = useRef<HTMLDivElement>(null);
   const initialScrollDone = useRef(false);
 
+  // Track previous message count to detect new messages
+  const prevMsgCountRef = useRef(messages.length);
+
   useEffect(() => {
     const el = endRef.current;
     if (!el) return;
@@ -67,7 +70,15 @@ export function MessageList({
       return;
     }
 
-    // For subsequent updates, only auto-scroll if user is within 100px of the bottom
+    // New message added (user sent or assistant finished) → always scroll to bottom
+    if (messages.length > prevMsgCountRef.current) {
+      prevMsgCountRef.current = messages.length;
+      scrollParent.scrollTop = scrollParent.scrollHeight;
+      return;
+    }
+    prevMsgCountRef.current = messages.length;
+
+    // For streaming/thinking/tool-call updates, only auto-scroll if user is near bottom
     const distanceFromBottom =
       scrollParent.scrollHeight - scrollParent.scrollTop - scrollParent.clientHeight;
     if (distanceFromBottom < 100) {
