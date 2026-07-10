@@ -63,11 +63,31 @@ function createInitialSessionState(): PerSessionChatState {
     chatState: 'idle',
     streamingText: '',
     thinkingText: '',
+    hasActiveThinking: false,
     toolCalls: [],
     todos: [],
     pendingQuestion: null,
     pendingPlan: null,
     usage: null,
+  };
+}
+
+/** Flush accumulated thinking text into a message. */
+function flushThinking(prev: PerSessionChatState): PerSessionChatState {
+  if (!prev.hasActiveThinking || !prev.thinkingText.trim()) {
+    return { ...prev, hasActiveThinking: false, thinkingText: '' };
+  }
+  const thinkingMsg: UIMessage = {
+    type: 'thinking',
+    id: `thinking-${Date.now()}`,
+    content: prev.thinkingText,
+    createdAt: new Date().toISOString(),
+  };
+  return {
+    ...prev,
+    messages: [...prev.messages, thinkingMsg],
+    thinkingText: '',
+    hasActiveThinking: false,
   };
 }
 
@@ -154,16 +174,20 @@ export function ChatProvider({ children }: { children: ReactNode }) {
             break;
 
           case 'content_delta':
-            updateSession(sessionId, (prev) => ({
-              ...prev,
-              streamingText: prev.streamingText + msg.text,
-            }));
+            updateSession(sessionId, (prev) => {
+              const flushed = flushThinking(prev);
+              return {
+                ...flushed,
+                streamingText: flushed.streamingText + msg.text,
+              };
+            });
             break;
 
           case 'thinking_delta':
             updateSession(sessionId, (prev) => ({
               ...prev,
               thinkingText: prev.thinkingText + msg.text,
+              hasActiveThinking: true,
             }));
             break;
 
@@ -176,6 +200,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
           case 'tool_call':
             updateSession(sessionId, (prev) => {
+              const flushed = flushThinking(prev);
               const toolUseMsg: UIMessage = {
                 type: 'tool_use',
                 id: `tool_use-${msg.toolCallId}`,
@@ -185,11 +210,11 @@ export function ChatProvider({ children }: { children: ReactNode }) {
                 createdAt: new Date().toISOString(),
               };
               const updated = {
-                ...prev,
+                ...flushed,
                 chatState: 'thinking',
-                messages: [...prev.messages, toolUseMsg],
+                messages: [...flushed.messages, toolUseMsg],
                 toolCalls: [
-                  ...prev.toolCalls,
+                  ...flushed.toolCalls,
                   {
                     id: msg.toolCallId,
                     toolName: msg.toolName,
@@ -208,7 +233,8 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
           case 'tool_result':
             updateSession(sessionId, (prev) => {
-              const toolUse = prev.toolCalls.find((tc) => tc.id === msg.toolCallId)
+              const flushed = flushThinking(prev);
+              const toolUse = flushed.toolCalls.find((tc) => tc.id === msg.toolCallId)
               const toolResultMsg: UIMessage = {
                 type: 'tool_result',
                 id: `tool_result-${msg.toolCallId}`,
@@ -219,9 +245,9 @@ export function ChatProvider({ children }: { children: ReactNode }) {
                 createdAt: new Date().toISOString(),
               };
               return {
-                ...prev,
-                messages: [...prev.messages, toolResultMsg],
-                toolCalls: prev.toolCalls.map((tc) =>
+                ...flushed,
+                messages: [...flushed.messages, toolResultMsg],
+                toolCalls: flushed.toolCalls.map((tc) =>
                   tc.id === msg.toolCallId
                     ? { ...tc, result: msg.result, isError: msg.isError, status: msg.isError ? 'error' : 'completed' }
                     : tc,
@@ -261,19 +287,27 @@ export function ChatProvider({ children }: { children: ReactNode }) {
           case 'message_complete': {
             let completedText = '';
             updateSession(sessionId, (prev) => {
-              if (!prev.streamingText) return { ...prev, chatState: 'idle', toolCalls: [] };
-              completedText = prev.streamingText;
+              const flushed = flushThinking(prev);
+              if (!flushed.streamingText) {
+                return {
+                  ...flushed,
+                  chatState: 'idle',
+                  toolCalls: [],
+                  pendingQuestion: null,
+                  pendingPlan: null,
+                };
+              }
+              completedText = flushed.streamingText;
               const assistantMsg: UIMessage = {
                 type: 'assistant_text',
                 id: `assistant-${Date.now()}`,
-                content: prev.streamingText,
+                content: flushed.streamingText,
                 createdAt: new Date().toISOString(),
               };
               return {
-                ...prev,
-                messages: [...prev.messages, assistantMsg],
+                ...flushed,
+                messages: [...flushed.messages, assistantMsg],
                 streamingText: '',
-                // Keep thinkingText so ThinkingBlock remains visible after completion
                 toolCalls: [],
                 chatState: 'idle',
                 pendingQuestion: null,
@@ -333,6 +367,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         chatState: 'thinking',
         streamingText: '',
         thinkingText: '',
+        hasActiveThinking: false,
         toolCalls: [],
         todos: [],
         pendingQuestion: null,

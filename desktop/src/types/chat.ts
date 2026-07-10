@@ -9,6 +9,7 @@ export type ChatState = 'idle' | 'thinking' | 'streaming'
 export type UIMessage =
   | { type: 'user_text'; id: string; content: string; createdAt: string }
   | { type: 'assistant_text'; id: string; content: string; createdAt: string }
+  | { type: 'thinking'; id: string; content: string; createdAt: string }
   | { type: 'tool_use'; id: string; toolCallId: string; toolName: string; input: Record<string, unknown>; createdAt: string }
   | { type: 'tool_result'; id: string; toolCallId: string; toolName: string; result: string; isError: boolean; createdAt: string }
   | { type: 'error'; id: string; message: string; createdAt: string }
@@ -66,6 +67,8 @@ export type PerSessionChatState = {
   streamingText: string
   /** Thinking content from extended thinking (streamed in real-time) */
   thinkingText: string
+  /** 当前是否有激活的思考块（流式中） */
+  hasActiveThinking: boolean
   /** 当前轮的工具调用列表（sendMessage 时清空） */
   toolCalls: ToolCallInfo[]
   /** 待回答的问题（AskUserQuestion） */

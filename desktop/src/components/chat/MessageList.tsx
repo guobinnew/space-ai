@@ -180,6 +180,13 @@ export function MessageList({
         if (msg.type === 'assistant_text') {
           return <AssistantMessage key={msg.id} content={msg.content} createdAt={msg.createdAt} />;
         }
+        if (msg.type === 'thinking') {
+          return (
+            <div key={msg.id} className="mb-2 ml-10">
+              <ThinkingBlock content={msg.content} isActive={false} />
+            </div>
+          );
+        }
         if (msg.type === 'error') {
           return (
             <div key={msg.id} className="flex justify-start ml-10">
@@ -210,32 +217,23 @@ export function MessageList({
         />
       )}
 
-      {/* Current round: Thinking → (ToolCalls live state) → Streaming text */}
-      {(chatState !== 'idle' || streamingText || toolCalls.length > 0) && (
+      {/* Current round: active thinking + streaming text */}
+      {(streamingText || thinkingText) && (
         <>
-          {/* 1. Thinking block */}
-          {(thinkingText || chatState !== 'idle') && (
+          {/* Active thinking block (currently streaming) */}
+          {thinkingText && (
             <ThinkingBlock content={thinkingText} isActive={chatState !== 'idle'} />
           )}
 
-          {/* 2. Tool calls (live state — may not yet have tool_result in messages) */}
-          {toolCalls.length > 0 && (
-            <div className="flex flex-col gap-1 ml-10">
-              {toolCalls.map((tc) => (
-                <ToolCallBlock key={tc.id} toolCall={tc} />
-              ))}
-            </div>
-          )}
-
-          {/* 3. Streaming text */}
+          {/* Streaming text */}
           {streamingText && (
             <AssistantMessage content={streamingText} createdAt="" streaming />
           )}
         </>
       )}
 
-      {/* Thinking indicator when tools are running with no other output visible */}
-      {hasRunningTool && !streamingText && !thinkingText && toolCalls.length === 0 && chatState === 'idle' && <StreamingIndicator />}
+      {/* Thinking indicator when something is happening but no visible output yet */}
+      {hasRunningTool && !streamingText && !thinkingText && chatState === 'idle' && <StreamingIndicator />}
 
       <div ref={endRef} />
     </div>
