@@ -19,6 +19,9 @@ import { askUserQuestionTool } from './AskUserQuestionTool'
 import { enterPlanModeTool } from './EnterPlanModeTool'
 import { exitPlanModeTool } from './ExitPlanModeTool'
 import { skillTool } from './SkillTool'
+import { taskCreateTool } from './TaskCreateTool'
+import { taskUpdateTool } from './TaskUpdateTool'
+import { taskListTool } from './TaskListTool'
 
 /** 所有内建工具 */
 const builtinTools: Tool[] = [
@@ -29,6 +32,9 @@ const builtinTools: Tool[] = [
   globTool,
   grepTool,
   todoWriteTool,
+  taskCreateTool,
+  taskUpdateTool,
+  taskListTool,
   webFetchTool,
   notebookEditTool,
   webSearchTool,

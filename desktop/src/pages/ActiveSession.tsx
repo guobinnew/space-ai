@@ -9,6 +9,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { useChatStore } from '../stores/chatStore';
 import { useUIStore } from '../stores/uiStore';
 import { useSessionStore } from '../stores/sessionStore';
+import { useTaskStore } from '../stores/cliTaskStore';
 import { MessageList } from '../components/chat/MessageList';
 import { ChatInput } from '../components/chat/ChatInput';
 import { SessionTaskBar } from '../components/chat/SessionTaskBar';
@@ -31,6 +32,7 @@ export function ActiveSession({ sessionId }: { sessionId: string }) {
   const [chatWidth, setChatWidth] = useState(DEFAULT_CHAT_WIDTH);
   const [dragging, setDragging] = useState(false);
   const [mode, setMode] = useState<'code' | 'office'>('code');
+  const taskStore = useTaskStore();
   const containerRef = useRef<HTMLDivElement>(null);
   const isDragging = useRef(false);
   const startX = useRef(0);
@@ -73,6 +75,39 @@ export function ActiveSession({ sessionId }: { sessionId: string }) {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId])
+
+  // Poll task list every 1s while session is active or has pending tasks
+  useEffect(() => {
+    if (!sessionId) return
+    const interval = setInterval(async () => {
+      const state = getSession(sessionId)
+      const isSessionActive = state.chatState !== 'idle'
+      if (isSessionActive || taskStore.hasPending) {
+        await taskStore.fetchSessionTasks(sessionId)
+      }
+    }, 1000)
+    return () => clearInterval(interval)
+  }, [sessionId, getSession, taskStore])
+
+  // Auto-continue: when session becomes idle with pending tasks
+  const continueTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => {
+    if (!sessionId) return
+    const state = getSession(sessionId)
+    if (state.chatState === 'idle' && taskStore.hasPending && taskStore.nextPending) {
+      // Debounce: wait 3s after idle before sending continue
+      if (continueTimerRef.current) clearTimeout(continueTimerRef.current)
+      continueTimerRef.current = setTimeout(() => {
+        const next = taskStore.nextPending
+        if (next) {
+          sendMessage(sessionId, `Continue with the next pending task: ${next.subject}`)
+        }
+      }, 3000)
+    }
+    return () => {
+      if (continueTimerRef.current) clearTimeout(continueTimerRef.current)
+    }
+  }, [sessionId, getSession, taskStore.hasPending, taskStore.nextPending, sendMessage])
 
   // Drag handler for resizing chat/editor split
   const handleDragStart = useCallback((e: React.MouseEvent) => {
@@ -370,7 +405,7 @@ export function ActiveSession({ sessionId }: { sessionId: string }) {
             </div>
 
             {/* Task bar (above input, below messages) */}
-            <SessionTaskBar todos={sessionState.todos} />
+            <SessionTaskBar />
 
             {/* Input */}
             <div className="px-4 py-3 border-t border-[var(--color-border)] flex-shrink-0">
