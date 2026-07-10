@@ -93,7 +93,7 @@ export function SessionTaskBar({ todos }: Props) {
         {expanded && (
           <div className="px-4 pb-2 pt-1 flex flex-col gap-0.5 max-h-[240px] overflow-y-auto border-t border-[var(--color-outline-variant)]/20">
             {todos.map((task, index) => (
-              <TaskItem key={index} task={task} />
+              <TaskItem key={index} task={task} index={index} />
             ))}
           </div>
         )}
@@ -102,7 +102,7 @@ export function SessionTaskBar({ todos }: Props) {
   );
 }
 
-function TaskItem({ task }: { task: TodoItem }) {
+function TaskItem({ task, index }: { task: TodoItem; index: number }) {
   const config = statusConfig[task.status];
 
   return (
