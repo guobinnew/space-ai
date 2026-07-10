@@ -295,6 +295,7 @@ export class SessionService {
   }
 
   async updateWorkDir(id: string, workDir: string): Promise<void> {
+    // Update index
     const index = await this.readIndex()
     const item = index.find((s) => s.id === id)
     if (!item) throw ApiError.notFound(`Session not found: ${id}`)
@@ -302,6 +303,18 @@ export class SessionService {
     item.workDir = workDir
     item.modifiedAt = this.now()
     await this.writeIndex(index)
+
+    // Also update JSONL meta entry to keep it in sync
+    const entries = await this.readJsonl(id)
+    if (entries.length > 0) {
+      const metaEntry = entries[0] as JsonlEntry & { type: 'session-meta' }
+      if (metaEntry.type === 'session-meta') {
+        const lines = entries.map((e) => JSON.stringify(e))
+        metaEntry.workDir = workDir
+        lines[0] = JSON.stringify(metaEntry)
+        await fs.writeFile(this.getJsonlPath(id), lines.join('\n') + '\n', 'utf-8')
+      }
+    }
   }
 
   async addMessage(
