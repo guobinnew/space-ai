@@ -8,6 +8,8 @@
 import { useState, useRef, useEffect } from 'react';
 import { useTranslation } from '../../i18n';
 import { providersApi } from '../../api/providers';
+import { filesystemApi } from '../../api/filesystem';
+import { usePendingRefStore } from '../../stores/pendingRefStore';
 import type { SavedProvider } from '../../types/provider';
 
 /** 默认上下文窗口大小（用于计算占比） */
@@ -31,6 +33,7 @@ export function ChatInput({ onSend, onStop, isGenerating, disabled, usage, place
   const [input, setInput] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [activeProvider, setActiveProvider] = useState<ActiveProvider | null>(null);
+  const { pendingFileRef, pendingDirRef, pendingCodeRef, clearPendingFileRef, clearPendingDirRef, clearPendingCodeRef } = usePendingRefStore();
 
   // 加载活跃 provider 信息
   useEffect(() => {
@@ -46,6 +49,59 @@ export function ChatInput({ onSend, onStop, isGenerating, disabled, usage, place
       }
     }).catch(() => {});
   }, []);
+
+  // Consume pending file ref from editor (right-click "加入对话" on a file)
+  useEffect(() => {
+    if (!pendingFileRef) return;
+    const { filePath } = pendingFileRef;
+    clearPendingFileRef();
+    // Read file content and insert into input
+    (async () => {
+      try {
+        const result = await filesystemApi.readFile(filePath);
+        const snippet = `File: ${filePath}\n\`\`\`\n${result.content}\n\`\`\`\n`;
+        setInput((prev) => (prev ? prev + '\n' + snippet : snippet));
+        textareaRef.current?.focus();
+      } catch {
+        // If read fails, just add the file path
+        const snippet = `[File: ${filePath}](file://${filePath})`;
+        setInput((prev) => (prev ? prev + '\n' + snippet : snippet));
+        textareaRef.current?.focus();
+      }
+    })();
+  }, [pendingFileRef, clearPendingFileRef]);
+
+  // Consume pending dir ref from editor (right-click "加入对话" on a directory)
+  useEffect(() => {
+    if (!pendingDirRef) return;
+    const { dirPath } = pendingDirRef;
+    clearPendingDirRef();
+    const snippet = `[Directory: ${dirPath}](file://${dirPath})`;
+    setInput((prev) => (prev ? prev + '\n' + snippet : snippet));
+    textareaRef.current?.focus();
+  }, [pendingDirRef, clearPendingDirRef]);
+
+  // Consume pending code ref from editor (select code + right-click "加入对话" in CodeEditor)
+  useEffect(() => {
+    if (!pendingCodeRef) return;
+    const { filePath, startLine, endLine } = pendingCodeRef;
+    clearPendingCodeRef();
+    (async () => {
+      try {
+        const result = await filesystemApi.readFile(filePath);
+        const lines = result.content.split('\n');
+        const selected = lines.slice(startLine - 1, endLine).join('\n');
+        const snippet = `File: ${filePath} (lines ${startLine}-${endLine})\n\`\`\`\n${selected}\n\`\`\`\n`;
+        setInput((prev) => (prev ? prev + '\n' + snippet : snippet));
+        textareaRef.current?.focus();
+      } catch {
+        // Fallback: just add path reference
+        const snippet = `[File: ${filePath} (lines ${startLine}-${endLine})](file://${filePath})`;
+        setInput((prev) => (prev ? prev + '\n' + snippet : snippet));
+        textareaRef.current?.focus();
+      }
+    })();
+  }, [pendingCodeRef, clearPendingCodeRef]);
 
   // Auto-resize textarea
   useEffect(() => {
