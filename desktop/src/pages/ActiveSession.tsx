@@ -368,6 +368,7 @@ export function ActiveSession({ sessionId }: { sessionId: string }) {
                 thinkingText={sessionState.thinkingText}
                 chatState={sessionState.chatState}
                 toolCalls={sessionState.toolCalls}
+                todos={sessionState.todos}
                 pendingQuestion={sessionState.pendingQuestion}
                 pendingPlan={sessionState.pendingPlan}
                 onAnswerQuestion={(answer) => answerQuestion(sessionId, answer)}

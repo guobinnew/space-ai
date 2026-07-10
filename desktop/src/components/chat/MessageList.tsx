@@ -6,7 +6,8 @@
  */
 
 import { useEffect, useRef } from 'react';
-import type { UIMessage, ChatState, ToolCallInfo, PendingQuestion, PendingPlan } from '../../types/chat';
+import type { UIMessage, ChatState, ToolCallInfo, PendingQuestion, PendingPlan, TodoItem } from '../../types/chat';
+import { SessionTaskBar } from './SessionTaskBar';
 import { UserMessage } from './UserMessage';
 import { AssistantMessage } from './AssistantMessage';
 import { StreamingIndicator } from './StreamingIndicator';
@@ -22,6 +23,7 @@ type MessageListProps = {
   thinkingText: string;
   chatState: ChatState;
   toolCalls: ToolCallInfo[];
+  todos: TodoItem[];
   pendingQuestion: PendingQuestion | null;
   pendingPlan: PendingPlan | null;
   onAnswerQuestion: (answer: string) => void;
@@ -34,6 +36,7 @@ export function MessageList({
   thinkingText,
   chatState,
   toolCalls,
+  todos,
   pendingQuestion,
   pendingPlan,
   onAnswerQuestion,
@@ -90,6 +93,8 @@ export function MessageList({
 
   return (
     <div className="max-w-3xl mx-auto flex flex-col gap-3 py-4">
+      {/* Task bar (from TodoWrite tool calls) */}
+      <SessionTaskBar todos={todos} />
       {messages.map((msg) => {
         if (msg.type === 'user_text') {
           return <UserMessage key={msg.id} content={msg.content} createdAt={msg.createdAt} />;

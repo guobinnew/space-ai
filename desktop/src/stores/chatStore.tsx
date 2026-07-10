@@ -11,7 +11,7 @@ import { createContext, useContext, useState, useCallback, type ReactNode } from
 import { wsManager, type ServerMessage } from '../api/websocket';
 import { sessionsApi } from '../api/sessions';
 import { useUIStore } from './uiStore';
-import type { UIMessage, PerSessionChatState, QuestionItem } from '../types/chat';
+import type { UIMessage, PerSessionChatState, QuestionItem, TodoItem } from '../types/chat';
 
 /** Server sidecar 固定端口 */
 const SERVER_PORT = 3721;
@@ -63,6 +63,7 @@ function createInitialSessionState(): PerSessionChatState {
     streamingText: '',
     thinkingText: '',
     toolCalls: [],
+    todos: [],
     pendingQuestion: null,
     pendingPlan: null,
     usage: null,
@@ -158,19 +159,26 @@ export function ChatProvider({ children }: { children: ReactNode }) {
             break;
 
           case 'tool_call':
-            updateSession(sessionId, (prev) => ({
-              ...prev,
-              chatState: 'thinking',
-              toolCalls: [
-                ...prev.toolCalls,
-                {
-                  id: msg.toolCallId,
-                  toolName: msg.toolName,
-                  input: msg.input,
-                  status: 'running',
-                },
-              ],
-            }));
+            updateSession(sessionId, (prev) => {
+              const updated = {
+                ...prev,
+                chatState: 'thinking',
+                toolCalls: [
+                  ...prev.toolCalls,
+                  {
+                    id: msg.toolCallId,
+                    toolName: msg.toolName,
+                    input: msg.input,
+                    status: 'running',
+                  },
+                ],
+              };
+              // Extract todos from TodoWrite tool call
+              if (msg.toolName === 'TodoWrite' && Array.isArray(msg.input?.todos)) {
+                updated.todos = msg.input.todos as TodoItem[];
+              }
+              return updated;
+            });
             break;
 
           case 'tool_result':
@@ -293,6 +301,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         streamingText: '',
         thinkingText: '',
         toolCalls: [],
+        todos: [],
         pendingQuestion: null,
         pendingPlan: null,
       }));
