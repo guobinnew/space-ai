@@ -44,12 +44,19 @@ impl Drop for ServerSidecar {
 
 #[tauri::command]
 fn close_splashscreen(app: tauri::AppHandle) {
+    println!("[SmartSpace] close_splashscreen called from frontend");
     if let Some(splash) = app.get_webview_window("splash") {
+        println!("[SmartSpace] Closing splash window...");
         let _ = splash.close();
+    } else {
+        println!("[SmartSpace] Splash window not found (already closed?)");
     }
     if let Some(main) = app.get_webview_window("main") {
+        println!("[SmartSpace] Showing main window...");
         let _ = main.show();
         let _ = main.set_focus();
+    } else {
+        println!("[SmartSpace] Main window not found!");
     }
 }
 

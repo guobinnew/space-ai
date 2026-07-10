@@ -4,6 +4,7 @@
  * 显示主要功能入口 + 最近会话列表
  */
 import { useState, useEffect, useCallback } from 'react';
+import { invoke } from '@tauri-apps/api/core';
 import { useTranslation } from '../i18n';
 import { useUIStore } from '../stores/uiStore';
 import { sessionsApi } from '../api/sessions';
@@ -52,6 +53,18 @@ export function HomePage() {
     };
     void checkServer();
     return () => { cancelled = true; };
+  }, []);
+
+  // Close splash screen after mount (with logging)
+  useEffect(() => {
+    console.log('[HomePage] Mounted, closing splash screen in 500ms...');
+    const timer = setTimeout(() => {
+      console.log('[HomePage] Calling invoke("close_splashscreen")...');
+      invoke('close_splashscreen')
+        .then(() => console.log('[HomePage] close_splashscreen OK'))
+        .catch((err) => console.error('[HomePage] close_splashscreen FAILED:', err));
+    }, 500);
+    return () => clearTimeout(timer);
   }, []);
 
   // Load all sessions + compute stats + recent list

@@ -68,7 +68,7 @@ const translations: Record<Locale, Record<string, string>> = {
     // EmptySession
     'empty.title': '开始新对话',
     'empty.subtitle': '输入消息开始与 Smart Space 对话',
-    'empty.placeholder': '输入消息，Enter 发送',
+    'empty.placeholder': '输入消息，Enter 发送，Shift+Enter 换行',
 
     // ActiveSession
     'session.title': '会话',
