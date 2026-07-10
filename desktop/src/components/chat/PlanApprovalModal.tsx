@@ -6,6 +6,7 @@
  */
 
 import { useTranslation } from '../../i18n';
+import { MarkdownRenderer } from '../markdown/MarkdownRenderer';
 
 type Props = {
   plan: string;
@@ -32,9 +33,7 @@ export function PlanApprovalModal({ plan, isEnterMode = false, onApprove, onReje
 
         {!isEnterMode && (
           <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-3 mb-3 max-h-64 overflow-y-auto">
-            <pre className="text-sm text-[var(--color-text-primary)] whitespace-pre-wrap break-words font-sans">
-              {plan}
-            </pre>
+            <MarkdownRenderer content={plan} />
           </div>
         )}
 
