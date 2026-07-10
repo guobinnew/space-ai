@@ -176,9 +176,18 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
           case 'tool_call':
             updateSession(sessionId, (prev) => {
+              const toolUseMsg: UIMessage = {
+                type: 'tool_use',
+                id: `tool_use-${msg.toolCallId}`,
+                toolCallId: msg.toolCallId,
+                toolName: msg.toolName,
+                input: msg.input,
+                createdAt: new Date().toISOString(),
+              };
               const updated = {
                 ...prev,
                 chatState: 'thinking',
+                messages: [...prev.messages, toolUseMsg],
                 toolCalls: [
                   ...prev.toolCalls,
                   {
@@ -198,19 +207,27 @@ export function ChatProvider({ children }: { children: ReactNode }) {
             break;
 
           case 'tool_result':
-            updateSession(sessionId, (prev) => ({
-              ...prev,
-              toolCalls: prev.toolCalls.map((tc) =>
-                tc.id === msg.toolCallId
-                  ? {
-                      ...tc,
-                      result: msg.result,
-                      isError: msg.isError,
-                      status: msg.isError ? 'error' : 'completed',
-                    }
-                  : tc,
-              ),
-            }));
+            updateSession(sessionId, (prev) => {
+              const toolUse = prev.toolCalls.find((tc) => tc.id === msg.toolCallId)
+              const toolResultMsg: UIMessage = {
+                type: 'tool_result',
+                id: `tool_result-${msg.toolCallId}`,
+                toolCallId: msg.toolCallId,
+                toolName: toolUse?.toolName || 'unknown',
+                result: msg.result,
+                isError: msg.isError,
+                createdAt: new Date().toISOString(),
+              };
+              return {
+                ...prev,
+                messages: [...prev.messages, toolResultMsg],
+                toolCalls: prev.toolCalls.map((tc) =>
+                  tc.id === msg.toolCallId
+                    ? { ...tc, result: msg.result, isError: msg.isError, status: msg.isError ? 'error' : 'completed' }
+                    : tc,
+                ),
+              };
+            });
             break;
 
           case 'ask_question':

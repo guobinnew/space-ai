@@ -9,6 +9,8 @@ export type ChatState = 'idle' | 'thinking' | 'streaming'
 export type UIMessage =
   | { type: 'user_text'; id: string; content: string; createdAt: string }
   | { type: 'assistant_text'; id: string; content: string; createdAt: string }
+  | { type: 'tool_use'; id: string; toolCallId: string; toolName: string; input: Record<string, unknown>; createdAt: string }
+  | { type: 'tool_result'; id: string; toolCallId: string; toolName: string; result: string; isError: boolean; createdAt: string }
   | { type: 'error'; id: string; message: string; createdAt: string }
 
 /** 工具调用状态 */

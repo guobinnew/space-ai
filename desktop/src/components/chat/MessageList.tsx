@@ -1,11 +1,12 @@
 /**
  * MessageList — 消息列表组件
  *
- * 参照 smart-code chat/MessageList.tsx，适配版。
- * 渲染用户消息、助手消息（带头像）、思考块、工具调用块和流式文本。
+ * 参照 smart-code chat/MessageList.tsx 的设计思路。
+ * 使用 buildRenderModel 将扁平消息列表转换为渲染模型，
+ * 工具调用消息存储在 messages 数组中，保持正确的时间顺序。
  */
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useMemo } from 'react';
 import type { UIMessage, ChatState, ToolCallInfo, PendingQuestion, PendingPlan } from '../../types/chat';
 import { UserMessage } from './UserMessage';
 import { AssistantMessage } from './AssistantMessage';
@@ -28,6 +29,56 @@ type MessageListProps = {
   onRespondPlan: (response: string) => void;
 };
 
+type RenderItem =
+  | { kind: 'message'; msg: UIMessage }
+  | { kind: 'tool_use'; msg: UIMessage & { type: 'tool_use' }; result: (UIMessage & { type: 'tool_result' }) | null; isRunning: boolean }
+
+/**
+ * 将扁平消息数组转换为渲染模型：
+ * - tool_result 跳过（通过 tool_use 内联显示）
+ * - tool_use 附带对应的 tool_result（如果有）
+ */
+function buildRenderModel(messages: UIMessage[], toolCalls: ToolCallInfo[]): RenderItem[] {
+  const items: RenderItem[] = []
+
+  // Build a map: toolCallId → tool_result
+  const resultMap = new Map<string, UIMessage & { type: 'tool_result' }>()
+  // Build a set of toolUseIds
+  const toolUseIds = new Set<string>()
+
+  // First pass: collect all tool_use IDs and tool_result
+  for (const msg of messages) {
+    if (msg.type === 'tool_use') {
+      toolUseIds.add(msg.toolCallId)
+    }
+    if (msg.type === 'tool_result') {
+      resultMap.set(msg.toolCallId, msg)
+    }
+  }
+
+  // Build set of running tool IDs
+  const runningToolIds = new Set(
+    toolCalls.filter((tc) => tc.status === 'running').map((tc) => tc.id),
+  )
+
+  // Second pass: build render items
+  for (const msg of messages) {
+    if (msg.type === 'tool_result') {
+      // tool_result is rendered inline with its corresponding tool_use — skip
+      continue
+    }
+    if (msg.type === 'tool_use') {
+      const result = resultMap.get(msg.toolCallId) || null
+      const isRunning = runningToolIds.has(msg.toolCallId)
+      items.push({ kind: 'tool_use', msg, result, isRunning })
+      continue
+    }
+    items.push({ kind: 'message', msg })
+  }
+
+  return items
+}
+
 export function MessageList({
   messages,
   streamingText,
@@ -43,6 +94,12 @@ export function MessageList({
   const endRef = useRef<HTMLDivElement>(null);
   const initialScrollDone = useRef(false);
 
+  // Build render model from messages
+  const renderItems = useMemo(
+    () => buildRenderModel(messages, toolCalls),
+    [messages, toolCalls],
+  );
+
   // Track previous message count to detect new messages
   const prevMsgCountRef = useRef(messages.length);
 
@@ -55,8 +112,6 @@ export function MessageList({
     if (!scrollParent) return;
 
     // Always scroll to bottom on first load (user opened the session).
-    // MessageList may mount with 0 messages (async loadHistory), so we
-    // set the flag only after messages actually appear.
     if (!initialScrollDone.current) {
       if (messages.length > 0) {
         initialScrollDone.current = true;
@@ -67,7 +122,7 @@ export function MessageList({
       return;
     }
 
-    // New message added (user sent or assistant finished) → always scroll to bottom
+    // New message added → always scroll to bottom
     if (messages.length > prevMsgCountRef.current) {
       prevMsgCountRef.current = messages.length;
       scrollParent.scrollTop = scrollParent.scrollHeight;
@@ -89,9 +144,7 @@ export function MessageList({
         <div
           className="h-16 w-16 rounded-2xl flex items-center justify-center text-white text-2xl font-bold mb-4"
           style={{ background: 'var(--gradient-btn-primary)' }}
-        >
-          S
-        </div>
+        >S</div>
         <p className="text-sm text-[var(--color-text-tertiary)]">{t('chat.empty')}</p>
       </div>
     );
@@ -101,7 +154,26 @@ export function MessageList({
 
   return (
     <div className="max-w-3xl mx-auto flex flex-col gap-3 py-4">
-      {messages.map((msg) => {
+      {/* Render items in chronological order */}
+      {renderItems.map((item) => {
+        if (item.kind === 'tool_use') {
+          const { msg, result, isRunning } = item;
+          const toolCallInfo: ToolCallInfo = {
+            id: msg.toolCallId,
+            toolName: msg.toolName,
+            input: msg.input,
+            result: result?.result,
+            isError: result?.isError,
+            status: isRunning ? 'running' : result ? (result.isError ? 'error' : 'completed') : 'running',
+          };
+          return (
+            <div key={msg.id} className="flex flex-col gap-1 ml-10">
+              <ToolCallBlock toolCall={toolCallInfo} />
+            </div>
+          );
+        }
+
+        const msg = item.msg;
         if (msg.type === 'user_text') {
           return <UserMessage key={msg.id} content={msg.content} createdAt={msg.createdAt} />;
         }
@@ -138,15 +210,15 @@ export function MessageList({
         />
       )}
 
-      {/* Current round: Thinking → Tool calls → Streaming text */}
+      {/* Current round: Thinking → (ToolCalls live state) → Streaming text */}
       {(chatState !== 'idle' || streamingText || toolCalls.length > 0) && (
         <>
-          {/* 1. Thinking block (always first in a round) */}
+          {/* 1. Thinking block */}
           {(thinkingText || chatState !== 'idle') && (
             <ThinkingBlock content={thinkingText} isActive={chatState !== 'idle'} />
           )}
 
-          {/* 2. Tool call blocks (after thinking, before text output) */}
+          {/* 2. Tool calls (live state — may not yet have tool_result in messages) */}
           {toolCalls.length > 0 && (
             <div className="flex flex-col gap-1 ml-10">
               {toolCalls.map((tc) => (
@@ -155,7 +227,7 @@ export function MessageList({
             </div>
           )}
 
-          {/* 3. Streaming text (last in a round) */}
+          {/* 3. Streaming text */}
           {streamingText && (
             <AssistantMessage content={streamingText} createdAt="" streaming />
           )}
