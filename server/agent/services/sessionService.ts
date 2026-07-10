@@ -334,15 +334,14 @@ export class SessionService {
       }
       await this.appendJsonl(id, userEntry)
 
-      // Auto-title from first user message
+      // Auto-title from first user message (only if title is still the default)
       if (meta) {
         const existingMessages = this.entriesToMessages(entries)
         if (existingMessages.length === 0 || !entries.some((e) => e.type !== 'session-meta' && e.type !== 'queue-operation')) {
-          const title = content.slice(0, 30) + (content.length > 30 ? '...' : '')
           const index = await this.readIndex()
           const item = index.find((s) => s.id === id)
-          if (item) {
-            item.title = title
+          if (item && item.title === '新会话') {
+            item.title = content.slice(0, 30) + (content.length > 30 ? '...' : '')
             await this.writeIndex(index)
           }
         }

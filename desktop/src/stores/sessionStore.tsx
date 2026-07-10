@@ -126,8 +126,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       setSessions((prev) =>
         prev.map((s) => {
           if (s.id !== id) return s;
-          // Auto-title from first user message (matches server logic)
-          const newTitle = s.messageCount === 0 && content.trim()
+          // Auto-title from first user message (only if user hasn't manually renamed)
+          const newTitle = s.messageCount === 0 && s.title === '新会话' && content.trim()
             ? content.slice(0, 30) + (content.length > 30 ? '...' : '')
             : s.title;
           return {
