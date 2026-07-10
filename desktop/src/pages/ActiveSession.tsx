@@ -11,6 +11,7 @@ import { useUIStore } from '../stores/uiStore';
 import { useSessionStore } from '../stores/sessionStore';
 import { MessageList } from '../components/chat/MessageList';
 import { ChatInput } from '../components/chat/ChatInput';
+import { SessionTaskBar } from '../components/chat/SessionTaskBar';
 import { EditorPanel } from '../components/editor/EditorPanel';
 import { useTranslation } from '../i18n';
 
@@ -353,6 +354,9 @@ export function ActiveSession({ sessionId }: { sessionId: string }) {
           </div>
         ) : (
           <>
+            {/* Task bar (always visible, above scrollable messages) */}
+            <SessionTaskBar todos={sessionState.todos} />
+
             {/* Messages */}
             <div ref={messagesContainerRef} className="flex-1 overflow-y-auto px-4">
               <MessageList
@@ -361,7 +365,6 @@ export function ActiveSession({ sessionId }: { sessionId: string }) {
                 thinkingText={sessionState.thinkingText}
                 chatState={sessionState.chatState}
                 toolCalls={sessionState.toolCalls}
-                todos={sessionState.todos}
                 pendingQuestion={sessionState.pendingQuestion}
                 pendingPlan={sessionState.pendingPlan}
                 onAnswerQuestion={(answer) => answerQuestion(sessionId, answer)}
