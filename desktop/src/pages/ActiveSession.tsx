@@ -263,9 +263,19 @@ export function ActiveSession({ sessionId }: { sessionId: string }) {
             )}
             {/* Clear session */}
             <button
-              onClick={() => clearMessages(sessionId)}
-              className="flex items-center justify-center rounded-md p-1.5 text-[var(--color-text-tertiary)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-warning)] transition-colors"
-              title={t('session.clear')}
+              onClick={() => {
+                if (!hasMessages) return;
+                if (window.confirm(t('session.clearConfirm'))) {
+                  clearMessages(sessionId);
+                }
+              }}
+              disabled={!hasMessages}
+              className={`flex items-center justify-center rounded-md p-1.5 transition-colors ${
+                hasMessages
+                  ? 'text-[var(--color-text-tertiary)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-warning)]'
+                  : 'text-[var(--color-text-disabled)] opacity-30 cursor-not-allowed'
+              }`}
+              title={hasMessages ? t('session.clear') : t('session.noMessages')}
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M3 6h18" />
