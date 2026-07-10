@@ -114,7 +114,7 @@ export function ChatInput({ onSend, onStop, isGenerating, disabled, usage, place
         const result = await filesystemApi.readFile(ref.filePath);
         const lines = result.content.split('\n');
         const selected = lines.slice(ref.startLine - 1, ref.endLine).join('\n');
-        refBlocks.push(`File: ${ref.filePath} (lines ${ref.startLine}-${ref.endLine})\n\`\`\`\n${selected}\n\`\`\``);
+        refBlocks.push(`File: ${ref.filePath} (L${ref.startLine}-L${ref.endLine})\n\`\`\`\n${selected}\n\`\`\``);
       } catch {
         refBlocks.push(`[File: ${ref.filePath} (L${ref.startLine}-L${ref.endLine})]`);
       }

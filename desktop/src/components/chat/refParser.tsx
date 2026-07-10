@@ -11,15 +11,15 @@ type ParsedCodeRef = { type: 'code'; filePath: string; startLine: number; endLin
 
 export type ParsedRef = ParsedFileRef | ParsedDirRef | ParsedCodeRef
 
-/** Regex to match code-block style: File: path\n```\n...\n``` */
-const CODE_BLOCK_REF = /^File:\s+(.+?)\n```[\s\S]*?\n```\s*$/gm
+/** Regex to match code-block style: File: path\n```\n...\n```  or  File: path (L20-L30)\n```\n...\n``` */
+const CODE_BLOCK_REF = /^File:\s+(.+?)(?:\s+\(L(\d+)-L(\d+)\))?\n```[\s\S]*?\n```\s*$/gm
+
+/** Regex to match inline fallback: [File: path (L20-L30)] */
+const INLINE_CODE_REF = /\[File:\s+(.+?)\s+\(L(\d+)-L(\d+)\)\]/g
 
 /** Regex to match inline fallback: [File: path]  or  [Directory: path] */
 const INLINE_FILE_REF = /\[File:\s+(.+?)\]\(file:\/\/.+?\)/g
 const INLINE_DIR_REF = /\[Directory:\s+(.+?)\]\(file:\/\/.+?\)/g
-
-/** Regex to match code ref with line range: [File: path (lines 20-30)] */
-const INLINE_CODE_REF = /\[File:\s+(.+?)\s+\(lines\s+(\d+)-(\d+)\)\]/g
 
 /**
  * Parse refs from content and return clean content (without ref markers).
@@ -28,9 +28,14 @@ export function parseRefsFromContent(content: string): { refs: ParsedRef[]; clea
   const refs: ParsedRef[] = []
   let clean = content
 
-  // Extract code-block file refs (File: path\n```\n...\n```)
-  clean = clean.replace(CODE_BLOCK_REF, (_, filePath: string) => {
-    refs.push({ type: 'file', filePath: filePath.trim() })
+  // Extract code-block file refs (File: path\n```\n...\n``` or File: path (L20-L30)\n```\n...\n```)
+  clean = clean.replace(CODE_BLOCK_REF, (_, filePath: string, startLine?: string, endLine?: string) => {
+    const path = filePath.trim()
+    if (startLine && endLine) {
+      refs.push({ type: 'code', filePath: path, startLine: parseInt(startLine), endLine: parseInt(endLine) })
+    } else {
+      refs.push({ type: 'file', filePath: path })
+    }
     return ''
   })
 
