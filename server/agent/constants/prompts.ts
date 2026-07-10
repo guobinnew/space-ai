@@ -271,12 +271,12 @@ async function getSkillsSection(): Promise<string | null> {
 
 function getShellInfoLine(): string {
   const platform = process.platform
-  const shell = process.env.SHELL || process.env.ComSpec || 'unknown'
   if (platform === 'win32') {
-    return `Shell: PowerShell (Windows) — use Unix shell syntax in Bash tool commands where possible; convert forward slashes to backslashes in file paths within command strings`
+    return `Shell: PowerShell (Windows) — commands are executed via \`powershell -NoProfile -Command\`. Unix-only commands (tail, head, grep, find, sed, awk) are NOT available. Use PowerShell-compatible alternatives, e.g. \`Select-Object -Last 1\` instead of \`tail -1\`, \`Get-Content\` instead of \`cat\`. Environment variables use \`$env:NAME\` syntax. File paths accept both backslashes and forward slashes.`
   }
-  const shellName = shell.includes('zsh') ? 'zsh' : shell.includes('bash') ? 'bash' : shell
-  return `Shell: ${shellName}`
+  const shell = process.env.SHELL || ''
+  const shellName = shell.includes('zsh') ? 'zsh' : shell.includes('bash') ? 'bash' : 'bash'
+  return `Shell: ${shellName} (Unix) — commands are executed via \`bash -c\`. Standard Unix commands available.`
 }
 
 function getUnameSR(): string {
