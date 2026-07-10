@@ -1,8 +1,8 @@
 /**
  * ChatInput — 聊天输入框
  *
- * 参照 smart-code chat/ChatInput.tsx 复刻，简化版。
- * 支持工作目录设置、模型显示、上下文使用占比。
+ * 参照 smart-code chat/ChatInput.tsx 复刻。
+ * 支持文件/目录/代码引用的可视化标签显示。
  */
 
 import { useState, useRef, useEffect } from 'react';
@@ -10,32 +10,39 @@ import { useTranslation } from '../../i18n';
 import { providersApi } from '../../api/providers';
 import { filesystemApi } from '../../api/filesystem';
 import { usePendingRefStore } from '../../stores/pendingRefStore';
+import { Tooltip } from '../shared/Tooltip';
 import type { SavedProvider } from '../../types/provider';
 
 /** 默认上下文窗口大小（用于计算占比） */
 const DEFAULT_CONTEXT_LIMIT = 200000;
+
+type CodeRefTag = { id: string; fileName: string; filePath: string; startLine: number; endLine: number };
+type FileRefTag = { id: string; fileName: string; filePath: string };
+type DirRefTag = { id: string; dirName: string; dirPath: string };
 
 type ChatInputProps = {
   onSend: (content: string) => void;
   onStop: () => void;
   isGenerating: boolean;
   disabled?: boolean;
-  /** 上下文使用量（来自 chatStore） */
   usage?: { inputTokens: number; outputTokens: number } | null;
-  /** 自定义 placeholder，默认使用 session.placeholder */
   placeholder?: string;
 };
 
 type ActiveProvider = Pick<SavedProvider, 'id' | 'name' | 'models' | 'apiFormat'> & { models: { main: string } };
+
+let refCounter = 0;
 
 export function ChatInput({ onSend, onStop, isGenerating, disabled, usage, placeholder }: ChatInputProps) {
   const t = useTranslation();
   const [input, setInput] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [activeProvider, setActiveProvider] = useState<ActiveProvider | null>(null);
+  const [codeRefs, setCodeRefs] = useState<CodeRefTag[]>([]);
+  const [fileRefs, setFileRefs] = useState<FileRefTag[]>([]);
+  const [dirRefs, setDirRefs] = useState<DirRefTag[]>([]);
   const { pendingFileRef, pendingDirRef, pendingCodeRef, clearPendingFileRef, clearPendingDirRef, clearPendingCodeRef } = usePendingRefStore();
 
-  // 加载活跃 provider 信息
   useEffect(() => {
     void providersApi.list().then(({ providers, activeId }) => {
       const active = providers.find((p) => p.id === activeId);
@@ -50,57 +57,40 @@ export function ChatInput({ onSend, onStop, isGenerating, disabled, usage, place
     }).catch(() => {});
   }, []);
 
-  // Consume pending file ref from editor (right-click "加入对话" on a file)
+  // Consume pending file ref → show as tag (do NOT read content until send)
   useEffect(() => {
     if (!pendingFileRef) return;
-    const { filePath } = pendingFileRef;
+    const { fileName, filePath } = pendingFileRef;
     clearPendingFileRef();
-    // Read file content and insert into input
-    (async () => {
-      try {
-        const result = await filesystemApi.readFile(filePath);
-        const snippet = `File: ${filePath}\n\`\`\`\n${result.content}\n\`\`\`\n`;
-        setInput((prev) => (prev ? prev + '\n' + snippet : snippet));
-        textareaRef.current?.focus();
-      } catch {
-        // If read fails, just add the file path
-        const snippet = `[File: ${filePath}](file://${filePath})`;
-        setInput((prev) => (prev ? prev + '\n' + snippet : snippet));
-        textareaRef.current?.focus();
-      }
-    })();
+    setFileRefs((prev) => {
+      if (prev.some((r) => r.filePath === filePath)) return prev;
+      return [...prev, { id: `ref-${++refCounter}`, fileName, filePath }];
+    });
+    textareaRef.current?.focus();
   }, [pendingFileRef, clearPendingFileRef]);
 
-  // Consume pending dir ref from editor (right-click "加入对话" on a directory)
+  // Consume pending dir ref → show as tag
   useEffect(() => {
     if (!pendingDirRef) return;
-    const { dirPath } = pendingDirRef;
+    const { dirName, dirPath } = pendingDirRef;
     clearPendingDirRef();
-    const snippet = `[Directory: ${dirPath}](file://${dirPath})`;
-    setInput((prev) => (prev ? prev + '\n' + snippet : snippet));
+    setDirRefs((prev) => {
+      if (prev.some((r) => r.dirPath === dirPath)) return prev;
+      return [...prev, { id: `ref-${++refCounter}`, dirName, dirPath }];
+    });
     textareaRef.current?.focus();
   }, [pendingDirRef, clearPendingDirRef]);
 
-  // Consume pending code ref from editor (select code + right-click "加入对话" in CodeEditor)
+  // Consume pending code ref → show as tag (do NOT read file until send)
   useEffect(() => {
     if (!pendingCodeRef) return;
-    const { filePath, startLine, endLine } = pendingCodeRef;
+    const { fileName, filePath, startLine, endLine } = pendingCodeRef;
     clearPendingCodeRef();
-    (async () => {
-      try {
-        const result = await filesystemApi.readFile(filePath);
-        const lines = result.content.split('\n');
-        const selected = lines.slice(startLine - 1, endLine).join('\n');
-        const snippet = `File: ${filePath} (lines ${startLine}-${endLine})\n\`\`\`\n${selected}\n\`\`\`\n`;
-        setInput((prev) => (prev ? prev + '\n' + snippet : snippet));
-        textareaRef.current?.focus();
-      } catch {
-        // Fallback: just add path reference
-        const snippet = `[File: ${filePath} (lines ${startLine}-${endLine})](file://${filePath})`;
-        setInput((prev) => (prev ? prev + '\n' + snippet : snippet));
-        textareaRef.current?.focus();
-      }
-    })();
+    setCodeRefs((prev) => {
+      if (prev.some((r) => r.filePath === filePath && r.startLine === startLine)) return prev;
+      return [...prev, { id: `ref-${++refCounter}`, fileName, filePath, startLine, endLine }];
+    });
+    textareaRef.current?.focus();
   }, [pendingCodeRef, clearPendingCodeRef]);
 
   // Auto-resize textarea
@@ -111,35 +101,133 @@ export function ChatInput({ onSend, onStop, isGenerating, disabled, usage, place
     el.style.height = Math.min(el.scrollHeight, 120) + 'px';
   }, [input]);
 
-  const handleSubmit = () => {
-    const text = input.trim();
+  const handleSubmit = async () => {
+    let text = input.trim();
     if (!text || isGenerating || disabled) return;
+
+    // Build reference blocks from visual tags (read file contents)
+    const refBlocks: string[] = [];
+
+    // Code refs: read file and extract selected lines
+    for (const ref of codeRefs) {
+      try {
+        const result = await filesystemApi.readFile(ref.filePath);
+        const lines = result.content.split('\n');
+        const selected = lines.slice(ref.startLine - 1, ref.endLine).join('\n');
+        refBlocks.push(`File: ${ref.filePath} (lines ${ref.startLine}-${ref.endLine})\n\`\`\`\n${selected}\n\`\`\``);
+      } catch {
+        refBlocks.push(`[File: ${ref.filePath} (L${ref.startLine}-L${ref.endLine})]`);
+      }
+    }
+
+    // File refs: read full file content
+    for (const ref of fileRefs) {
+      try {
+        const result = await filesystemApi.readFile(ref.filePath);
+        refBlocks.push(`File: ${ref.filePath}\n\`\`\`\n${result.content}\n\`\`\``);
+      } catch {
+        refBlocks.push(`[File: ${ref.filePath}]`);
+      }
+    }
+
+    // Dir refs: just add path reference
+    for (const ref of dirRefs) {
+      refBlocks.push(`[Directory: ${ref.dirPath}]`);
+    }
+
+    if (refBlocks.length > 0) {
+      text = text + '\n\n---\n' + refBlocks.join('\n\n');
+    }
+
     onSend(text);
     setInput('');
+    setCodeRefs([]);
+    setFileRefs([]);
+    setDirRefs([]);
     textareaRef.current?.focus();
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      handleSubmit();
+      void handleSubmit();
     }
   };
 
-  // 上下文占比计算
+  // Context usage
   const contextTokens = usage?.inputTokens || 0;
   const contextPercent = Math.min(100, Math.round((contextTokens / DEFAULT_CONTEXT_LIMIT) * 100));
   const contextColor =
     contextPercent > 80 ? 'var(--color-error)' :
     contextPercent > 50 ? 'var(--color-warning)' :
     'var(--color-brand)';
-
-  // 模型显示名称
   const modelName = activeProvider?.models?.main || '';
+
+  /** Render a single ref tag badge */
+  const RefTag = ({ icon, label, path, onRemove }: { icon: string; label: string; path: string; onRemove: () => void }) => (
+    <span className="inline-flex items-center gap-1 rounded-md bg-[var(--color-brand)]/10 border border-[var(--color-brand)]/30 px-2 py-0.5 text-[11px] font-medium text-[var(--color-brand)] max-w-[240px] overflow-hidden">
+      <span className="text-[12px] flex-shrink-0">{icon}</span>
+      <Tooltip content={path} className="min-w-0 overflow-hidden">
+        <span className="truncate min-w-0">{label}</span>
+      </Tooltip>
+      <button
+        type="button"
+        onClick={onRemove}
+        className="ml-0.5 flex items-center justify-center w-3.5 h-3.5 rounded-sm hover:bg-[var(--color-brand)]/20 transition-colors"
+      >
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+        </svg>
+      </button>
+    </span>
+  );
 
   return (
     <div className="max-w-3xl mx-auto">
       <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-container-low)] focus-within:border-[var(--color-border-focus)] transition-colors overflow-hidden">
+        {/* Ref tags */}
+        <div className="px-3 pt-3 pb-0">
+          {codeRefs.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 pb-2">
+              {codeRefs.map((ref) => (
+                <RefTag
+                  key={ref.id}
+                  icon="<>"
+                  label={`${ref.fileName} L${ref.startLine}${ref.endLine !== ref.startLine ? `-${ref.endLine}` : ''}`}
+                  path={ref.filePath}
+                  onRemove={() => setCodeRefs((prev) => prev.filter((r) => r.id !== ref.id))}
+                />
+              ))}
+            </div>
+          )}
+          {dirRefs.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 pb-2">
+              {dirRefs.map((ref) => (
+                <RefTag
+                  key={ref.id}
+                  icon="📁"
+                  label={ref.dirName}
+                  path={ref.dirPath}
+                  onRemove={() => setDirRefs((prev) => prev.filter((r) => r.id !== ref.id))}
+                />
+              ))}
+            </div>
+          )}
+          {fileRefs.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 pb-2">
+              {fileRefs.map((ref) => (
+                <RefTag
+                  key={ref.id}
+                  icon="📄"
+                  label={ref.fileName}
+                  path={ref.filePath}
+                  onRemove={() => setFileRefs((prev) => prev.filter((r) => r.id !== ref.id))}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+
         {/* Textarea */}
         <div className="p-3">
           <textarea
@@ -157,9 +245,7 @@ export function ChatInput({ onSend, onStop, isGenerating, disabled, usage, place
 
         {/* Bottom toolbar */}
         <div className="flex items-center justify-between px-3 py-2 border-t border-[var(--color-border)] bg-[var(--color-surface-container-lowest)]">
-          {/* Left: model display */}
           <div className="flex items-center gap-2 min-w-0 flex-1">
-            {/* Model display */}
             {modelName && (
               <span className="flex items-center gap-1 px-2 py-1 text-[11px] rounded-md text-[var(--color-text-tertiary)] bg-[var(--color-surface-container-high)] flex-shrink-0">
                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -172,24 +258,16 @@ export function ChatInput({ onSend, onStop, isGenerating, disabled, usage, place
             )}
           </div>
 
-          {/* Right: context usage + send button */}
           <div className="flex items-center gap-2 flex-shrink-0">
-            {/* Context usage */}
             {usage && (
               <div className="flex items-center gap-1.5" title={`${contextTokens.toLocaleString()} / ${DEFAULT_CONTEXT_LIMIT.toLocaleString()} tokens`}>
                 <div className="w-16 h-1.5 rounded-full bg-[var(--color-surface-container-high)] overflow-hidden">
-                  <div
-                    className="h-full rounded-full transition-all"
-                    style={{ width: `${contextPercent}%`, background: contextColor }}
-                  />
+                  <div className="h-full rounded-full transition-all" style={{ width: `${contextPercent}%`, background: contextColor }} />
                 </div>
-                <span className="text-[10px] text-[var(--color-text-tertiary)] tabular-nums">
-                  {contextPercent}%
-                </span>
+                <span className="text-[10px] text-[var(--color-text-tertiary)] tabular-nums">{contextPercent}%</span>
               </div>
             )}
 
-            {/* Send / Stop button */}
             {isGenerating ? (
               <button
                 onClick={onStop}
@@ -203,8 +281,8 @@ export function ChatInput({ onSend, onStop, isGenerating, disabled, usage, place
               </button>
             ) : (
               <button
-                onClick={handleSubmit}
-                disabled={!input.trim() || disabled}
+                onClick={() => void handleSubmit()}
+                disabled={!input.trim() && codeRefs.length === 0 && fileRefs.length === 0 && dirRefs.length === 0 || disabled}
                 className="flex items-center justify-center rounded-lg p-1.5 text-xs font-semibold transition-all hover:brightness-105 disabled:opacity-30"
                 style={{ background: 'var(--gradient-btn-primary)', color: 'var(--color-btn-primary-fg)', boxShadow: 'var(--shadow-button-primary)' }}
                 title={t('session.send')}
