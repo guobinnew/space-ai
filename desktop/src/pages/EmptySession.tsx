@@ -37,8 +37,7 @@ export function EmptySession() {
       openTab(sessionId, '新会话', 'session');
       connectToSession(sessionId);
       setTimeout(() => {
-        const modeHint = `[${mode === 'code' ? '代码开发' : '日常办公'}模式] ${modeDesc[mode]}\n\n${text}`;
-        sendMessage(sessionId, modeHint);
+        sendMessage(sessionId, text);
       }, 300);
     } catch (err) {
       console.error('Failed to create session:', err);

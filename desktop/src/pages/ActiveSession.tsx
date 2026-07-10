@@ -115,14 +115,7 @@ export function ActiveSession({ sessionId }: { sessionId: string }) {
   }, []);
 
   const handleSend = (content: string) => {
-    // Prepend mode hint for the first message
-    if (isEmpty) {
-      const modeDesc = mode === 'code' ? '专注于代码编写、调试和架构设计' : '专注于文档撰写、数据分析和日常任务';
-      const modeHint = `[${mode === 'code' ? '代码开发' : '日常办公'}模式] ${modeDesc}\n\n${content}`;
-      sendMessage(sessionId, modeHint);
-    } else {
-      sendMessage(sessionId, content);
-    }
+    sendMessage(sessionId, content);
   };
 
   const handleStop = () => {

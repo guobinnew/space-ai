@@ -136,7 +136,7 @@ export function ChatInput({ onSend, onStop, isGenerating, disabled, usage, place
     }
 
     if (refBlocks.length > 0) {
-      text = text + '\n\n---\n' + refBlocks.join('\n\n');
+      text = text + '\n\n' + refBlocks.join('\n\n');
     }
 
     onSend(text);
