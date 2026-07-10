@@ -75,7 +75,7 @@ export function RefTagList({ refs }: { refs: ParsedRef[] }): ReactNode {
             return (
               <div key={key} className="flex items-center gap-1.5 rounded-lg bg-[var(--color-surface-container)] px-2.5 py-1.5 text-xs border border-[var(--color-border)]/50">
                 <span className="text-[14px] text-[var(--color-brand)] font-mono font-bold shrink-0">{'{}'}</span>
-                <span className="font-medium text-[var(--color-text-primary)] truncate max-w-[200px]">{shortName(ref.filePath)}</span>
+                <span className="font-medium text-[var(--color-text-primary)]">{shortName(ref.filePath)}</span>
                 <span className="text-[var(--color-brand)] font-mono shrink-0">L{ref.startLine}-L{ref.endLine}</span>
               </div>
             )
@@ -83,14 +83,14 @@ export function RefTagList({ refs }: { refs: ParsedRef[] }): ReactNode {
             return (
               <div key={key} className="flex items-center gap-1.5 rounded-lg bg-[var(--color-surface-container)] px-2.5 py-1.5 text-xs border border-[var(--color-border)]/50">
                 <span className="text-[14px] shrink-0">{'\uD83D\uDCC4'}</span>
-                <span className="font-medium text-[var(--color-text-primary)] truncate max-w-[200px]">{shortName(ref.filePath)}</span>
+                <span className="font-medium text-[var(--color-text-primary)]">{shortName(ref.filePath)}</span>
               </div>
             )
           case 'dir':
             return (
               <div key={key} className="flex items-center gap-1.5 rounded-lg bg-[var(--color-surface-container)] px-2.5 py-1.5 text-xs border border-[var(--color-border)]/50">
                 <span className="text-[14px] shrink-0">{'\uD83D\uDCC1'}</span>
-                <span className="font-medium text-[var(--color-text-primary)] truncate max-w-[200px]">{shortName(ref.dirPath)}</span>
+                <span className="font-medium text-[var(--color-text-primary)]">{shortName(ref.dirPath)}</span>
               </div>
             )
         }
