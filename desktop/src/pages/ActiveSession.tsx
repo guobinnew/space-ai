@@ -354,9 +354,6 @@ export function ActiveSession({ sessionId }: { sessionId: string }) {
           </div>
         ) : (
           <>
-            {/* Task bar (always visible, above scrollable messages) */}
-            <SessionTaskBar todos={sessionState.todos} />
-
             {/* Messages */}
             <div ref={messagesContainerRef} className="flex-1 overflow-y-auto px-4">
               <MessageList
@@ -371,6 +368,9 @@ export function ActiveSession({ sessionId }: { sessionId: string }) {
                 onRespondPlan={(response) => respondPlan(sessionId, response)}
               />
             </div>
+
+            {/* Task bar (above input, below messages) */}
+            <SessionTaskBar todos={sessionState.todos} />
 
             {/* Input */}
             <div className="px-4 py-3 border-t border-[var(--color-border)] flex-shrink-0">
