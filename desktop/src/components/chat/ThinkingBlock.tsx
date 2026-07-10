@@ -10,7 +10,7 @@ import { useTranslation } from '../../i18n';
 
 const WINDOW_SIZE = 15000;
 const CHUNK_SIZE = 15000;
-const STREAMING_THROTTLE_CHARS = 30;
+const STREAMING_THROTTLE_CHARS = 5;
 
 class ThinkingErrorBoundary extends Component<
   { children: ReactNode },
