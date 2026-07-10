@@ -120,15 +120,6 @@ export function MessageList({
         return null;
       })}
 
-      {/* Tool call blocks (current round) */}
-      {toolCalls.length > 0 && (
-        <div className="flex flex-col gap-1 ml-10">
-          {toolCalls.map((tc) => (
-            <ToolCallBlock key={tc.id} toolCall={tc} />
-          ))}
-        </div>
-      )}
-
       {/* Ask user question modal */}
       {pendingQuestion && (
         <AskUserQuestionModal
@@ -147,23 +138,32 @@ export function MessageList({
         />
       )}
 
-      {/* Current round: ThinkingBlock above streaming text */}
-      {(chatState !== 'idle' || streamingText) && (
+      {/* Current round: Thinking → Tool calls → Streaming text */}
+      {(chatState !== 'idle' || streamingText || toolCalls.length > 0) && (
         <>
-          {/* ThinkingBlock with current thinking content */}
+          {/* 1. Thinking block (always first in a round) */}
           {(thinkingText || chatState !== 'idle') && (
             <ThinkingBlock content={thinkingText} isActive={chatState !== 'idle'} />
           )}
 
-          {/* Streaming text */}
+          {/* 2. Tool call blocks (after thinking, before text output) */}
+          {toolCalls.length > 0 && (
+            <div className="flex flex-col gap-1 ml-10">
+              {toolCalls.map((tc) => (
+                <ToolCallBlock key={tc.id} toolCall={tc} />
+              ))}
+            </div>
+          )}
+
+          {/* 3. Streaming text (last in a round) */}
           {streamingText && (
             <AssistantMessage content={streamingText} createdAt="" streaming />
           )}
         </>
       )}
 
-      {/* Thinking indicator when tools are running but no streaming or thinking text */}
-      {hasRunningTool && !streamingText && !thinkingText && chatState === 'idle' && <StreamingIndicator />}
+      {/* Thinking indicator when tools are running with no other output visible */}
+      {hasRunningTool && !streamingText && !thinkingText && toolCalls.length === 0 && chatState === 'idle' && <StreamingIndicator />}
 
       <div ref={endRef} />
     </div>
