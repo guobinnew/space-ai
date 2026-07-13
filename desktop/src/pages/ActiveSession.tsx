@@ -411,7 +411,7 @@ export function ActiveSession({ sessionId }: { sessionId: string }) {
             </div>
 
             {/* Task bar (above input, below messages) */}
-            <SessionTaskBar todos={sessionState.todos} />
+            <SessionTaskBar />
 
             {/* Input */}
             <div className="px-4 py-3 border-t border-[var(--color-border)] flex-shrink-0">

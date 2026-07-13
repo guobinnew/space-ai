@@ -17,7 +17,7 @@ export const FILE_WRITE_TOOL_NAME = 'Write'
 export const FILE_EDIT_TOOL_NAME = 'Edit'
 export const GLOB_TOOL_NAME = 'Glob'
 export const GREP_TOOL_NAME = 'Grep'
-export const TODO_WRITE_TOOL_NAME = 'TodoWrite'
+
 export const WEB_FETCH_TOOL_NAME = 'WebFetch'
 export const NOTEBOOK_EDIT_TOOL_NAME = 'NotebookEdit'
 export const WEB_SEARCH_TOOL_NAME = 'WebSearch'
@@ -86,7 +86,7 @@ function getUsingYourToolsSection(): string {
     `To search for files use ${GLOB_TOOL_NAME} instead of find or ls`,
     `To search the content of files, use ${GREP_TOOL_NAME} instead of grep or rg`,
     `Reserve using the ${BASH_TOOL_NAME} exclusively for system commands and terminal operations that require shell execution.`,
-    `Use TaskCreate to create tasks for multi-step work. Use TaskUpdate to mark tasks as in_progress when starting work, and completed when done. Use TaskList to see all tasks. The desktop UI shows a live task bar. When you complete a task and there are more pending, the system automatically continues.`,
+    `Use TaskCreate to create tasks for multi-step work. Use TaskUpdate to mark tasks as in_progress when starting work, and completed when done. Use TaskList to see all tasks. The desktop UI shows a live task bar with progress tracking. When you complete a task and there are more pending, the system automatically continues with the next one.`,
     `Use ${WEB_FETCH_TOOL_NAME} to retrieve content from web URLs when you need external information.`,
     `Use ${NOTEBOOK_EDIT_TOOL_NAME} to edit Jupyter notebook (.ipynb) cells.`,
   ]

@@ -12,7 +12,7 @@ import { wsManager, type ServerMessage } from '../api/websocket';
 import { sessionsApi } from '../api/sessions';
 import { tasksApi } from '../api/tasks';
 import { useUIStore } from './uiStore';
-import type { UIMessage, PerSessionChatState, QuestionItem, TodoItem } from '../types/chat';
+import type { UIMessage, PerSessionChatState, QuestionItem } from '../types/chat';
 
 /** Server sidecar 固定端口 */
 const SERVER_PORT = 3721;
@@ -65,7 +65,6 @@ function createInitialSessionState(): PerSessionChatState {
     thinkingText: '',
     hasActiveThinking: false,
     toolCalls: [],
-    todos: [],
     pendingQuestion: null,
     pendingPlan: null,
     usage: null,
@@ -149,20 +148,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       // Load history
       void loadHistory(sessionId);
 
-      // Load persisted task list
-      void (async () => {
-        try {
-          const data = await tasksApi.load(sessionId);
-          if (data.tasks.length > 0) {
-            updateSession(sessionId, (prev) => ({
-              ...prev,
-              todos: data.tasks as TodoItem[],
-            }));
-          }
-        } catch {
-          // Tasks file may not exist, ignore
-        }
-      })();
+
 
       // Register message handler
       wsManager.onMessage(sessionId, (msg: ServerMessage) => {
@@ -214,7 +200,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
                 input: msg.input,
                 createdAt: new Date().toISOString(),
               };
-              const updated = {
+              return {
                 ...flushed,
                 chatState: 'thinking',
                 messages: [...flushed.messages, toolUseMsg],
@@ -228,11 +214,6 @@ export function ChatProvider({ children }: { children: ReactNode }) {
                   },
                 ],
               };
-              // Extract todos from TodoWrite tool call
-              if (msg.toolName === 'TodoWrite' && Array.isArray(msg.input?.todos)) {
-                updated.todos = msg.input.todos as TodoItem[];
-              }
-              return updated;
             });
             break;
 
@@ -372,7 +353,6 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         thinkingText: '',
         hasActiveThinking: false,
         toolCalls: [],
-        todos: [],
         pendingQuestion: null,
         pendingPlan: null,
       }));

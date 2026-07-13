@@ -11,7 +11,7 @@ import { fileWriteTool } from './FileWriteTool'
 import { fileEditTool } from './FileEditTool'
 import { globTool } from './GlobTool'
 import { grepTool } from './GrepTool'
-import { todoWriteTool } from './TodoWriteTool'
+// todoWriteTool removed — replaced by TaskCreate/TaskUpdate/TaskList
 import { webFetchTool } from './WebFetchTool'
 import { notebookEditTool } from './NotebookEditTool'
 import { webSearchTool } from './WebSearchTool'
@@ -31,7 +31,6 @@ const builtinTools: Tool[] = [
   fileEditTool,
   globTool,
   grepTool,
-  todoWriteTool,
   taskCreateTool,
   taskUpdateTool,
   taskListTool,

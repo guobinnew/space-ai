@@ -15,7 +15,7 @@ import * as fs from 'fs/promises'
 import * as fsSync from 'fs'
 import * as path from 'path'
 import * as os from 'os'
-import type { Task, CreateTaskInput, UpdateTaskInput, TaskStatus, TaskPriority } from '../types/task'
+import type { Task, CreateTaskInput, UpdateTaskInput } from '../types/task'
 
 const CONFIG_DIR = process.env.SPACEAI_CONFIG_DIR || path.join(os.homedir(), '.spaceai')
 
@@ -190,42 +190,4 @@ export async function getNextPendingTask(taskListId: string): Promise<Task | nul
   return pending[0] || null
 }
 
-// ── 向后兼容：旧的 TodoItem 单文件格式 ──────────────────────
 
-interface LegacyTodoItem {
-  content: string
-  status: 'pending' | 'in_progress' | 'completed'
-  activeForm: string
-}
-
-function getLegacyPath(sessionId: string): string {
-  return path.join(getTasksBaseDir(), `${sessionId}.json`)
-}
-
-/** 保存旧格式 todo 列表（TodoWriteTool 使用） */
-export async function saveTasks(sessionId: string, todos: LegacyTodoItem[]): Promise<void> {
-  const dir = getTasksBaseDir()
-  if (!fsSync.existsSync(dir)) {
-    await fs.mkdir(dir, { recursive: true })
-  }
-  await fs.writeFile(getLegacyPath(sessionId), JSON.stringify(todos, null, 2), 'utf-8')
-}
-
-/** 加载旧格式 todo 列表 */
-export async function loadTasks(sessionId: string): Promise<LegacyTodoItem[]> {
-  try {
-    const data = await fs.readFile(getLegacyPath(sessionId), 'utf-8')
-    return JSON.parse(data) as LegacyTodoItem[]
-  } catch {
-    return []
-  }
-}
-
-/** 删除旧格式 todo 文件 */
-export async function deleteTasks(sessionId: string): Promise<void> {
-  try {
-    await fs.unlink(getLegacyPath(sessionId))
-  } catch {
-    // File may not exist, ignore
-  }
-}

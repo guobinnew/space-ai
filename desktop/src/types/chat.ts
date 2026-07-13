@@ -47,13 +47,6 @@ export type PendingQuestion = {
   questions: QuestionItem[]
 }
 
-/** 任务项（TodoWrite 工具产生） */
-export type TodoItem = {
-  content: string
-  status: 'pending' | 'in_progress' | 'completed'
-  activeForm: string
-}
-
 /** 待审批的计划（ExitPlanMode 工具触发） */
 export type PendingPlan = {
   requestId: string
@@ -73,8 +66,6 @@ export type PerSessionChatState = {
   toolCalls: ToolCallInfo[]
   /** 待回答的问题（AskUserQuestion） */
   pendingQuestion: PendingQuestion | null
-  /** 任务列表（TodoWrite 工具产生） */
-  todos: TodoItem[]
   /** 待审批的计划（EnterPlanMode/ExitPlanMode） */
   pendingPlan: PendingPlan | null
   /** 上下文使用量（token 数） */
