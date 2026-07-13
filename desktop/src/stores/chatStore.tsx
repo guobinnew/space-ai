@@ -11,11 +11,9 @@ import { createContext, useContext, useState, useCallback, type ReactNode } from
 import { wsManager, type ServerMessage } from '../api/websocket';
 import { sessionsApi } from '../api/sessions';
 import { tasksApi } from '../api/tasks';
+import { getServerPort } from '../api/serverPort';
 import { useUIStore } from './uiStore';
 import type { UIMessage, PerSessionChatState, QuestionItem, QueuedQuery } from '../types/chat';
-
-/** Server sidecar 固定端口 */
-const SERVER_PORT = 3721;
 
 /**
  * Check if system notification should be sent when a session completes.
@@ -189,9 +187,12 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
   const connectToSession = useCallback(
     (sessionId: string) => {
-      // Connect to the single Server sidecar (fixed port).
+      // Connect to the single Server sidecar (dynamic port).
       // The Server sidecar will spawn a CLI sidecar for this session internally.
-      wsManager.connect(sessionId, SERVER_PORT);
+      void (async () => {
+        const port = await getServerPort();
+        wsManager.connect(sessionId, port);
+      })();
 
       // Load history
       void loadHistory(sessionId);

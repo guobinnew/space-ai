@@ -5,6 +5,37 @@ use tauri::Manager;
 #[cfg(target_os = "windows")]
 use std::os::windows::process::CommandExt;
 
+/// Returns the path to ~/.spaceai/server.port (the file the agent server writes
+/// its actual listening port to, in case the default 3721 was unavailable).
+fn server_port_file_path() -> Option<std::path::PathBuf> {
+    let home = std::env::var_os("USERPROFILE")
+        .or_else(|| std::env::var_os("HOME"))?;
+    Some(std::path::PathBuf::from(home).join(".spaceai").join("server.port"))
+}
+
+/// Read the actual server port from ~/.spaceai/server.port.
+/// Falls back to 3721 if the file doesn't exist or is invalid.
+fn read_server_port() -> u16 {
+    if let Some(ref path) = server_port_file_path() {
+        if let Ok(content) = std::fs::read_to_string(path) {
+            let trimmed = content.trim();
+            if let Ok(port) = trimmed.parse::<u16>() {
+                if port > 0 {
+                    return port;
+                }
+            }
+        }
+    }
+    3721
+}
+
+/// Delete the server.port file so stale data isn't read before the server starts.
+fn clear_server_port_file() {
+    if let Some(ref path) = server_port_file_path() {
+        let _ = std::fs::write(path, "");
+    }
+}
+
 /// Holds the single Server sidecar process (lives for the entire app lifecycle).
 struct ServerSidecar(Mutex<Option<Child>>);
 
@@ -60,10 +91,11 @@ fn close_splashscreen(app: tauri::AppHandle) {
     }
 }
 
-/// Get the server sidecar port (fixed at 3721).
+/// Get the server sidecar port — reads from ~/.spaceai/server.port (written by
+/// the agent server), falls back to 3721.
 #[tauri::command]
 fn get_server_port() -> u16 {
-    3721
+    read_server_port()
 }
 
 /// Resolve the sidecar binary/script path.
@@ -113,6 +145,10 @@ fn resolve_app_root() -> std::path::PathBuf {
 /// Start the single Server sidecar process during app setup.
 /// This process lives for the entire desktop app lifecycle.
 fn start_server_sidecar(app: &tauri::App) -> Result<Child, String> {
+    // Clear the stale port file so the desktop client doesn't read a port from
+    // a previous run before the new server has bound.
+    clear_server_port_file();
+
     let resource_dir = app
         .path()
         .resource_dir()

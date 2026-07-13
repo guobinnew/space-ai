@@ -2,18 +2,19 @@
  * API client base
  *
  * 参照 smart-code api/client.ts 复刻，简化版。
- * 后端固定端口 3721。
+ * 端口动态发现（支持服务端端口回退）。
  */
 
-const BASE_URL = 'http://127.0.0.1:3721'
+import { getServerBaseUrl, getCachedServerBaseUrl } from './serverPort'
 
-/** Returns the base URL for API requests (also used for binary file URLs). */
+/** Returns the base URL for API requests (sync, uses cached port). */
 export function getBaseUrl(): string {
-  return BASE_URL
+  return getCachedServerBaseUrl()
 }
 
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
-  const res = await fetch(`${BASE_URL}${path}`, {
+  const baseUrl = await getServerBaseUrl()
+  const res = await fetch(`${baseUrl}${path}`, {
     method,
     headers: body ? { 'Content-Type': 'application/json' } : undefined,
     body: body ? JSON.stringify(body) : undefined,

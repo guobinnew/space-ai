@@ -40,7 +40,7 @@ class WebSocketManager {
   private connections = new Map<string, Connection>()
 
   /** Connect to a session's sidecar on the given port */
-  connect(sessionId: string, port: number = 3721): void {
+  connect(sessionId: string, port: number): void {
     // Already connected or connecting
     const existing = this.connections.get(sessionId)
     if (existing) {

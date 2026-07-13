@@ -28,7 +28,7 @@ if (mode === 'server') {
   process.argv = [process.argv[0]!, process.argv[1]!, ...args]
 
   const { startServer } = await import('./index.ts')
-  startServer()
+  await startServer()
 } else {
   console.error(`smart-sidecar: unknown mode "${mode}" (expected "server")`)
   process.exit(2)

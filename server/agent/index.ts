@@ -10,5 +10,5 @@ export { startServer } from './server'
 // Direct execution (bun run agent/index.ts)
 if (import.meta.main) {
   const { startServer } = await import('./server')
-  startServer()
+  await startServer()
 }

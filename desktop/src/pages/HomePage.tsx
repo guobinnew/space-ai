@@ -8,6 +8,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { useTranslation } from '../i18n';
 import { useUIStore } from '../stores/uiStore';
 import { sessionsApi } from '../api/sessions';
+import { refreshServerPort, getServerBaseUrl } from '../api/serverPort';
 import type { SessionListItem } from '../types/session';
 
 type ServerStatus = 'checking' | 'connected' | 'disconnected';
@@ -40,13 +41,16 @@ export function HomePage() {
     const checkServer = async () => {
       if (cancelled) return;
       try {
-        const res = await fetch('http://127.0.0.1:3721/api/health');
+        const baseUrl = await getServerBaseUrl();
+        const res = await fetch(`${baseUrl}/api/health`);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         await res.json();
         if (!cancelled) setServerStatus('connected');
       } catch {
         if (!cancelled) {
           setServerStatus('disconnected');
+          // Refresh port in case the server moved to a fallback port
+          await refreshServerPort();
           setTimeout(checkServer, 2000);
         }
       }
