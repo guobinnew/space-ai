@@ -474,7 +474,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         // Ignore server errors, still clear locally
       }
       // Also clear persisted tasks
-      tasksApi.clear(sessionId).catch(() => {});
+      tasksApi.reset(sessionId).catch(() => {});
       updateSession(sessionId, () => createInitialSessionState());
     },
     [updateSession],
