@@ -3,6 +3,10 @@
  *
  * 参照 smart-code api/websocket.ts 复刻，简化版。
  * 每个会话一个 WS 连接（连到该会话专属的 sidecar 端口），支持消息处理器注册和心跳。
+ *
+ * handlers 独立于 Connection 存储，确保：
+ * 1. 连接建立前注册的 handler 不会丢失
+ * 2. 重连后 handler 自动恢复
  */
 
 type ServerMessage =
@@ -31,13 +35,15 @@ type MessageHandler = (msg: ServerMessage) => void
 
 type Connection = {
   ws: WebSocket
-  handlers: Set<MessageHandler>
+  port: number
   pingInterval: ReturnType<typeof setInterval> | null
   intentionalClose: boolean
 }
 
 class WebSocketManager {
   private connections = new Map<string, Connection>()
+  /** Handlers stored independently of connections — survive reconnections and pre-connection registration. */
+  private messageHandlers = new Map<string, Set<MessageHandler>>()
 
   /** Connect to a session's sidecar on the given port */
   connect(sessionId: string, port: number): void {
@@ -56,7 +62,7 @@ class WebSocketManager {
     const ws = new WebSocket(`ws://127.0.0.1:${port}/ws/${sessionId}`)
     const conn: Connection = {
       ws,
-      handlers: new Set(),
+      port,
       pingInterval: null,
       intentionalClose: false,
     }
@@ -73,7 +79,8 @@ class WebSocketManager {
     ws.onmessage = (event) => {
       try {
         const msg = JSON.parse(event.data) as ServerMessage
-        conn.handlers.forEach((h) => h(msg))
+        const handlers = this.messageHandlers.get(sessionId)
+        handlers?.forEach((h) => h(msg))
       } catch {
         // Ignore malformed messages
       }
@@ -132,16 +139,19 @@ class WebSocketManager {
   }
 
   onMessage(sessionId: string, handler: MessageHandler): () => void {
-    const conn = this.connections.get(sessionId)
-    conn?.handlers.add(handler)
+    let handlers = this.messageHandlers.get(sessionId)
+    if (!handlers) {
+      handlers = new Set()
+      this.messageHandlers.set(sessionId, handlers)
+    }
+    handlers.add(handler)
     return () => {
-      conn?.handlers.delete(handler)
+      handlers?.delete(handler)
     }
   }
 
   clearHandlers(sessionId: string): void {
-    const conn = this.connections.get(sessionId)
-    conn?.handlers.clear()
+    this.messageHandlers.delete(sessionId)
   }
 
   isConnected(sessionId: string): boolean {

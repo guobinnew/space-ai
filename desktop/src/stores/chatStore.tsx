@@ -187,6 +187,10 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
   const connectToSession = useCallback(
     (sessionId: string) => {
+      // Clear stale handlers from any previous connection attempt.
+      // (Done here instead of disconnectSession to survive StrictMode remounts.)
+      wsManager.clearHandlers(sessionId);
+
       // Connect to the single Server sidecar (dynamic port).
       // The Server sidecar will spawn a CLI sidecar for this session internally.
       void (async () => {
@@ -382,8 +386,8 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   );
 
   const disconnectSession = useCallback((sessionId: string) => {
-    wsManager.clearHandlers(sessionId);
-    // Use delayed disconnect to avoid React StrictMode connect-disconnect-connect race
+    // Don't clear handlers here — StrictMode remount needs them.
+    // Handlers are cleared at the start of connectToSession before re-registering.
     wsManager.disconnectDelayed(sessionId);
     // Server sidecar will detect WS disconnect and clean up the CLI sidecar for this session
   }, []);
