@@ -420,9 +420,11 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     (sessionId: string, content: string, skipQueue?: boolean) => {
       const session = sessionsRef.current[sessionId];
       const isBusy = session && session.chatState !== 'idle';
+      console.log('[sendMessage]', { sessionId, chatState: session?.chatState, isBusy, hasSession: !!session });
 
       // If busy and not explicitly skipping queue, add to queue
       if (isBusy && !skipQueue) {
+        console.log('[sendMessage] Adding to queue');
         const query: QueuedQuery = {
           id: `q-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
           content,
