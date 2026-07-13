@@ -285,11 +285,17 @@ export function ActiveSession({ sessionId }: { sessionId: string }) {
             )}
             {/* Clear session */}
             <button
-              onClick={() => {
+              onClick={async () => {
                 if (!hasMessages) return;
-                if (window.confirm(t('session.clearConfirm'))) {
-                  clearMessages(sessionId);
+                try {
+                  const { confirm } = await import('@tauri-apps/plugin-dialog');
+                  const ok = await confirm(t('session.clearConfirm'), { title: t('session.clear'), kind: 'warning' });
+                  if (!ok) return;
+                } catch {
+                  // Not in Tauri or dialog unavailable — fall back to window.confirm
+                  if (!window.confirm(t('session.clearConfirm'))) return;
                 }
+                clearMessages(sessionId);
               }}
               disabled={!hasMessages}
               className={`flex items-center justify-center rounded-md p-1.5 transition-colors ${
