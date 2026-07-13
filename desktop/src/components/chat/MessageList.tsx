@@ -134,7 +134,7 @@ export function MessageList({
   const hasRunningTool = toolCalls.some((tc) => tc.status === 'running');
 
   return (
-    <div className="max-w-3xl mx-auto flex flex-col gap-3 py-4">
+    <div className="max-w-3xl mx-auto flex flex-col py-4">
       {/* Render items in chronological order */}
       {renderItems.map((item) => {
         if (item.kind === 'tool_use') {

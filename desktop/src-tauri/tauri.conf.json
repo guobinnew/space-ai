@@ -16,7 +16,7 @@
         "title": "Smart Space",
         "width": 1000,
         "height": 680,
-        "minWidth": 720,
+        "minWidth": 1280,
         "minHeight": 480,
         "center": true,
         "visible": false,
