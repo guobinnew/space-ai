@@ -15,6 +15,7 @@ import { ChatInput } from '../components/chat/ChatInput';
 import { SessionTaskBar } from '../components/chat/SessionTaskBar';
 import { QueryQueue } from '../components/chat/QueryQueue';
 import { EditorPanel } from '../components/editor/EditorPanel';
+import { Modal } from '../components/shared/Modal';
 import { useTranslation } from '../i18n';
 
 const DEFAULT_CHAT_WIDTH = 540;
@@ -33,6 +34,7 @@ export function ActiveSession({ sessionId }: { sessionId: string }) {
   const [chatWidth, setChatWidth] = useState(DEFAULT_CHAT_WIDTH);
   const [dragging, setDragging] = useState(false);
   const [mode, setMode] = useState<'code' | 'office'>('code');
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
   const {
     hasPending,
     nextPending,
@@ -295,18 +297,7 @@ export function ActiveSession({ sessionId }: { sessionId: string }) {
             )}
             {/* Clear session */}
             <button
-              onClick={async () => {
-                if (!hasMessages) return;
-                try {
-                  const { confirm } = await import('@tauri-apps/plugin-dialog');
-                  const ok = await confirm(t('session.clearConfirm'), { title: t('session.clear'), kind: 'warning' });
-                  if (!ok) return;
-                } catch {
-                  // Not in Tauri or dialog unavailable — fall back to window.confirm
-                  if (!window.confirm(t('session.clearConfirm'))) return;
-                }
-                clearMessages(sessionId);
-              }}
+              onClick={() => setShowClearConfirm(true)}
               disabled={!hasMessages}
               className={`flex items-center justify-center rounded-md p-1.5 transition-colors ${
                 hasMessages
@@ -469,6 +460,38 @@ export function ActiveSession({ sessionId }: { sessionId: string }) {
           <EditorPanel rootDir={workDir} />
         </div>
       )}
+
+      {/* Clear session confirmation dialog */}
+      <Modal
+        open={showClearConfirm}
+        onClose={() => setShowClearConfirm(false)}
+        title={t('session.clear')}
+        width={420}
+        footer={
+          <>
+            <button
+              onClick={() => setShowClearConfirm(false)}
+              className="rounded-lg px-4 py-2 text-sm font-medium text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] transition-colors"
+            >
+              {t('common.cancel')}
+            </button>
+            <button
+              onClick={() => {
+                clearMessages(sessionId);
+                setShowClearConfirm(false);
+              }}
+              className="rounded-lg px-4 py-2 text-sm font-medium text-white transition-colors"
+              style={{ background: 'var(--color-warning)' }}
+            >
+              {t('common.confirm')}
+            </button>
+          </>
+        }
+      >
+        <p className="text-sm text-[var(--color-text-secondary)]">
+          {t('session.clearConfirm')}
+        </p>
+      </Modal>
     </div>
   );
 }
