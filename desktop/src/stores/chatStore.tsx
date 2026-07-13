@@ -236,10 +236,30 @@ export function ChatProvider({ children }: { children: ReactNode }) {
             break;
 
           case 'status':
-            updateSession(sessionId, (prev) => ({
-              ...prev,
-              chatState: msg.state,
-            }));
+            updateSession(sessionId, (prev) => {
+              if (msg.state === 'thinking') {
+                // New agentic loop round starting — flush pending thinking,
+                // save accumulated streaming text as a message, and clear it
+                // so it doesn't accumulate across rounds.
+                const flushed = flushThinking(prev);
+                const messages = [...flushed.messages];
+                if (flushed.streamingText) {
+                  messages.push({
+                    type: 'assistant_text',
+                    id: `assistant-${Date.now()}`,
+                    content: flushed.streamingText,
+                    createdAt: new Date().toISOString(),
+                  });
+                }
+                return {
+                  ...flushed,
+                  messages,
+                  streamingText: '',
+                  chatState: msg.state,
+                };
+              }
+              return { ...prev, chatState: msg.state };
+            });
             break;
 
           case 'tool_call':
