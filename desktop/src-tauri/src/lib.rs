@@ -73,21 +73,68 @@ impl Drop for ServerSidecar {
     }
 }
 
-#[tauri::command]
-fn close_splashscreen(app: tauri::AppHandle) {
-    println!("[SmartSpace] close_splashscreen called from frontend");
+/// Close the splash window and show the main window.
+/// Called when the server is confirmed ready (or on timeout fallback).
+fn show_main_window(app: &tauri::AppHandle) {
     if let Some(splash) = app.get_webview_window("splash") {
         println!("[SmartSpace] Closing splash window...");
         let _ = splash.close();
-    } else {
-        println!("[SmartSpace] Splash window not found (already closed?)");
     }
     if let Some(main) = app.get_webview_window("main") {
         println!("[SmartSpace] Showing main window...");
         let _ = main.show();
         let _ = main.set_focus();
-    } else {
-        println!("[SmartSpace] Main window not found!");
+    }
+}
+
+#[tauri::command]
+fn close_splashscreen(app: tauri::AppHandle) {
+    // Legacy command — now handled by the Rust readiness check thread.
+    // kept for backward compatibility but does nothing (the Rust thread
+    // will close the splash when the server is ready).
+    println!("[SmartSpace] close_splashscreen called from frontend (handled by Rust readiness check)");
+    let _ = &app;
+}
+
+/// Wait for the server to be ready by polling the port file and doing a TCP
+/// connect check. Returns the port if ready, or None on timeout.
+fn wait_for_server_ready(timeout: std::time::Duration) -> Option<u16> {
+    let start = std::time::Instant::now();
+    let check_interval = std::time::Duration::from_millis(500);
+
+    loop {
+        if start.elapsed() > timeout {
+            return None;
+        }
+
+        // Read the port file
+        if let Some(ref path) = server_port_file_path() {
+            if let Ok(content) = std::fs::read_to_string(path) {
+                let trimmed = content.trim();
+                if let Ok(port) = trimmed.parse::<u16>() {
+                    if port > 0 {
+                        // Try TCP connect to verify the server is actually listening
+                        let addr = format!("127.0.0.1:{}", port);
+                        match std::net::TcpStream::connect_timeout(
+                            &addr.parse().unwrap_or_else(|_| "127.0.0.1:3721".parse().unwrap()),
+                            std::time::Duration::from_secs(2),
+                        ) {
+                            Ok(_) => {
+                                println!("[SmartSpace] Server is ready on port {}", port);
+                                return Some(port);
+                            }
+                            Err(_) => {
+                                // Port file exists but TCP connect failed — server might
+                                // still be starting up, or it's a zombie socket.
+                                // Keep polling.
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        std::thread::sleep(check_interval);
     }
 }
 
@@ -231,19 +278,25 @@ pub fn run() {
                 }
             }
 
-            // Fallback: auto-close splash after 15s if the frontend hasn't
-            // called close_splashscreen yet (e.g. JS still loading).
+            // Wait for the server to be ready before showing the main window.
+            // This ensures the frontend can connect immediately when it loads.
+            // The server resolves port conflicts (zombie sockets, EADDRINUSE)
+            // during this wait period.
             let app_handle = app.handle().clone();
             std::thread::spawn(move || {
-                std::thread::sleep(std::time::Duration::from_secs(10));
-                if let Some(splash) = app_handle.get_webview_window("splash") {
-                    println!("[SmartSpace] Auto-closing splash (10s timeout)");
-                    let _ = splash.close();
+                let timeout = std::time::Duration::from_secs(60);
+                println!("[SmartSpace] Waiting for server to be ready (timeout {}s)...", timeout.as_secs());
+
+                match wait_for_server_ready(timeout) {
+                    Some(port) => {
+                        println!("[SmartSpace] Server ready on port {}, showing main window", port);
+                    }
+                    None => {
+                        eprintln!("[SmartSpace] Server startup timeout ({}s), showing main window anyway", timeout.as_secs());
+                    }
                 }
-                if let Some(main) = app_handle.get_webview_window("main") {
-                    let _ = main.show();
-                    let _ = main.set_focus();
-                }
+
+                show_main_window(&app_handle);
             });
 
             Ok(())
