@@ -297,7 +297,6 @@ export function ChatProvider({ children }: { children: ReactNode }) {
                 return {
                   ...flushed,
                   chatState: 'idle',
-                  toolCalls: [],
                   pendingQuestion: null,
                   pendingPlan: null,
                 };
@@ -313,7 +312,6 @@ export function ChatProvider({ children }: { children: ReactNode }) {
                 ...flushed,
                 messages: [...flushed.messages, assistantMsg],
                 streamingText: '',
-                toolCalls: [],
                 chatState: 'idle',
                 pendingQuestion: null,
                 pendingPlan: null,

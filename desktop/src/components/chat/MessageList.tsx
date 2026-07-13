@@ -29,54 +29,17 @@ type MessageListProps = {
   onRespondPlan: (response: string) => void;
 };
 
-type RenderItem =
-  | { kind: 'message'; msg: UIMessage }
-  | { kind: 'tool_use'; msg: UIMessage & { type: 'tool_use' }; result: (UIMessage & { type: 'tool_result' }) | null; isRunning: boolean }
+type RenderItem = { kind: 'message'; msg: UIMessage }
 
 /**
  * 将扁平消息数组转换为渲染模型：
- * - tool_result 跳过（通过 tool_use 内联显示）
- * - tool_use 附带对应的 tool_result（如果有）
+ * - tool_use/tool_result 跳过（由底部 toolCalls 统一渲染）
+ * - 其他消息保持原始顺序
  */
-function buildRenderModel(messages: UIMessage[], toolCalls: ToolCallInfo[]): RenderItem[] {
-  const items: RenderItem[] = []
-
-  // Build a map: toolCallId → tool_result
-  const resultMap = new Map<string, UIMessage & { type: 'tool_result' }>()
-  // Build a set of toolUseIds
-  const toolUseIds = new Set<string>()
-
-  // First pass: collect all tool_use IDs and tool_result
-  for (const msg of messages) {
-    if (msg.type === 'tool_use') {
-      toolUseIds.add(msg.toolCallId)
-    }
-    if (msg.type === 'tool_result') {
-      resultMap.set(msg.toolCallId, msg)
-    }
-  }
-
-  // Build set of running tool IDs
-  const runningToolIds = new Set(
-    toolCalls.filter((tc) => tc.status === 'running').map((tc) => tc.id),
-  )
-
-  // Second pass: build render items
-  for (const msg of messages) {
-    if (msg.type === 'tool_result') {
-      // tool_result is rendered inline with its corresponding tool_use — skip
-      continue
-    }
-    if (msg.type === 'tool_use') {
-      const result = resultMap.get(msg.toolCallId) || null
-      const isRunning = runningToolIds.has(msg.toolCallId)
-      items.push({ kind: 'tool_use', msg, result, isRunning })
-      continue
-    }
-    items.push({ kind: 'message', msg })
-  }
-
-  return items
+function buildRenderModel(messages: UIMessage[]): RenderItem[] {
+  return messages
+    .filter((msg) => msg.type !== 'tool_use' && msg.type !== 'tool_result')
+    .map((msg) => ({ kind: 'message' as const, msg }))
 }
 
 export function MessageList({
@@ -94,10 +57,10 @@ export function MessageList({
   const endRef = useRef<HTMLDivElement>(null);
   const initialScrollDone = useRef(false);
 
-  // Build render model from messages
+  // Build render model from messages (tool_use/tool_result filtered out, rendered via toolCalls)
   const renderItems = useMemo(
-    () => buildRenderModel(messages, toolCalls),
-    [messages, toolCalls],
+    () => buildRenderModel(messages),
+    [messages],
   );
 
   // Track previous message count to detect new messages
@@ -156,23 +119,6 @@ export function MessageList({
     <div className="max-w-3xl mx-auto flex flex-col gap-3 py-4">
       {/* Render items in chronological order */}
       {renderItems.map((item) => {
-        if (item.kind === 'tool_use') {
-          const { msg, result, isRunning } = item;
-          const toolCallInfo: ToolCallInfo = {
-            id: msg.toolCallId,
-            toolName: msg.toolName,
-            input: msg.input,
-            result: result?.result,
-            isError: result?.isError,
-            status: isRunning ? 'running' : result ? (result.isError ? 'error' : 'completed') : 'running',
-          };
-          return (
-            <div key={msg.id} className="flex flex-col gap-1 ml-10">
-              <ToolCallBlock toolCall={toolCallInfo} />
-            </div>
-          );
-        }
-
         const msg = item.msg;
         if (msg.type === 'user_text') {
           return <UserMessage key={msg.id} content={msg.content} createdAt={msg.createdAt} />;
@@ -217,12 +163,21 @@ export function MessageList({
         />
       )}
 
-      {/* Current round: active thinking + streaming text */}
-      {(streamingText || thinkingText) && (
+      {/* Current round: active thinking + tool calls + streaming text */}
+      {(streamingText || thinkingText || toolCalls.length > 0) && (
         <>
           {/* Active thinking block (currently streaming) */}
           {thinkingText && (
             <ThinkingBlock content={thinkingText} isActive={chatState !== 'idle'} />
+          )}
+
+          {/* Tool calls (live + completed, persistent across rounds) */}
+          {toolCalls.length > 0 && (
+            <div className="flex flex-col gap-1 ml-10">
+              {toolCalls.map((tc) => (
+                <ToolCallBlock key={tc.id} toolCall={tc} />
+              ))}
+            </div>
           )}
 
           {/* Streaming text */}
