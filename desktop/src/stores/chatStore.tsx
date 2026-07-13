@@ -121,17 +121,59 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     async (sessionId: string) => {
       try {
         const data = await sessionsApi.getMessages(sessionId);
-        let thinkingText = '';
-        const uiMessages: UIMessage[] = data.messages.map((m) => {
-          // Restore thinking text from the last assistant message that has it
-          if (m.role === 'assistant' && (m as any).thinking) {
-            thinkingText = (m as any).thinking;
+        const uiMessages: UIMessage[] = [];
+        for (const m of data.messages) {
+          // User message
+          if (m.role === 'user') {
+            uiMessages.push({ type: 'user_text', id: m.id, content: m.content, createdAt: m.createdAt });
+            continue;
           }
-          return m.role === 'user'
-            ? { type: 'user_text', id: m.id, content: m.content, createdAt: m.createdAt }
-            : { type: 'assistant_text', id: m.id, content: m.content, createdAt: m.createdAt };
-        });
-        updateSession(sessionId, (prev) => ({ ...prev, messages: uiMessages, thinkingText }));
+
+          // Assistant message: reconstruct thinking + tool calls + text
+          const tc = (m as any).toolCalls as Array<{ id: string; toolName: string; input: Record<string, unknown>; result?: string; isError?: boolean }> | undefined;
+          const thinking = (m as any).thinking as string | undefined;
+
+          // Add thinking block if present
+          if (thinking) {
+            uiMessages.push({
+              type: 'thinking',
+              id: `${m.id}-thinking`,
+              content: thinking,
+              createdAt: m.createdAt,
+            });
+          }
+
+          // Add tool_use and tool_result for each tool call
+          if (tc && tc.length > 0) {
+            for (const toolCall of tc) {
+              uiMessages.push({
+                type: 'tool_use',
+                id: `${m.id}-tool_use-${toolCall.id}`,
+                toolCallId: toolCall.id,
+                toolName: toolCall.toolName,
+                input: toolCall.input,
+                createdAt: m.createdAt,
+              });
+              if (toolCall.result !== undefined) {
+                uiMessages.push({
+                  type: 'tool_result',
+                  id: `${m.id}-tool_result-${toolCall.id}`,
+                  toolCallId: toolCall.id,
+                  toolName: toolCall.toolName,
+                  result: toolCall.result,
+                  isError: toolCall.isError || false,
+                  createdAt: m.createdAt,
+                });
+              }
+            }
+          }
+
+          // Add assistant text
+          if (m.content) {
+            uiMessages.push({ type: 'assistant_text', id: m.id, content: m.content, createdAt: m.createdAt });
+          }
+        }
+        updateSession(sessionId, (prev) => ({ ...prev, messages: uiMessages }));
       } catch {
         // Ignore load errors
       }

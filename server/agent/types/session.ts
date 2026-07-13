@@ -17,6 +17,14 @@ export type SessionDetail = SessionListItem & {
   messages: ChatMessage[]
 }
 
+export type ToolCallData = {
+  id: string
+  toolName: string
+  input: Record<string, unknown>
+  result?: string
+  isError?: boolean
+}
+
 export type ChatMessage = {
   id: string
   role: 'user' | 'assistant'
@@ -24,6 +32,8 @@ export type ChatMessage = {
   createdAt: string
   /** Extended thinking content from Anthropic, only for assistant messages */
   thinking?: string
+  /** Tool calls associated with this assistant message */
+  toolCalls?: ToolCallData[]
 }
 
 export type CreateSessionInput = {

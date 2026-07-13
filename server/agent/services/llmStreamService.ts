@@ -185,7 +185,9 @@ export async function streamChat(
   // Save assistant response (text + thinking content)
   if (fullText) {
     try {
-      await sessionService.addMessage(sessionId, 'assistant', fullText, thinking)
+      // result is only available in anthropic path (has toolCalls)
+      const toolCalls = 'toolCalls' in result ? (result as any).toolCalls : undefined
+      await sessionService.addMessage(sessionId, 'assistant', fullText, thinking, toolCalls)
     } catch (err) {
       console.error(`[LLM] Failed to save assistant message: ${err}`)
     }
@@ -204,7 +206,7 @@ async function runAnthropicLoop(
   toolContext: ToolContext,
   onChunk: (chunk: StreamChunk) => void,
   isCancelled: () => boolean,
-): Promise<{ text: string; thinking: string }> {
+): Promise<{ text: string; thinking: string; toolCalls: Array<{ id: string; toolName: string; input: Record<string, unknown>; result?: string; isError?: boolean }> }> {
   // Build messages: history (as simple strings) + current user message
   const messages: AnthropicMessage[] = history.map((m) => ({
     role: m.role,
@@ -213,6 +215,7 @@ async function runAnthropicLoop(
 
   let fullText = ''
   let accumulatedThinking = ''
+  const accumulatedToolCalls: Array<{ id: string; toolName: string; input: Record<string, unknown>; result?: string; isError?: boolean }> = []
 
   for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
     if (isCancelled()) break
@@ -269,6 +272,14 @@ async function runAnthropicLoop(
       const result = await executeTool(tu, toolContext)
       // Notify frontend: tool result
       onChunk({ type: 'tool_result', toolCallId: tu.id, result: result.content, isError: result.isError })
+      // Accumulate tool call data for persistence
+      accumulatedToolCalls.push({
+        id: tu.id,
+        toolName: tu.name,
+        input: tu.input,
+        result: result.content,
+        isError: result.isError,
+      })
       toolResults.push({
         type: 'tool_result',
         tool_use_id: tu.id,
@@ -289,7 +300,7 @@ async function runAnthropicLoop(
     }
   }
 
-  return fullText
+  return { text: fullText, thinking: accumulatedThinking, toolCalls: accumulatedToolCalls }
 }
 
 /** Single Anthropic API call with streaming */

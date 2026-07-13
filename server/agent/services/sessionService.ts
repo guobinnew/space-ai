@@ -163,24 +163,35 @@ export class SessionService {
           })
         }
       } else if (entry.type === 'assistant') {
-        // Extract text and thinking from assistant messages
+        // Extract text, thinking, and tool calls from assistant messages
         let textContent = ''
         const thinkingContent: string[] = []
+        const toolCallList: ChatMessage['toolCalls'] = []
         for (const block of entry.message.content) {
           if (block.type === 'text') {
             textContent += block.text
           } else if (block.type === 'thinking') {
             if (block.thinking) thinkingContent.push(block.thinking)
+          } else if (block.type === 'tool_use') {
+            toolCallList.push({ id: block.id, toolName: block.name, input: block.input })
           }
-          // tool_use blocks are not included in ChatMessage content
         }
-        if (textContent) {
+        // Also include toolCalls from entry metadata (if stored separately)
+        if ((entry as any).toolCalls) {
+          for (const tc of (entry as any).toolCalls) {
+            if (!toolCallList.some((t) => t.id === tc.id)) {
+              toolCallList.push(tc)
+            }
+          }
+        }
+        if (textContent || toolCallList.length > 0) {
           messages.push({
             id: entry.uuid,
             role: 'assistant',
             content: textContent,
             createdAt: entry.timestamp,
             ...(thinkingContent.length > 0 ? { thinking: thinkingContent.join('\n') } : {}),
+            ...(toolCallList.length > 0 ? { toolCalls: toolCallList } : {}),
           })
         }
       }
@@ -322,6 +333,7 @@ export class SessionService {
     role: 'user' | 'assistant',
     content: string,
     thinking?: string,
+    toolCalls?: Array<{ id: string; toolName: string; input: Record<string, unknown>; result?: string; isError?: boolean }>,
   ): Promise<ChatMessage> {
     const entries = await this.readJsonl(id)
     if (entries.length === 0) throw ApiError.notFound(`Session not found: ${id}`)
@@ -381,6 +393,7 @@ export class SessionService {
         },
         sessionId: id,
         version: '0.1.0',
+        ...(toolCalls && toolCalls.length > 0 ? { toolCalls } : {}),
       }
       await this.appendJsonl(id, assistantEntry)
     }
@@ -403,6 +416,7 @@ export class SessionService {
       content,
       createdAt: now,
       ...(thinking ? { thinking } : {}),
+      ...(toolCalls && toolCalls.length > 0 ? { toolCalls } : {}),
     }
   }
 
