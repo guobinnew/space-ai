@@ -1,14 +1,13 @@
 /**
  * QueryQueue — 排队查询列表
  *
- * 参照 smart-code chat/QueryQueue.tsx。
  * 当 Agent 忙碌时，用户发送的消息进入排队队列，
  * 当前查询完成后自动依次执行。
  */
 
 import { useState, useRef, useCallback } from 'react'
-import { useChatStore, type QueuedQuery } from '../../stores/chatStore'
-import { useTranslation } from '../../i18n'
+import { useChatStore } from '../../stores/chatStore'
+import type { QueuedQuery } from '../../types/chat'
 
 const EMPTY_QUERIES: QueuedQuery[] = []
 
@@ -17,17 +16,12 @@ interface QueryQueueProps {
 }
 
 export function QueryQueue({ sessionId }: QueryQueueProps) {
-  const t = useTranslation()
+  const { getSession, removeQueuedQuery, reorderQueuedQueries, executeQueryNow } = useChatStore()
   const [expanded, setExpanded] = useState(true)
-  const queries = useChatStore(
-    (s) => sessionId ? (s.sessions[sessionId]?.queuedQueries || EMPTY_QUERIES) : EMPTY_QUERIES,
-  )
-  const chatState = useChatStore(
-    (s) => sessionId ? (s.sessions[sessionId]?.chatState ?? 'idle') : 'idle',
-  )
-  const removeQueuedQuery = useChatStore((s) => s.removeQueuedQuery)
-  const reorderQueuedQueries = useChatStore((s) => s.reorderQueuedQueries)
-  const executeQueryNow = useChatStore((s) => s.executeQueryNow)
+
+  const sessionState = getSession(sessionId)
+  const queries = sessionState.queuedQueries || EMPTY_QUERIES
+  const chatState = sessionState.chatState
 
   const dragItemRef = useRef<number | null>(null)
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null)
