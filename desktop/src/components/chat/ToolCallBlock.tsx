@@ -184,7 +184,7 @@ export function ToolCallBlock({ toolCall }: Props) {
         : t('tool.completed');
 
   return (
-    <div className="overflow-hidden rounded-lg border border-[var(--color-border)]/50 bg-[var(--color-surface-container-lowest)] mb-2 ml-10">
+    <div className="overflow-hidden rounded-lg border border-[var(--color-border)]/50 bg-[var(--color-surface-container-lowest)] mb-1 ml-10">
       <div
         role="button"
         tabIndex={0}
