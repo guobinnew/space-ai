@@ -198,6 +198,7 @@ export async function streamChat(
 
   let fullText = ''
   let thinking = ''
+  let toolCalls: Array<{ id: string; toolName: string; input: Record<string, unknown>; result?: string; isError?: boolean }> | undefined
   const cancelCheck = isCancelled || (() => false)
 
   try {
@@ -208,6 +209,7 @@ export async function streamChat(
       )
       fullText = result.text
       thinking = result.thinking
+      toolCalls = result.toolCalls
     } else {
       fullText = await runOpenAILoop(
         baseUrl, apiKey, model, systemPrompt, toolDefs, history,
@@ -224,11 +226,9 @@ export async function streamChat(
     onChunk({ type: 'status', state: 'idle' })
   }
 
-  // Save assistant response (text + thinking content)
-  if (fullText) {
+  // Save assistant response (text + thinking content + tool calls)
+  if (fullText || thinking || (toolCalls && toolCalls.length > 0)) {
     try {
-      // result is only available in anthropic path (has toolCalls)
-      const toolCalls = 'toolCalls' in result ? (result as any).toolCalls : undefined
       await sessionService.addMessage(sessionId, 'assistant', fullText, thinking, toolCalls)
     } catch (err) {
       console.error(`[LLM] Failed to save assistant message: ${err}`)
