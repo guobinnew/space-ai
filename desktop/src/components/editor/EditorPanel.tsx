@@ -140,7 +140,7 @@ export function EditorPanel({ rootDir }: { rootDir?: string } = {}) {
         <div className="absolute inset-0 z-50 cursor-col-resize" />
       )}
       {/* Editor area */}
-      <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
+      <div className="flex flex-col flex-1 min-w-[200px] overflow-hidden">
         {/* Tab bar */}
         {openFiles.length > 0 && (
           <div className="shrink-0 flex items-stretch bg-[var(--color-surface-container-low)] border-b border-[var(--color-border)]">
@@ -245,7 +245,7 @@ export function EditorPanel({ rootDir }: { rootDir?: string } = {}) {
         )}
 
         {/* Monaco Editor */}
-        <div className="flex-1 overflow-hidden">
+        <div className="flex-1 overflow-hidden min-w-[200px]">
           <EditorErrorBoundary>
             <CodeEditor />
           </EditorErrorBoundary>

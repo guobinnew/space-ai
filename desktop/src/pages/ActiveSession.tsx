@@ -17,7 +17,7 @@ import { EditorPanel } from '../components/editor/EditorPanel';
 import { useTranslation } from '../i18n';
 
 const DEFAULT_CHAT_WIDTH = 540;
-const MIN_EDITOR_WIDTH = 300;
+const MIN_EDITOR_WIDTH = 400;
 const MIN_CHAT_WIDTH = 400;
 
 export function ActiveSession({ sessionId }: { sessionId: string }) {
