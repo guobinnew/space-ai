@@ -84,23 +84,18 @@ export function ActiveSession({ sessionId }: { sessionId: string }) {
   }, [sessionId])
 
   // Refs to avoid effect re-runs when context functions change
-  const getSessionRef = useRef(getSession)
-  getSessionRef.current = getSession
   const sendMessageRef = useRef(sendMessage)
   sendMessageRef.current = sendMessage
 
-  // Poll task list every 1s while session is active or has pending tasks
+  // Poll task list every 1s — always poll to detect pending tasks
+  // even after agent goes idle (enables auto-continue)
   useEffect(() => {
     if (!sessionId) return
     const interval = setInterval(async () => {
-      const state = getSessionRef.current(sessionId)
-      const isSessionActive = state.chatState !== 'idle'
-      if (isSessionActive || hasPending) {
-        await fetchSessionTasks(sessionId)
-      }
+      await fetchSessionTasks(sessionId)
     }, 1000)
     return () => clearInterval(interval)
-  }, [sessionId, hasPending, fetchSessionTasks])
+  }, [sessionId, fetchSessionTasks])
 
   // Auto-continue: when session becomes idle with pending tasks
   const continueTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
