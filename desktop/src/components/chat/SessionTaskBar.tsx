@@ -9,6 +9,7 @@
 import { useState } from 'react'
 import { useTaskStore } from '../../stores/cliTaskStore'
 import type { Task } from '../../types/task'
+import type { TodoItem } from '../../types/chat'
 
 const statusConfig = {
   pending: {
@@ -30,9 +31,9 @@ const statusConfig = {
   },
 } as const
 
-export function SessionTaskBar() {
+export function SessionTaskBar({ todos: liveTodos }: { todos?: TodoItem[] } = {}) {
   const {
-    tasks,
+    tasks: polledTasks,
     hasPending,
     dismissed,
     dismissCompleted,
@@ -41,14 +42,20 @@ export function SessionTaskBar() {
   } = useTaskStore()
   const [expanded, setExpanded] = useState(true)
 
+  // Merge polled tasks (from TaskCreate/Update) with live TodoWrite todos
+  const tasks: (Task | TodoItem)[] = polledTasks.length > 0
+    ? polledTasks
+    : (liveTodos || [])
+
   if (tasks.length === 0) return null
 
-  const allCompleted = tasks.every((tk) => tk.status === 'completed' || tk.status === 'cancelled' || tk.status === 'failed')
+  const allCompleted = tasks.every((tk) =>
+    tk.status === 'completed' || tk.status === 'cancelled' || tk.status === 'failed'
+  )
   if (allCompleted && dismissed) return null
 
   const completedCount = tasks.filter((tk) => tk.status === 'completed').length
   const totalCount = tasks.length
-  const inProgressCount = tasks.filter((tk) => tk.status === 'in_progress').length
   const progressPercent = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0
 
   return (
@@ -123,8 +130,8 @@ export function SessionTaskBar() {
         {/* Expanded task list */}
         {expanded && (
           <div className="px-4 pb-2 pt-1 flex flex-col gap-0.5 max-h-[240px] overflow-y-auto border-t border-[var(--color-outline-variant)]/20">
-            {tasks.map((task) => (
-              <TaskItem key={task.id} task={task} />
+            {tasks.map((task, idx) => (
+              <TaskItem key={'id' in task ? task.id : String(idx)} task={task} />
             ))}
           </div>
         )}
@@ -133,8 +140,12 @@ export function SessionTaskBar() {
   )
 }
 
-function TaskItem({ task }: { task: Task }) {
+const isTask = (t: Task | TodoItem): t is Task => 'subject' in t
+
+function TaskItem({ task }: { task: Task | TodoItem }) {
   const config = statusConfig[task.status]
+  const taskName = isTask(task) ? task.subject : task.content
+  const taskId = isTask(task) ? task.id : '#'
 
   return (
     <div className="flex items-start gap-2 py-1.5 px-1 rounded-md">
@@ -164,16 +175,16 @@ function TaskItem({ task }: { task: Task }) {
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5">
           <span className="text-[10px] font-mono text-[var(--color-text-tertiary)]">
-            #{task.id}
+            #{taskId}
           </span>
           <span className={`text-xs ${
             task.status === 'completed'
               ? 'text-[var(--color-text-tertiary)] line-through'
               : 'text-[var(--color-text-primary)]'
           }`}>
-            {task.subject}
+            {taskName}
           </span>
-          {task.priority && task.priority !== 'medium' && (
+          {isTask(task) && task.priority && task.priority !== 'medium' && (
             <span className={`text-[9px] px-1 py-0.5 rounded ${
               task.priority === 'high' ? 'bg-[var(--color-error)]/10 text-[var(--color-error)]' : 'text-[var(--color-text-tertiary)]'
             }`}>
@@ -191,7 +202,7 @@ function TaskItem({ task }: { task: Task }) {
           </div>
         )}
 
-        {task.body && (
+        {isTask(task) && task.body && (
           <p className="text-[10px] text-[var(--color-text-tertiary)] mt-0.5 line-clamp-2">
             {task.body}
           </p>
