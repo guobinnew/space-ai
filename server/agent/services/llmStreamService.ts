@@ -316,12 +316,12 @@ async function callAnthropic(
   const url = `${baseUrl}/v1/messages`
   const body: Record<string, unknown> = {
     model,
-    max_tokens: 512000,
+    max_tokens: 128000,
     system: systemPrompt,
     messages,
     stream: true,
     // Enable extended thinking for complex code generation
-    thinking: { type: 'enabled', budget_tokens: 128000 },
+    thinking: { type: 'enabled', budget_tokens: 32000 },
   }
   if (toolDefs.length > 0) {
     body.tools = toolDefs
