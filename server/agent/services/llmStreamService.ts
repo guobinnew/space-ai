@@ -18,6 +18,48 @@ import { getToolDefinitions, getTool } from '../tools'
 import type { ToolContext, AskUserRequest } from '../tools'
 import type { ApiFormat } from '../types/provider'
 
+/**
+ * Streaming-aware timeout: resets the timer each time reset() is called
+ * (e.g., on every chunk received). Only aborts if NO data arrives within
+ * `idleTimeoutMs`. A hard `maxTimeoutMs` caps the total duration.
+ *
+ * This prevents premature timeouts during extended thinking where the LLM
+ * may not produce output for several minutes, while still detecting
+ * genuinely stalled connections.
+ */
+function createStreamingTimeout(idleTimeoutMs: number = 120_000, maxTimeoutMs: number = 1_800_000) {
+  const controller = new AbortController()
+  let idleTimer: ReturnType<typeof setTimeout> | null = null
+  let maxTimer: ReturnType<typeof setTimeout> | null = null
+  let cleared = false
+
+  const resetIdle = () => {
+    if (cleared) return
+    if (idleTimer) clearTimeout(idleTimer)
+    idleTimer = setTimeout(() => {
+      console.error(`[LLM] Stream idle timeout (no data for ${idleTimeoutMs / 1000}s), aborting`)
+      controller.abort()
+    }, idleTimeoutMs)
+  }
+
+  maxTimer = setTimeout(() => {
+    console.error(`[LLM] Stream max timeout (${maxTimeoutMs / 1000}s), aborting`)
+    controller.abort()
+  }, maxTimeoutMs)
+
+  resetIdle()
+
+  return {
+    signal: controller.signal,
+    reset: resetIdle,
+    clear: () => {
+      cleared = true
+      if (idleTimer) clearTimeout(idleTimer)
+      if (maxTimer) clearTimeout(maxTimer)
+    },
+  }
+}
+
 const providerService = new ProviderService()
 
 export type StreamChunk =
@@ -328,6 +370,7 @@ async function callAnthropic(
     body.tool_choice = { type: 'auto' }
   }
 
+  const streamTimeout = createStreamingTimeout()
   const response = await fetch(url, {
     method: 'POST',
     headers: {
@@ -336,7 +379,7 @@ async function callAnthropic(
       'anthropic-version': '2023-06-01',
     },
     body: JSON.stringify(body),
-    signal: AbortSignal.timeout(300000),
+    signal: streamTimeout.signal,
   })
 
   if (!response.ok) {
@@ -372,6 +415,8 @@ async function callAnthropic(
   while (true) {
     const { done, value } = await reader.read()
     if (done) break
+
+    streamTimeout.reset()
 
     buffer += decoder.decode(value, { stream: true })
     const lines = buffer.split('\n')
@@ -463,6 +508,7 @@ async function callAnthropic(
     }
   }
 
+  streamTimeout.clear()
   return { text: fullText, toolUses, stopReason, inputTokens, outputTokens, thinkingBlocks }
 }
 
@@ -571,6 +617,7 @@ async function callOpenAI(
     body.tool_choice = 'auto'
   }
 
+  const streamTimeout = createStreamingTimeout()
   const response = await fetch(url, {
     method: 'POST',
     headers: {
@@ -578,7 +625,7 @@ async function callOpenAI(
       Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify(body),
-    signal: AbortSignal.timeout(300000),
+    signal: streamTimeout.signal,
   })
 
   if (!response.ok) {
@@ -604,6 +651,8 @@ async function callOpenAI(
   while (true) {
     const { done, value } = await reader.read()
     if (done) break
+
+    streamTimeout.reset()
 
     buffer += decoder.decode(value, { stream: true })
     const lines = buffer.split('\n')
@@ -676,6 +725,7 @@ async function callOpenAI(
   else if (finishReason === 'tool_calls') stopReason = 'tool_use'
   else if (finishReason === 'length') stopReason = 'length'
 
+  streamTimeout.clear()
   return { text: fullText, toolUses, stopReason, inputTokens, outputTokens, thinkingBlocks: [] }
 }
 
