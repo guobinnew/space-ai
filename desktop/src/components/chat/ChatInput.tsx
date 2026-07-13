@@ -103,7 +103,7 @@ export function ChatInput({ onSend, onStop, isGenerating, disabled, usage, place
 
   const handleSubmit = async () => {
     let text = input.trim();
-    if (!text || isGenerating || disabled) return;
+    if (!text || disabled) return;
 
     // Build reference blocks from visual tags (read file contents)
     const refBlocks: string[] = [];
@@ -268,7 +268,7 @@ export function ChatInput({ onSend, onStop, isGenerating, disabled, usage, place
               </div>
             )}
 
-            {isGenerating ? (
+            {isGenerating && (
               <button
                 onClick={onStop}
                 className="flex items-center justify-center rounded-lg p-1.5 text-xs font-semibold transition-all"
@@ -279,20 +279,19 @@ export function ChatInput({ onSend, onStop, isGenerating, disabled, usage, place
                   <rect x="6" y="6" width="12" height="12" rx="1" />
                 </svg>
               </button>
-            ) : (
-              <button
-                onClick={() => void handleSubmit()}
-                disabled={!input.trim() && codeRefs.length === 0 && fileRefs.length === 0 && dirRefs.length === 0 || disabled}
-                className="flex items-center justify-center rounded-lg p-1.5 text-xs font-semibold transition-all hover:brightness-105 disabled:opacity-30"
-                style={{ background: 'var(--gradient-btn-primary)', color: 'var(--color-btn-primary-fg)', boxShadow: 'var(--shadow-button-primary)' }}
-                title={t('session.send')}
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <line x1="5" y1="12" x2="19" y2="12" />
-                  <polyline points="12 5 19 12 12 19" />
-                </svg>
-              </button>
             )}
+            <button
+              onClick={() => void handleSubmit()}
+              disabled={!input.trim() && codeRefs.length === 0 && fileRefs.length === 0 && dirRefs.length === 0 || disabled}
+              className="flex items-center justify-center rounded-lg p-1.5 text-xs font-semibold transition-all hover:brightness-105 disabled:opacity-30"
+              style={{ background: 'var(--gradient-btn-primary)', color: 'var(--color-btn-primary-fg)', boxShadow: 'var(--shadow-button-primary)' }}
+              title={t('session.send')}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="5" y1="12" x2="19" y2="12" />
+                <polyline points="12 5 19 12 12 19" />
+              </svg>
+            </button>
           </div>
         </div>
       </div>

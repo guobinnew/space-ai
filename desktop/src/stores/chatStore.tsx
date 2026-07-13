@@ -7,7 +7,7 @@
  * 启动 CLI sidecar 子进程(Bun.spawn)并桥接 WS 通信。
  */
 
-import { createContext, useContext, useState, useCallback, type ReactNode } from 'react';
+import { createContext, useContext, useState, useCallback, useRef, type ReactNode } from 'react';
 import { wsManager, type ServerMessage } from '../api/websocket';
 import { sessionsApi } from '../api/sessions';
 import { tasksApi } from '../api/tasks';
@@ -103,6 +103,10 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   const [sessions, setSessions] = useState<Record<string, PerSessionChatState>>({});
   // 通用设置统一存储在 ~/.spaceai/settings.json，通过 uiStore 读取
   const { notifyOnCompletion } = useUIStore();
+
+  // Ref to always access latest sessions without causing callback recreation
+  const sessionsRef = useRef(sessions);
+  sessionsRef.current = sessions;
 
   const getSession = useCallback(
     (sessionId: string): PerSessionChatState => {
@@ -414,7 +418,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
   const sendMessage = useCallback(
     (sessionId: string, content: string, skipQueue?: boolean) => {
-      const session = sessions[sessionId];
+      const session = sessionsRef.current[sessionId];
       const isBusy = session && session.chatState !== 'idle';
 
       // If busy and not explicitly skipping queue, add to queue
@@ -451,7 +455,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
       wsManager.send(sessionId, { type: 'user_message', content });
     },
-    [updateSession, sessions],
+    [updateSession],
   );
 
   const stopGeneration = useCallback(
