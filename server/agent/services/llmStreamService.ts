@@ -679,11 +679,8 @@ async function executeTool(
     return { content: `Error: unknown tool "${toolUse.name}"`, isError: true }
   }
 
-  console.log(`[Tool] Executing ${toolUse.name}: ${JSON.stringify(toolUse.input).slice(0, 200)}`)
-
   try {
     const result = await tool.execute(toolUse.input, context)
-    console.log(`[Tool] ${toolUse.name} result: ${result.content.slice(0, 200)}`)
     return { content: result.content, isError: result.isError === true, newMessages: result.newMessages }
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
