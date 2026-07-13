@@ -7,7 +7,7 @@
  * 启动 CLI sidecar 子进程(Bun.spawn)并桥接 WS 通信。
  */
 
-import { createContext, useContext, useState, useCallback, useRef, type ReactNode } from 'react';
+import { createContext, useContext, useState, useCallback, type ReactNode } from 'react';
 import { wsManager, type ServerMessage } from '../api/websocket';
 import { sessionsApi } from '../api/sessions';
 import { tasksApi } from '../api/tasks';
@@ -103,10 +103,6 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   const [sessions, setSessions] = useState<Record<string, PerSessionChatState>>({});
   // 通用设置统一存储在 ~/.spaceai/settings.json，通过 uiStore 读取
   const { notifyOnCompletion } = useUIStore();
-
-  // Ref to always access latest sessions without causing callback recreation
-  const sessionsRef = useRef(sessions);
-  sessionsRef.current = sessions;
 
   const getSession = useCallback(
     (sessionId: string): PerSessionChatState => {
@@ -418,44 +414,48 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
   const sendMessage = useCallback(
     (sessionId: string, content: string, skipQueue?: boolean) => {
-      const session = sessionsRef.current[sessionId];
-      const isBusy = session && session.chatState !== 'idle';
-      console.log('[sendMessage]', { sessionId, chatState: session?.chatState, isBusy, hasSession: !!session });
+      let shouldSendViaWs = false;
 
-      // If busy and not explicitly skipping queue, add to queue
-      if (isBusy && !skipQueue) {
-        console.log('[sendMessage] Adding to queue');
-        const query: QueuedQuery = {
-          id: `q-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      updateSession(sessionId, (prev) => {
+        const isBusy = prev.chatState !== 'idle';
+
+        // If busy and not explicitly skipping queue, add to queue
+        if (isBusy && !skipQueue) {
+          const query: QueuedQuery = {
+            id: `q-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+            content,
+            createdAt: new Date().toISOString(),
+          };
+          return {
+            ...prev,
+            queuedQueries: [...prev.queuedQueries, query],
+          };
+        }
+
+        // Not busy — send directly
+        shouldSendViaWs = true;
+        const userMsg: UIMessage = {
+          type: 'user_text',
+          id: `user-${Date.now()}`,
           content,
           createdAt: new Date().toISOString(),
         };
-        updateSession(sessionId, (prev) => ({
+        return {
           ...prev,
-          queuedQueries: [...prev.queuedQueries, query],
-        }));
-        return;
+          messages: [...prev.messages, userMsg],
+          chatState: 'thinking',
+          streamingText: '',
+          thinkingText: '',
+          hasActiveThinking: false,
+          toolCalls: [],
+          pendingQuestion: null,
+          pendingPlan: null,
+        };
+      });
+
+      if (shouldSendViaWs) {
+        wsManager.send(sessionId, { type: 'user_message', content });
       }
-
-      const userMsg: UIMessage = {
-        type: 'user_text',
-        id: `user-${Date.now()}`,
-        content,
-        createdAt: new Date().toISOString(),
-      };
-      updateSession(sessionId, (prev) => ({
-        ...prev,
-        messages: [...prev.messages, userMsg],
-        chatState: 'thinking',
-        streamingText: '',
-        thinkingText: '',
-        hasActiveThinking: false,
-        toolCalls: [],
-        pendingQuestion: null,
-        pendingPlan: null,
-      }));
-
-      wsManager.send(sessionId, { type: 'user_message', content });
     },
     [updateSession],
   );
