@@ -77,6 +77,11 @@ function flushThinking(prev: PerSessionChatState): PerSessionChatState {
   if (!prev.hasActiveThinking || !prev.thinkingText.trim()) {
     return { ...prev, hasActiveThinking: false, thinkingText: '' };
   }
+  const text = prev.thinkingText.trimStart();
+  // Skip if content is only synthetic tool execution info (starts with [Tool:)
+  if (text.startsWith('[Tool:')) {
+    return { ...prev, hasActiveThinking: false, thinkingText: '' };
+  }
   const thinkingMsg: UIMessage = {
     type: 'thinking',
     id: `thinking-${Date.now()}`,

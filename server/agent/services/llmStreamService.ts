@@ -266,10 +266,6 @@ async function runAnthropicLoop(
       // Notify frontend: tool call started
       onChunk({ type: 'tool_call', toolCallId: tu.id, toolName: tu.name, input: tu.input })
 
-      // Send synthetic thinking text for tool execution (visible even without extended thinking)
-      const toolInput = JSON.stringify(tu.input).slice(0, 100)
-      onChunk({ type: 'thinking_delta', text: `\n[Tool: ${tu.name}] ${toolInput}${tu.input ? (JSON.stringify(tu.input).length > 100 ? '...' : '') : ''}\n` })
-
       const result = await executeTool(tu, toolContext)
       // Notify frontend: tool result
       onChunk({ type: 'tool_result', toolCallId: tu.id, result: result.content, isError: result.isError })
@@ -520,10 +516,6 @@ async function runOpenAILoop(
       if (isCancelled()) break
       // Notify frontend: tool call started
       onChunk({ type: 'tool_call', toolCallId: tu.id, toolName: tu.name, input: tu.input })
-
-      // Synthetic thinking text for tool execution
-      const toolInput = JSON.stringify(tu.input).slice(0, 100)
-      onChunk({ type: 'thinking_delta', text: `\n[Tool: ${tu.name}] ${toolInput}${JSON.stringify(tu.input).length > 100 ? '...' : ''}\n` })
 
       const result = await executeTool(tu, toolContext)
       // Notify frontend: tool result
