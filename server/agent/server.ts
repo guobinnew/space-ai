@@ -160,7 +160,10 @@ export async function startServer(port = PORT, host = HOST) {
   // Mutable — set after the server binds so handlers can read the actual port.
   let actualPort = port
 
-  const fallbackPorts = [3722, 3723, 3724, 3725].filter((p) => p !== port)
+  // Fallback ports: try all ports in 3721-3725 range (excluding the primary).
+  // This ensures 3721 is always in the fallback list even when the primary
+  // port is a previously-persisted non-default port (e.g. 3723).
+  const fallbackPorts = [3721, 3722, 3723, 3724, 3725].filter((p) => p !== port)
 
   const server = await serveWithRetry(
     (tryPort) => ({

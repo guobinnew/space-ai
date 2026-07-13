@@ -192,8 +192,14 @@ fn resolve_app_root() -> std::path::PathBuf {
 /// Start the single Server sidecar process during app setup.
 /// This process lives for the entire desktop app lifecycle.
 fn start_server_sidecar(app: &tauri::App) -> Result<Child, String> {
-    // Clear the stale port file so the desktop client doesn't read a port from
-    // a previous run before the new server has bound.
+    // Read the last successfully used port before clearing the file.
+    // This allows the server to try the same port first, avoiding unnecessary
+    // retries on 3721 if a previous run already moved to a fallback port.
+    let last_port = read_server_port();
+    println!("[SmartSpace] Last successful port: {}, using as primary", last_port);
+
+    // Clear the stale port file so the readiness check knows to wait for a
+    // fresh value from the new server instance.
     clear_server_port_file();
 
     let resource_dir = app
@@ -243,6 +249,8 @@ fn start_server_sidecar(app: &tauri::App) -> Result<Child, String> {
         }
     }
 
+    let port_str = last_port.to_string();
+
     let child = cmd
         .arg("server")
         .arg("--app-root")
@@ -250,13 +258,13 @@ fn start_server_sidecar(app: &tauri::App) -> Result<Child, String> {
         .arg("--host")
         .arg("127.0.0.1")
         .arg("--port")
-        .arg("3721")
-        .env("PORT", "3721")
+        .arg(&port_str)
+        .env("PORT", &port_str)
         .env("HOST", "127.0.0.1")
         .spawn()
         .map_err(|e| format!("Failed to start server sidecar: {}", e))?;
 
-    println!("[SmartSpace] Server sidecar started (pid={})", child.id());
+    println!("[SmartSpace] Server sidecar started (pid={}, port={})", child.id(), last_port);
     Ok(child)
 }
 
