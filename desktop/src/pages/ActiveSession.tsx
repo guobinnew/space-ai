@@ -13,6 +13,7 @@ import { useTaskStore } from '../stores/cliTaskStore';
 import { MessageList } from '../components/chat/MessageList';
 import { ChatInput } from '../components/chat/ChatInput';
 import { SessionTaskBar } from '../components/chat/SessionTaskBar';
+import { QueryQueue } from '../components/chat/QueryQueue';
 import { EditorPanel } from '../components/editor/EditorPanel';
 import { useTranslation } from '../i18n';
 
@@ -419,7 +420,8 @@ export function ActiveSession({ sessionId }: { sessionId: string }) {
               />
             </div>
 
-            {/* Task bar (above input, below messages) */}
+            {/* Query queue + Task bar (above input, below messages) */}
+            <QueryQueue sessionId={sessionId} />
             <SessionTaskBar />
 
             {/* Input */}

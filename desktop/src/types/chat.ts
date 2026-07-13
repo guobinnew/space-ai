@@ -54,6 +54,13 @@ export type PendingPlan = {
   isEnterMode?: boolean
 }
 
+/** 排队等待发送的查询 */
+export type QueuedQuery = {
+  id: string
+  content: string
+  createdAt: string
+}
+
 export type PerSessionChatState = {
   messages: UIMessage[]
   chatState: ChatState
@@ -70,4 +77,6 @@ export type PerSessionChatState = {
   pendingPlan: PendingPlan | null
   /** 上下文使用量（token 数） */
   usage: { inputTokens: number; outputTokens: number } | null
+  /** 排队待发送的查询列表 */
+  queuedQueries: QueuedQuery[]
 }

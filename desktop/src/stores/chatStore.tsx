@@ -12,7 +12,7 @@ import { wsManager, type ServerMessage } from '../api/websocket';
 import { sessionsApi } from '../api/sessions';
 import { tasksApi } from '../api/tasks';
 import { useUIStore } from './uiStore';
-import type { UIMessage, PerSessionChatState, QuestionItem } from '../types/chat';
+import type { UIMessage, PerSessionChatState, QuestionItem, QueuedQuery } from '../types/chat';
 
 /** Server sidecar 固定端口 */
 const SERVER_PORT = 3721;
@@ -53,6 +53,11 @@ interface ChatStoreState {
   respondPlan: (sessionId: string, response: string) => void;
   getSession: (sessionId: string) => PerSessionChatState;
   loadHistory: (sessionId: string) => Promise<void>;
+  /** 排队查询 */
+  addQueuedQuery: (sessionId: string, content: string) => void;
+  removeQueuedQuery: (sessionId: string, queryId: string) => void;
+  reorderQueuedQueries: (sessionId: string, queries: QueuedQuery[]) => void;
+  executeQueryNow: (sessionId: string, queryId: string) => void;
 }
 
 const ChatContext = createContext<ChatStoreState | null>(null);
@@ -68,6 +73,7 @@ function createInitialSessionState(): PerSessionChatState {
     pendingQuestion: null,
     pendingPlan: null,
     usage: null,
+    queuedQueries: [],
   };
 }
 
@@ -343,6 +349,8 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
             // Send system notification if enabled and window not focused
             void maybeNotifyCompletion(notifyOnCompletion, sessionId, completedText);
+            // Execute next queued query
+            setTimeout(() => executeNextQueued(sessionId), 500);
             break;
           }
 
@@ -380,7 +388,24 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const sendMessage = useCallback(
-    (sessionId: string, content: string) => {
+    (sessionId: string, content: string, skipQueue?: boolean) => {
+      const session = sessions[sessionId];
+      const isBusy = session && session.chatState !== 'idle';
+
+      // If busy and not explicitly skipping queue, add to queue
+      if (isBusy && !skipQueue) {
+        const query: QueuedQuery = {
+          id: `q-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+          content,
+          createdAt: new Date().toISOString(),
+        };
+        updateSession(sessionId, (prev) => ({
+          ...prev,
+          queuedQueries: [...prev.queuedQueries, query],
+        }));
+        return;
+      }
+
       const userMsg: UIMessage = {
         type: 'user_text',
         id: `user-${Date.now()}`,
@@ -401,7 +426,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
       wsManager.send(sessionId, { type: 'user_message', content });
     },
-    [updateSession],
+    [updateSession, sessions],
   );
 
   const stopGeneration = useCallback(
@@ -425,6 +450,89 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     },
     [updateSession],
   );
+
+  // Execute next queued query when session becomes idle
+  const executeNextQueued = useCallback((sessionId: string) => {
+    updateSession(sessionId, (prev) => {
+      if (prev.chatState !== 'idle' || prev.queuedQueries.length === 0) return prev;
+      const [next, ...rest] = prev.queuedQueries;
+      if (!next) return prev;
+      // Send the queued query message directly via WS
+      const userMsg: UIMessage = {
+        type: 'user_text',
+        id: `user-${Date.now()}`,
+        content: next.content,
+        createdAt: new Date().toISOString(),
+      };
+      wsManager.send(sessionId, { type: 'user_message', content: next.content });
+      return {
+        ...prev,
+        messages: [...prev.messages, userMsg],
+        chatState: 'thinking',
+        streamingText: '',
+        thinkingText: '',
+        hasActiveThinking: false,
+        toolCalls: [],
+        queuedQueries: rest,
+        pendingQuestion: null,
+        pendingPlan: null,
+      };
+    });
+  }, [updateSession]);
+
+  // Queue actions
+  const addQueuedQuery = useCallback((sessionId: string, content: string) => {
+    const query: QueuedQuery = {
+      id: `q-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      content,
+      createdAt: new Date().toISOString(),
+    };
+    updateSession(sessionId, (prev) => ({
+      ...prev,
+      queuedQueries: [...prev.queuedQueries, query],
+    }));
+  }, [updateSession]);
+
+  const removeQueuedQuery = useCallback((sessionId: string, queryId: string) => {
+    updateSession(sessionId, (prev) => ({
+      ...prev,
+      queuedQueries: prev.queuedQueries.filter((q) => q.id !== queryId),
+    }));
+  }, [updateSession]);
+
+  const reorderQueuedQueries = useCallback((sessionId: string, queries: QueuedQuery[]) => {
+    updateSession(sessionId, (prev) => ({
+      ...prev,
+      queuedQueries: queries,
+    }));
+  }, [updateSession]);
+
+  const executeQueryNow = useCallback((sessionId: string, queryId: string) => {
+    updateSession(sessionId, (prev) => {
+      const idx = prev.queuedQueries.findIndex((q) => q.id === queryId);
+      if (idx === -1) return prev;
+      const [query] = prev.queuedQueries.splice(idx, 1);
+      if (!query) return prev;
+      const userMsg: UIMessage = {
+        type: 'user_text',
+        id: `user-${Date.now()}`,
+        content: query.content,
+        createdAt: new Date().toISOString(),
+      };
+      wsManager.send(sessionId, { type: 'user_message', content: query.content });
+      return {
+        ...prev,
+        messages: [...prev.messages, userMsg],
+        chatState: 'thinking',
+        streamingText: '',
+        thinkingText: '',
+        hasActiveThinking: false,
+        toolCalls: [],
+        pendingQuestion: null,
+        pendingPlan: null,
+      };
+    });
+  }, [updateSession]);
 
   const answerQuestion = useCallback(
     (sessionId: string, answer: string) => {
@@ -455,6 +563,10 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         respondPlan,
         getSession,
         loadHistory,
+        addQueuedQuery,
+        removeQueuedQuery,
+        reorderQueuedQueries,
+        executeQueryNow,
       }}
     >
       {children}
