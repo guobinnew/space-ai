@@ -184,7 +184,7 @@ export function ChatInput({ onSend, onStop, isGenerating, disabled, usage, place
 
   return (
     <div className="max-w-3xl mx-auto">
-      <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-container-low)] focus-within:border-[var(--color-border-focus)] transition-colors overflow-hidden">
+      <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-container-lowest)] focus-within:border-[var(--color-border-focus)] transition-colors overflow-hidden">
         {/* Ref tags */}
         <div className="px-3 pt-3 pb-0">
           {codeRefs.length > 0 && (
@@ -244,7 +244,7 @@ export function ChatInput({ onSend, onStop, isGenerating, disabled, usage, place
         </div>
 
         {/* Bottom toolbar */}
-        <div className="flex items-center justify-between px-3 py-2 border-t border-[var(--color-border)] bg-[var(--color-surface-container-lowest)]">
+        <div className="flex items-center justify-between px-3 py-2 border-t border-[var(--color-border)] bg-[var(--color-surface-container-low)]">
           <div className="flex items-center gap-2 min-w-0 flex-1">
             {modelName && (
               <span className="flex items-center gap-1 px-2 py-1 text-[11px] rounded-md text-[var(--color-text-tertiary)] bg-[var(--color-surface-container-high)] flex-shrink-0">
