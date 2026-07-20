@@ -207,14 +207,14 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       wsManager.onMessage(sessionId, (msg: ServerMessage) => {
         switch (msg.type) {
           case 'content_start':
-            updateSession(sessionId, (prev) => ({
-              ...prev,
-              chatState: 'streaming',
-              streamingText: '',
-              // Don't clear thinkingText here — thinking_delta arrives
-              // from extended thinking AFTER content_start but BEFORE text_delta.
-              // Keeping it allows ThinkingBlock to display accumulated content.
-            }));
+            updateSession(sessionId, (prev) => {
+              const flushed = flushThinking(prev);
+              return {
+                ...flushed,
+                chatState: 'streaming',
+                streamingText: '',
+              };
+            });
             break;
 
           case 'content_delta':
@@ -228,11 +228,25 @@ export function ChatProvider({ children }: { children: ReactNode }) {
             break;
 
           case 'thinking_delta':
-            updateSession(sessionId, (prev) => ({
-              ...prev,
-              thinkingText: prev.thinkingText + msg.text,
-              hasActiveThinking: true,
-            }));
+            updateSession(sessionId, (prev) => {
+              // Guard against duplicate deltas (some API proxies resend
+              // accumulated text instead of incremental deltas)
+              const newText = prev.thinkingText + msg.text;
+              // If the new text more than doubles and ends with the old text,
+              // the delta likely contains the full accumulated text — replace instead of append
+              let thinkingText = newText;
+              if (prev.thinkingText.length > 0 && msg.text.length > prev.thinkingText.length) {
+                // Check if msg.text starts with or contains the existing thinkingText
+                if (msg.text.startsWith(prev.thinkingText)) {
+                  thinkingText = msg.text; // Replace with the full text
+                }
+              }
+              return {
+                ...prev,
+                thinkingText,
+                hasActiveThinking: true,
+              };
+            });
             break;
 
           case 'status':
