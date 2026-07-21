@@ -36,6 +36,7 @@ export function ActiveSession({ sessionId }: { sessionId: string }) {
   const [mode, setMode] = useState<'code' | 'office'>('code');
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const {
+    tasks: taskList,
     hasPending,
     nextPending,
     fetchSessionTasks,
@@ -97,24 +98,32 @@ export function ActiveSession({ sessionId }: { sessionId: string }) {
     return () => clearInterval(interval)
   }, [sessionId, fetchSessionTasks])
 
-  // Auto-continue: when session becomes idle with pending tasks
+  // Auto-continue: when the agent goes idle but tasks remain, nudge it to keep going.
+  // Resume either the next pending task, or a task left stuck in `in_progress`
+  // (which otherwise makes nextPending null and halts the loop prematurely).
   const continueTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   useEffect(() => {
     if (!sessionId) return
-    if (sessionState.chatState === 'idle' && hasPending && nextPending) {
-      // Debounce: wait 3s after idle before sending continue
-      if (continueTimerRef.current) clearTimeout(continueTimerRef.current)
-      continueTimerRef.current = setTimeout(() => {
-        const next = nextPending
-        if (next) {
-          sendMessageRef.current(sessionId, `Continue with the next pending task: ${next.subject}`)
-        }
-      }, 3000)
-    }
+    if (sessionState.chatState !== 'idle' || !hasPending) return
+
+    const stuckTask = taskList.find((t) => t.status === 'in_progress') ?? null
+    const next = nextPending ?? stuckTask
+    if (!next) return
+
+    // Debounce: wait 3s after idle before sending continue
+    if (continueTimerRef.current) clearTimeout(continueTimerRef.current)
+    continueTimerRef.current = setTimeout(() => {
+      const resume = nextPending ?? taskList.find((t) => t.status === 'in_progress')
+      const verb = nextPending ? 'Continue with the next pending task' : 'Resume the in-progress task'
+      if (resume) {
+        sendMessageRef.current(sessionId, `${verb}: ${resume.subject}`)
+      }
+    }, 3000)
+
     return () => {
       if (continueTimerRef.current) clearTimeout(continueTimerRef.current)
     }
-  }, [sessionId, sessionState.chatState, hasPending, nextPending])
+  }, [sessionId, sessionState.chatState, hasPending, nextPending, taskList])
 
   // Drag handler for resizing chat/editor split
   const handleDragStart = useCallback((e: React.MouseEvent) => {
