@@ -30,21 +30,16 @@ const statusConfig = {
   },
 } as const
 
-export function SessionTaskBar() {
+export function SessionTaskBar({ sessionId }: { sessionId: string }) {
   const {
     tasks,
-    hasPending,
-    dismissed,
-    dismissCompleted,
-    resetCompletedTasks,
-    fetchSessionTasks,
+    clearTasks,
   } = useTaskStore()
   const [expanded, setExpanded] = useState(true)
 
   if (tasks.length === 0) return null
 
   const allCompleted = tasks.every((tk) => tk.status === 'completed' || tk.status === 'cancelled' || tk.status === 'failed')
-  if (allCompleted && dismissed) return null
 
   const completedCount = tasks.filter((tk) => tk.status === 'completed').length
   const totalCount = tasks.length
@@ -107,8 +102,8 @@ export function SessionTaskBar() {
           {allCompleted && (
             <button
               type="button"
-              aria-label="关闭已完成任务"
-              onClick={() => dismissCompleted()}
+              aria-label="清空任务清单"
+              onClick={() => clearTasks(sessionId)}
               className="flex shrink-0 items-center justify-center rounded-lg p-1.5 text-[var(--color-text-tertiary)] hover:bg-[var(--color-surface-container-low)] hover:text-[var(--color-text-primary)] transition-colors"
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

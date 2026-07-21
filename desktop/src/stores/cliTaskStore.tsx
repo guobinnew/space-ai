@@ -24,11 +24,8 @@ interface TaskStoreState {
   tasks: Task[]
   hasPending: boolean
   nextPending: Task | null
-  dismissed: boolean
   fetchSessionTasks: (sessionId: string) => Promise<{ tasks: Task[]; hasPending: boolean; nextPending: Task | null } | null>
-  clearTasks: () => void
-  dismissCompleted: () => void
-  resetCompletedTasks: (sessionId: string) => Promise<void>
+  clearTasks: (sessionId: string) => Promise<void>
 }
 
 const TaskContext = createContext<TaskStoreState | null>(null)
@@ -37,7 +34,6 @@ export function TaskProvider({ children }: { children: ReactNode }) {
   const [tasks, setTasks] = useState<Task[]>([])
   const [hasPending, setHasPending] = useState(false)
   const [nextPending, setNextPending] = useState<Task | null>(null)
-  const [dismissed, setDismissed] = useState(false)
   const lastSessionRef = useRef<string | null>(null)
   /** Cached snapshot to avoid React re-renders when task data hasn't changed. */
   const lastSnapshotRef = useRef<TaskSnapshot>({ tasks: [], hasPending: false, nextPending: null })
@@ -46,7 +42,6 @@ export function TaskProvider({ children }: { children: ReactNode }) {
     const isNewSession = lastSessionRef.current !== sessionId
     if (isNewSession) {
       lastSessionRef.current = sessionId
-      setDismissed(false)
     }
     try {
       const data = await tasksApi.list(sessionId)
@@ -84,29 +79,17 @@ export function TaskProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  const clearTasks = useCallback(() => {
-    lastSnapshotRef.current = { tasks: [], hasPending: false, nextPending: null }
-    setTasks([])
-    setHasPending(false)
-    setNextPending(null)
-    setDismissed(false)
-  }, [])
-
-  const dismissCompleted = useCallback(() => {
-    setDismissed(true)
-  }, [])
-
-  const resetCompletedTasks = useCallback(async (sessionId: string) => {
+  /** 清空任务清单：删除服务端持久化数据并重置前端状态。 */
+  const clearTasks = useCallback(async (sessionId: string) => {
     try {
       await tasksApi.reset(sessionId)
     } catch {
-      // Ignore
+      // Ignore — still clear local state even if the server request fails
     }
     lastSnapshotRef.current = { tasks: [], hasPending: false, nextPending: null }
     setTasks([])
     setHasPending(false)
     setNextPending(null)
-    setDismissed(true)
   }, [])
 
   return (
@@ -115,11 +98,8 @@ export function TaskProvider({ children }: { children: ReactNode }) {
         tasks,
         hasPending,
         nextPending,
-        dismissed,
         fetchSessionTasks,
         clearTasks,
-        dismissCompleted,
-        resetCompletedTasks,
       }}
     >
       {children}

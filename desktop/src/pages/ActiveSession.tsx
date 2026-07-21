@@ -40,6 +40,7 @@ export function ActiveSession({ sessionId }: { sessionId: string }) {
     hasPending,
     nextPending,
     fetchSessionTasks,
+    clearTasks,
   } = useTaskStore();
   const containerRef = useRef<HTMLDivElement>(null);
   const isDragging = useRef(false);
@@ -57,6 +58,8 @@ export function ActiveSession({ sessionId }: { sessionId: string }) {
   const [firstLoadPending, setFirstLoadPending] = useState<boolean | null>(null);
 
   const sessionState = getSession(sessionId);
+  const chatStateRef = useRef(sessionState.chatState); // latest agent chat state (avoid stale closure)
+  chatStateRef.current = sessionState.chatState;
   const isGenerating = sessionState.chatState === 'thinking' || sessionState.chatState === 'streaming';
   const isActive = sessionState.chatState !== 'idle';
   const isEmpty = sessionState.messages.length === 0 && !isActive && !sessionState.streamingText;
@@ -108,9 +111,14 @@ export function ActiveSession({ sessionId }: { sessionId: string }) {
         // Capture whether there were incomplete tasks at open time
         setFirstLoadPending(data.hasPending)
       }
+      // Auto-clear the task list once execution is fully finished:
+      // no pending/in-progress tasks remain and the agent is idle.
+      if (data && data.tasks.length > 0 && !data.hasPending && chatStateRef.current === 'idle') {
+        await clearTasks(sessionId)
+      }
     }, 3000)
     return () => clearInterval(interval)
-  }, [sessionId, fetchSessionTasks])
+  }, [sessionId, fetchSessionTasks, clearTasks])
 
   // When a session is opened with an incomplete task list (detected on the
   // first load), proactively ask the user whether to continue, instead of
@@ -461,7 +469,7 @@ export function ActiveSession({ sessionId }: { sessionId: string }) {
 
             {/* Query queue + Task bar (above input, below messages) */}
             <QueryQueue sessionId={sessionId} />
-            <SessionTaskBar />
+            <SessionTaskBar sessionId={sessionId} />
 
             {/* 打开会话且有未完成任务时，主动询问是否继续执行任务清单 */}
             {showContinuePrompt && (
