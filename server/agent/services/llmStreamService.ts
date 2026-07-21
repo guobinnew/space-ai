@@ -14,6 +14,12 @@ import { sessionService } from './sessionService'
 import { ProviderService } from './providerService'
 import { settingService } from './settingService'
 import { getSystemPrompt } from '../constants/prompts'
+import { getCompactPrompt, getCompactSystemPrompt, getCompactUserSummaryMessage } from '../constants/compactPrompt'
+import {
+  shouldAutoCompact,
+  DEFAULT_CONTEXT_WINDOW_ANTHROPIC,
+  DEFAULT_CONTEXT_WINDOW_OPENAI,
+} from './compactService'
 import { getToolDefinitions, getTool } from '../tools'
 import type { ToolContext, AskUserRequest } from '../tools'
 import type { ApiFormat } from '../types/provider'
@@ -243,6 +249,91 @@ export async function streamChat(
   }
 }
 
+// ─── 上下文压缩：调用 LLM 生成对话摘要 ──────────────────────
+
+/**
+ * 调用 Anthropic API（非流式）生成对话压缩摘要。
+ * - 剥离 thinking 块（避免签名校验问题并减少 token）
+ * - 不启用 thinking / 不带 tools（纯文本摘要）
+ * - max_tokens 限制为摘要预算
+ */
+async function callAnthropicForCompact(
+  baseUrl: string,
+  apiKey: string,
+  model: string,
+  messages: AnthropicMessage[],
+): Promise<string> {
+  // Strip thinking blocks — summary only needs visible text + tool calls.
+  const stripped: AnthropicMessage[] = messages.map((m) => {
+    if (!Array.isArray(m.content)) return m
+    const filtered = m.content.filter((b) => b.type !== 'thinking')
+    return { ...m, content: filtered.length > 0 ? filtered : [{ type: 'text' as const, text: '' }] }
+  })
+  stripped.push({ role: 'user', content: getCompactPrompt() })
+
+  const url = `${baseUrl}/v1/messages`
+  const body = {
+    model,
+    max_tokens: 16000,
+    system: getCompactSystemPrompt(),
+    messages: stripped,
+    stream: false,
+  }
+  const resp = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+    },
+    body: JSON.stringify(body),
+  })
+  if (!resp.ok) {
+    const t = await resp.text().catch(() => '')
+    throw new Error(`Compact API ${resp.status}: ${t.slice(0, 300)}`)
+  }
+  const data = (await resp.json()) as { content?: Array<{ type: string; text?: string }> }
+  let text = ''
+  for (const block of data.content ?? []) {
+    if (block.type === 'text' && block.text) text += block.text
+  }
+  return text
+}
+
+/**
+ * 调用 OpenAI 兼容 API（非流式）生成对话压缩摘要。
+ */
+async function callOpenAIForCompact(
+  baseUrl: string,
+  apiKey: string,
+  model: string,
+  messages: OpenAIMessage[],
+): Promise<string> {
+  // 用压缩专用 system prompt 替换原 system 消息，避免 agent 工具指令干扰摘要。
+  const nonSystem = messages.filter((m) => m.role !== 'system')
+  const withPrompt: OpenAIMessage[] = [
+    { role: 'system', content: getCompactSystemPrompt() },
+    ...nonSystem,
+    { role: 'user', content: getCompactPrompt() },
+  ]
+  const url = `${baseUrl}/chat/completions`
+  const body = { model, max_tokens: 16000, messages: withPrompt, stream: false }
+  const resp = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify(body),
+  })
+  if (!resp.ok) {
+    const t = await resp.text().catch(() => '')
+    throw new Error(`Compact API ${resp.status}: ${t.slice(0, 300)}`)
+  }
+  const data = (await resp.json()) as { choices?: Array<{ message?: { content?: string } }> }
+  return data.choices?.[0]?.message?.content ?? ''
+}
+
 // ─── Anthropic agentic loop ──────────────────────────────────
 
 async function runAnthropicLoop(
@@ -272,6 +363,21 @@ async function runAnthropicLoop(
     if (isCancelled()) break
 
     onChunk({ type: 'status', state: 'thinking' })
+
+    // 上下文压缩：当消息接近上下文窗口时，先压缩历史再继续（参考 smart-code autocompact）
+    if (shouldAutoCompact(messages, DEFAULT_CONTEXT_WINDOW_ANTHROPIC)) {
+      try {
+        const summary = await callAnthropicForCompact(baseUrl, apiKey, model, messages)
+        if (summary && summary.trim()) {
+          // Anthropic 的 systemPrompt 单独传给 callAnthropic，故 messages 仅保留摘要
+          messages.length = 0
+          messages.push({ role: 'user', content: getCompactUserSummaryMessage(summary) })
+          onChunk({ type: 'content_delta', text: '\n\n[上下文已达上限，已自动压缩历史对话并继续执行任务。]\n\n' })
+        }
+      } catch {
+        // compaction failed — continue with full context
+      }
+    }
 
     const response = await callAnthropic(
       baseUrl, apiKey, model, systemPrompt, messages, toolDefs, onChunk,
@@ -596,6 +702,22 @@ async function runOpenAILoop(
     if (isCancelled()) break
 
     onChunk({ type: 'status', state: 'thinking' })
+
+    // 上下文压缩：当消息接近上下文窗口时，先压缩历史再继续（参考 smart-code autocompact）
+    if (shouldAutoCompact(messages, DEFAULT_CONTEXT_WINDOW_OPENAI)) {
+      try {
+        const summary = await callOpenAIForCompact(baseUrl, apiKey, model, messages)
+        if (summary && summary.trim()) {
+          // 保留 system prompt（OpenAI 格式 system 在 messages 内），用摘要替换其余历史
+          messages.length = 0
+          messages.push({ role: 'system', content: systemPrompt })
+          messages.push({ role: 'user', content: getCompactUserSummaryMessage(summary) })
+          onChunk({ type: 'content_delta', text: '\n\n[上下文已达上限，已自动压缩历史对话并继续执行任务。]\n\n' })
+        }
+      } catch {
+        // compaction failed — continue with full context
+      }
+    }
 
     const response = await callOpenAI(
       baseUrl, apiKey, model, messages, toolDefs, onChunk,
