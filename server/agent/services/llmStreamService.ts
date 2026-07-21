@@ -75,8 +75,15 @@ export type StreamChunk =
   | { type: 'message_complete' }
   | { type: 'error'; message: string }
 
-/** 最大 agentic loop 轮数（防止无限循环） */
-const MAX_TOOL_ROUNDS = 15
+/** 最大 agentic loop 轮数。参考设计（smart-code）用无限循环 + 自动压缩；
+ *  本项目暂无上下文压缩，故设较高上限以容纳复杂多步任务，同时避免上下文溢出。 */
+const MAX_TOOL_ROUNDS = 50
+
+/** 输出被 max_tokens 截断时的恢复尝试次数（参考 smart-code MAX_OUTPUT_TOKENS_RECOVERY_LIMIT） */
+const MAX_OUTPUT_TOKENS_RECOVERY_LIMIT = 3
+const MAX_OUTPUT_TOKENS_RECOVERY_NUDGE =
+  'Output token limit hit. Resume directly — no apology, no recap of what you were doing. ' +
+  'Pick up mid-thought if that is where the cut happened. Break remaining work into smaller pieces.'
 
 /** 工具调用信息 */
 interface ToolUse {
@@ -258,6 +265,8 @@ async function runAnthropicLoop(
   let fullText = ''
   let accumulatedThinking = ''
   const accumulatedToolCalls: Array<{ id: string; toolName: string; input: Record<string, unknown>; result?: string; isError?: boolean }> = []
+  let maxOutputTokensRecoveryCount = 0
+  let completed = false
 
   for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
     if (isCancelled()) break
@@ -291,7 +300,25 @@ async function runAnthropicLoop(
     // would discard tool calls the model actually emitted — causing the
     // agent to stop right after saying "let me read the code" without ever
     // calling the tool. The presence of tool_use blocks is the ground truth.
+    //
+    // max_output_tokens recovery: output was truncated mid-generation with no
+    // complete tool calls. Nudge the model to resume instead of stopping
+    // midway (mirrors smart-code's MAX_OUTPUT_TOKENS_RECOVERY_LIMIT).
+    if (
+      response.stopReason === 'max_tokens' &&
+      response.toolUses.length === 0 &&
+      maxOutputTokensRecoveryCount < MAX_OUTPUT_TOKENS_RECOVERY_LIMIT
+    ) {
+      if (response.text) {
+        messages.push({ role: 'assistant', content: response.text })
+      }
+      messages.push({ role: 'user', content: MAX_OUTPUT_TOKENS_RECOVERY_NUDGE })
+      maxOutputTokensRecoveryCount++
+      continue
+    }
+
     if (response.toolUses.length === 0) {
+      completed = true
       break
     }
 
@@ -345,6 +372,14 @@ async function runAnthropicLoop(
     if (toolResults.length > 0) {
       messages.push({ role: 'user', content: toolResults })
     }
+  }
+
+  // Hit the round cap without finishing — surface a clear notice so the user
+  // knows the task was paused (not silently dropped mid-way).
+  if (!completed && !isCancelled()) {
+    const notice = `\n\n[已达到单轮最大工具调用次数（${MAX_TOOL_ROUNDS}），任务暂停。如需继续，请回复"继续"。]`
+    fullText += notice
+    onChunk({ type: 'content_delta', text: notice })
   }
 
   return { text: fullText, thinking: accumulatedThinking, toolCalls: accumulatedToolCalls }
@@ -554,6 +589,8 @@ async function runOpenAILoop(
   ]
 
   let fullText = ''
+  let maxOutputTokensRecoveryCount = 0
+  let completed = false
 
   for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
     if (isCancelled()) break
@@ -573,9 +610,24 @@ async function runOpenAILoop(
       fullText += response.text
     }
 
+    // max_output_tokens recovery (see Anthropic loop for rationale).
+    if (
+      response.stopReason === 'max_tokens' &&
+      response.toolUses.length === 0 &&
+      maxOutputTokensRecoveryCount < MAX_OUTPUT_TOKENS_RECOVERY_LIMIT
+    ) {
+      if (response.text) {
+        messages.push({ role: 'assistant', content: response.text })
+      }
+      messages.push({ role: 'user', content: MAX_OUTPUT_TOKENS_RECOVERY_NUDGE })
+      maxOutputTokensRecoveryCount++
+      continue
+    }
+
     // If no tool calls, we're done. Don't gate on stopReason === 'tool_use'
     // (see Anthropic loop for rationale — proxies may not relay stop_reason).
     if (response.toolUses.length === 0) {
+      completed = true
       break
     }
 
@@ -606,6 +658,13 @@ async function runOpenAILoop(
         tool_call_id: tu.id,
       })
     }
+  }
+
+  // Hit the round cap without finishing — surface a clear notice.
+  if (!completed && !isCancelled()) {
+    const notice = `\n\n[已达到单轮最大工具调用次数（${MAX_TOOL_ROUNDS}），任务暂停。如需继续，请回复"继续"。]`
+    fullText += notice
+    onChunk({ type: 'content_delta', text: notice })
   }
 
   return fullText
