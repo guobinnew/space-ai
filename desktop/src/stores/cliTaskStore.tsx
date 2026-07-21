@@ -8,6 +8,15 @@ import { createContext, useContext, useState, useCallback, useRef, type ReactNod
 import { tasksApi } from '../api/tasks'
 import type { Task } from '../types/task'
 
+/** Stable display order: by numeric id ascending. The server returns tasks sorted
+ *  by `updatedAt` desc, which reshuffles the list every time a task is touched and
+ *  causes the visible flicker. Sorting here keeps the order fixed. */
+function sortTasksById(tasks: Task[]): Task[] {
+  return tasks
+    .slice()
+    .sort((a, b) => (parseInt(a.id, 10) || 0) - (parseInt(b.id, 10) || 0))
+}
+
 /** JSON-stable task data snapshot used to skip re-renders when nothing changed. */
 type TaskSnapshot = { tasks: Task[]; hasPending: boolean; nextPending: Task | null }
 
@@ -41,7 +50,15 @@ export function TaskProvider({ children }: { children: ReactNode }) {
     }
     try {
       const data = await tasksApi.list(sessionId)
-      const snapshot: TaskSnapshot = { tasks: data.tasks, hasPending: data.hasPending, nextPending: data.nextPending }
+      const sortedTasks = sortTasksById(data.tasks)
+
+      // Defensive: a transient empty response mid-session (e.g. a momentary read
+      // race on the server) must not blank out the bar and cause a flash.
+      if (!isNewSession && sortedTasks.length === 0 && lastSnapshotRef.current.tasks.length > 0) {
+        return
+      }
+
+      const snapshot: TaskSnapshot = { tasks: sortedTasks, hasPending: data.hasPending, nextPending: data.nextPending }
 
       // Skip update if data hasn't changed — prevents unnecessary re-renders from polling
       if (!isNewSession && JSON.stringify(lastSnapshotRef.current) === JSON.stringify(snapshot)) {
@@ -51,7 +68,7 @@ export function TaskProvider({ children }: { children: ReactNode }) {
       lastSnapshotRef.current = snapshot
       // Atomically replace all task state — no intermediate empty state,
       // so SessionTaskBar won't flash hide→show.
-      setTasks(data.tasks)
+      setTasks(sortedTasks)
       setHasPending(data.hasPending)
       setNextPending(data.nextPending)
     } catch {
