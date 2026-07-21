@@ -28,6 +28,7 @@ interface UIState {
   activeTabId: string;
   setActiveTab: (id: string) => void;
   openTab: (id: string, title: string, type: TabType, closable?: boolean) => void;
+  updateTabTitle: (id: string, title: string) => void;
   closeTab: (id: string) => void;
 }
 
@@ -120,6 +121,11 @@ export function UIProvider({ children }: { children: ReactNode }) {
     setActiveTabId(id);
   };
 
+  // 同步服务端自动生成的会话标题到页签
+  const updateTabTitle = (id: string, title: string) => {
+    setTabs((prev) => prev.map((t) => (t.id === id ? { ...t, title } : t)));
+  };
+
   const closeTab = (id: string) => {
     const idx = tabs.findIndex((t) => t.id === id);
     if (idx === -1) return;
@@ -149,6 +155,7 @@ export function UIProvider({ children }: { children: ReactNode }) {
         activeTabId,
         setActiveTab: setActiveTabId,
         openTab,
+        updateTabTitle,
         closeTab,
       }}
     >
