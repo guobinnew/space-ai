@@ -25,7 +25,7 @@ interface TaskStoreState {
   hasPending: boolean
   nextPending: Task | null
   dismissed: boolean
-  fetchSessionTasks: (sessionId: string) => Promise<void>
+  fetchSessionTasks: (sessionId: string) => Promise<{ tasks: Task[]; hasPending: boolean; nextPending: Task | null } | null>
   clearTasks: () => void
   dismissCompleted: () => void
   resetCompletedTasks: (sessionId: string) => Promise<void>
@@ -55,14 +55,14 @@ export function TaskProvider({ children }: { children: ReactNode }) {
       // Defensive: a transient empty response mid-session (e.g. a momentary read
       // race on the server) must not blank out the bar and cause a flash.
       if (!isNewSession && sortedTasks.length === 0 && lastSnapshotRef.current.tasks.length > 0) {
-        return
+        return data
       }
 
       const snapshot: TaskSnapshot = { tasks: sortedTasks, hasPending: data.hasPending, nextPending: data.nextPending }
 
       // Skip update if data hasn't changed — prevents unnecessary re-renders from polling
       if (!isNewSession && JSON.stringify(lastSnapshotRef.current) === JSON.stringify(snapshot)) {
-        return
+        return data
       }
 
       lastSnapshotRef.current = snapshot
@@ -71,6 +71,7 @@ export function TaskProvider({ children }: { children: ReactNode }) {
       setTasks(sortedTasks)
       setHasPending(data.hasPending)
       setNextPending(data.nextPending)
+      return data
     } catch {
       // Only clear on error (e.g. server not ready yet)
       if (isNewSession) {
@@ -79,6 +80,7 @@ export function TaskProvider({ children }: { children: ReactNode }) {
         setHasPending(false)
         setNextPending(null)
       }
+      return null
     }
   }, [])
 

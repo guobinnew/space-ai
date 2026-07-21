@@ -48,6 +48,14 @@ export function ActiveSession({ sessionId }: { sessionId: string }) {
   const chatWidthRef = useRef(chatWidth);
   chatWidthRef.current = chatWidth;
 
+  // 打开会话时若检测到未完成任务清单，主动询问是否继续执行
+  const [showContinuePrompt, setShowContinuePrompt] = useState(false);
+  const askedRef = useRef(false);
+  const promptActiveRef = useRef(false);
+  const suppressAutoContinueRef = useRef(false);
+  // 仅依据「打开会话时首次加载到的任务」决定是否询问，避免会话中途新建任务也弹窗
+  const [firstLoadPending, setFirstLoadPending] = useState<boolean | null>(null);
+
   const sessionState = getSession(sessionId);
   const isGenerating = sessionState.chatState === 'thinking' || sessionState.chatState === 'streaming';
   const isActive = sessionState.chatState !== 'idle';
@@ -92,11 +100,45 @@ export function ActiveSession({ sessionId }: { sessionId: string }) {
   // even after agent goes idle (enables auto-continue)
   useEffect(() => {
     if (!sessionId) return
+    let first = true
     const interval = setInterval(async () => {
-      await fetchSessionTasks(sessionId)
+      const data = await fetchSessionTasks(sessionId)
+      if (first && data) {
+        first = false
+        // Capture whether there were incomplete tasks at open time
+        setFirstLoadPending(data.hasPending)
+      }
     }, 3000)
     return () => clearInterval(interval)
   }, [sessionId, fetchSessionTasks])
+
+  // When a session is opened with an incomplete task list (detected on the
+  // first load), proactively ask the user whether to continue, instead of
+  // auto-running the tasks.
+  useEffect(() => {
+    if (!sessionId) return
+    if (askedRef.current) return
+    if (firstLoadPending !== true) return
+    if (sessionState.chatState !== 'idle') return
+    askedRef.current = true
+    promptActiveRef.current = true
+    setShowContinuePrompt(true)
+  }, [sessionId, firstLoadPending, sessionState.chatState])
+
+  const handleContinueTasks = useCallback(() => {
+    setShowContinuePrompt(false)
+    promptActiveRef.current = false
+    const next = nextPending ?? taskList.find((t) => t.status === 'in_progress')
+    const verb = nextPending ? 'Continue with the next pending task' : 'Resume the in-progress task'
+    if (next) sendMessage(sessionId, `${verb}: ${next.subject}`)
+  }, [sessionId, nextPending, taskList, sendMessage])
+
+  const handleDeclineTasks = useCallback(() => {
+    setShowContinuePrompt(false)
+    promptActiveRef.current = false
+    // User chose not to continue — suppress background auto-continue for this open
+    suppressAutoContinueRef.current = true
+  }, [])
 
   // Auto-continue: when the agent goes idle but tasks remain, nudge it to keep going.
   // Resume either the next pending task, or a task left stuck in `in_progress`
@@ -105,6 +147,8 @@ export function ActiveSession({ sessionId }: { sessionId: string }) {
   useEffect(() => {
     if (!sessionId) return
     if (sessionState.chatState !== 'idle' || !hasPending) return
+    // Wait for the user's decision on the open-session prompt before auto-running
+    if (promptActiveRef.current || suppressAutoContinueRef.current) return
 
     const stuckTask = taskList.find((t) => t.status === 'in_progress') ?? null
     const next = nextPending ?? stuckTask
@@ -418,6 +462,33 @@ export function ActiveSession({ sessionId }: { sessionId: string }) {
             {/* Query queue + Task bar (above input, below messages) */}
             <QueryQueue sessionId={sessionId} />
             <SessionTaskBar />
+
+            {/* 打开会话且有未完成任务时，主动询问是否继续执行任务清单 */}
+            {showContinuePrompt && (
+              <div className="px-4 pb-2 flex-shrink-0">
+                <div className="mx-auto max-w-3xl flex items-center justify-between gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-container-low)] px-4 py-3">
+                  <div className="flex items-center gap-2 text-sm text-[var(--color-text-primary)]">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--color-text-secondary)] shrink-0"><path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" /></svg>
+                    <span>检测到未完成的任务清单，是否继续执行？</span>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      onClick={handleContinueTasks}
+                      className="rounded-lg px-3 py-1.5 text-sm font-medium text-white transition-opacity hover:opacity-90"
+                      style={{ background: 'var(--gradient-btn-primary)' }}
+                    >
+                      继续
+                    </button>
+                    <button
+                      onClick={handleDeclineTasks}
+                      className="rounded-lg px-3 py-1.5 text-sm font-medium border border-[var(--color-border)] bg-[var(--color-surface-container)] text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-text-primary)]"
+                    >
+                      暂不执行
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Input */}
             <div className="px-4 py-3 border-t border-[var(--color-border)] flex-shrink-0">
