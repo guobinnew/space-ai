@@ -3,6 +3,7 @@ import { HomePage } from '../../pages/HomePage';
 import { SettingsPage } from '../../pages/SettingsPage';
 import { ActiveSession } from '../../pages/ActiveSession';
 import { EmptySession } from '../../pages/EmptySession';
+import { TaskProvider } from '../../stores/cliTaskStore';
 
 export function ContentRouter() {
   const { tabs, activeTabId } = useUIStore();
@@ -22,7 +23,10 @@ export function ContentRouter() {
           className="flex-1 flex flex-col overflow-hidden"
           style={{ display: tab.id === activeTabId ? 'flex' : 'none' }}
         >
-          <ActiveSession sessionId={tab.id} />
+          {/* 每个会话独立持有任务状态，避免多 tab 共享同一份任务清单 */}
+          <TaskProvider key={tab.id}>
+            <ActiveSession sessionId={tab.id} />
+          </TaskProvider>
         </div>
       ))}
 
