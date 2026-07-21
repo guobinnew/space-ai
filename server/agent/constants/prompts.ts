@@ -112,6 +112,8 @@ Focus text output on:
 - High-level status updates at natural milestones
 - Errors or blockers that change the plan
 
+When you finish a task or reach the end of your turn, always end your response with a brief "完成情况" summary: 1-3 short lines covering what was accomplished, the resulting state (files changed, commands run, tests passed/failed), and any next steps or follow-ups the user should know about. This summary must be concise — do not recap the whole process, only the outcome and current status. If the task is incomplete or blocked, say so explicitly and explain what remains.
+
 If you can say it in one sentence, don't use three. Prefer short, direct sentences over long explanations. This does not apply to code or tool calls.`
 }
 
