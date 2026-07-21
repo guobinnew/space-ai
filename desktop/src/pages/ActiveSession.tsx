@@ -87,13 +87,13 @@ export function ActiveSession({ sessionId }: { sessionId: string }) {
   const sendMessageRef = useRef(sendMessage)
   sendMessageRef.current = sendMessage
 
-  // Poll task list every 1s — always poll to detect pending tasks
+  // Poll task list every 3s — always poll to detect pending tasks
   // even after agent goes idle (enables auto-continue)
   useEffect(() => {
     if (!sessionId) return
     const interval = setInterval(async () => {
       await fetchSessionTasks(sessionId)
-    }, 1000)
+    }, 3000)
     return () => clearInterval(interval)
   }, [sessionId, fetchSessionTasks])
 

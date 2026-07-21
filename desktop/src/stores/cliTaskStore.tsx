@@ -8,6 +8,9 @@ import { createContext, useContext, useState, useCallback, useRef, type ReactNod
 import { tasksApi } from '../api/tasks'
 import type { Task } from '../types/task'
 
+/** JSON-stable task data snapshot used to skip re-renders when nothing changed. */
+type TaskSnapshot = { tasks: Task[]; hasPending: boolean; nextPending: Task | null }
+
 interface TaskStoreState {
   tasks: Task[]
   hasPending: boolean
@@ -27,26 +30,43 @@ export function TaskProvider({ children }: { children: ReactNode }) {
   const [nextPending, setNextPending] = useState<Task | null>(null)
   const [dismissed, setDismissed] = useState(false)
   const lastSessionRef = useRef<string | null>(null)
+  /** Cached snapshot to avoid React re-renders when task data hasn't changed. */
+  const lastSnapshotRef = useRef<TaskSnapshot>({ tasks: [], hasPending: false, nextPending: null })
 
   const fetchSessionTasks = useCallback(async (sessionId: string) => {
-    if (lastSessionRef.current !== sessionId) {
-      setTasks([])
-      setHasPending(false)
-      setNextPending(null)
-      setDismissed(false)
+    const isNewSession = lastSessionRef.current !== sessionId
+    if (isNewSession) {
       lastSessionRef.current = sessionId
+      setDismissed(false)
     }
     try {
       const data = await tasksApi.list(sessionId)
+      const snapshot: TaskSnapshot = { tasks: data.tasks, hasPending: data.hasPending, nextPending: data.nextPending }
+
+      // Skip update if data hasn't changed — prevents unnecessary re-renders from polling
+      if (!isNewSession && JSON.stringify(lastSnapshotRef.current) === JSON.stringify(snapshot)) {
+        return
+      }
+
+      lastSnapshotRef.current = snapshot
+      // Atomically replace all task state — no intermediate empty state,
+      // so SessionTaskBar won't flash hide→show.
       setTasks(data.tasks)
       setHasPending(data.hasPending)
       setNextPending(data.nextPending)
     } catch {
-      // Server may not be available
+      // Only clear on error (e.g. server not ready yet)
+      if (isNewSession) {
+        lastSnapshotRef.current = { tasks: [], hasPending: false, nextPending: null }
+        setTasks([])
+        setHasPending(false)
+        setNextPending(null)
+      }
     }
   }, [])
 
   const clearTasks = useCallback(() => {
+    lastSnapshotRef.current = { tasks: [], hasPending: false, nextPending: null }
     setTasks([])
     setHasPending(false)
     setNextPending(null)
@@ -63,6 +83,7 @@ export function TaskProvider({ children }: { children: ReactNode }) {
     } catch {
       // Ignore
     }
+    lastSnapshotRef.current = { tasks: [], hasPending: false, nextPending: null }
     setTasks([])
     setHasPending(false)
     setNextPending(null)
