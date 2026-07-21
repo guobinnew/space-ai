@@ -461,8 +461,25 @@ async function callAnthropic(
           } else if (delta.type === 'input_json_delta' && delta.partial_json) {
             block.inputJson += delta.partial_json
           } else if (delta.type === 'thinking_delta' && delta.thinking) {
-            block.thinking += delta.thinking
+            // Forward the raw delta to the frontend (the client dedups for display).
             onChunk({ type: 'thinking_delta', text: delta.thinking })
+            // Dedup the accumulated thinking we persist: some API proxies resend
+            // the accumulated text instead of incremental deltas, which would
+            // otherwise double the stored thinking on every event.
+            const t = delta.thinking
+            const prev = block.thinking
+            if (prev.length === 0) {
+              block.thinking = t
+            } else if (t.length >= prev.length && t.startsWith(prev)) {
+              // delta contains everything we have (growing or identical resend) → replace
+              block.thinking = t
+            } else if (t.length >= 16 && prev.length > t.length && prev.startsWith(t)) {
+              // delta is a large prefix of what we have (old content resent) → skip
+            } else if (prev.length > 200000) {
+              // safety valve against runaway growth
+            } else {
+              block.thinking = prev + t
+            }
           } else if (delta.type === 'signature_delta' && delta.signature) {
             block.signature += delta.signature
           }

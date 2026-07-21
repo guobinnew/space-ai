@@ -230,21 +230,35 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
           case 'thinking_delta':
             updateSession(sessionId, (prev) => {
-              // Guard against duplicate deltas (some API proxies resend
-              // accumulated text instead of incremental deltas)
-              const newText = prev.thinkingText + msg.text;
-              // If the new text more than doubles and ends with the old text,
-              // the delta likely contains the full accumulated text — replace instead of append
-              let thinkingText = newText;
-              if (prev.thinkingText.length > 0 && msg.text.length > prev.thinkingText.length) {
-                // Check if msg.text starts with or contains the existing thinkingText
-                if (msg.text.startsWith(prev.thinkingText)) {
-                  thinkingText = msg.text; // Replace with the full text
+              const prevText = prev.thinkingText;
+              const delta = msg.text;
+              // Guard against API proxies that resend accumulated thinking text
+              // instead of incremental deltas. Without this the displayed text
+              // doubles on every event and grows without bound.
+              if (prevText.length > 0) {
+                // delta contains everything we already have — either a growing
+                // accumulated resend (delta ⊇ prev) or an identical stall resend.
+                // Replace instead of append to avoid duplication.
+                if (delta.length >= prevText.length && delta.startsWith(prevText)) {
+                  return { ...prev, thinkingText: delta, hasActiveThinking: true };
                 }
+                // delta is a large prefix of what we already have — old content
+                // being resent. Skip it entirely (only for substantial chunks to
+                // avoid dropping genuine short incremental fragments).
+                if (delta.length >= 16 && prevText.length > delta.length && prevText.startsWith(delta)) {
+                  return prev;
+                }
+              }
+              // Safety valve: if thinking already exceeds a generous cap, stop
+              // accumulating to prevent runaway growth from any unforeseen proxy
+              // behavior. (Legit thinking is bounded by the server's thinking
+              // token budget, so this only ever catches dedup failures.)
+              if (prevText.length > 200000) {
+                return prev;
               }
               return {
                 ...prev,
-                thinkingText,
+                thinkingText: prevText + delta,
                 hasActiveThinking: true,
               };
             });
