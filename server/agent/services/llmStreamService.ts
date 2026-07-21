@@ -285,8 +285,13 @@ async function runAnthropicLoop(
       }
     }
 
-    // If no tool calls, we're done
-    if (response.toolUses.length === 0 || response.stopReason !== 'tool_use') {
+    // If no tool calls, we're done. We intentionally do NOT gate on
+    // stopReason === 'tool_use': some API proxies don't relay the standard
+    // stop_reason (they send end_turn/stop or omit it), and gating on it
+    // would discard tool calls the model actually emitted — causing the
+    // agent to stop right after saying "let me read the code" without ever
+    // calling the tool. The presence of tool_use blocks is the ground truth.
+    if (response.toolUses.length === 0) {
       break
     }
 
@@ -568,8 +573,9 @@ async function runOpenAILoop(
       fullText += response.text
     }
 
-    // If no tool calls, we're done
-    if (response.toolUses.length === 0 || response.stopReason !== 'tool_use') {
+    // If no tool calls, we're done. Don't gate on stopReason === 'tool_use'
+    // (see Anthropic loop for rationale — proxies may not relay stop_reason).
+    if (response.toolUses.length === 0) {
       break
     }
 
