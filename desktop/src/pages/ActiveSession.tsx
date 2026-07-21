@@ -137,8 +137,11 @@ export function ActiveSession({ sessionId }: { sessionId: string }) {
     setShowContinuePrompt(false)
     promptActiveRef.current = false
     const next = nextPending ?? taskList.find((t) => t.status === 'in_progress')
-    const verb = nextPending ? 'Continue with the next pending task' : 'Resume the in-progress task'
-    if (next) sendMessage(sessionId, `${verb}: ${next.subject}`)
+    if (!next) return
+    const msg = next.status === 'in_progress'
+      ? `任务"${next.subject}"仍标记为进行中。如果该任务的工作已经完成，请立即调用 TaskUpdate 将其标记为 completed。如果尚未完成，请继续执行。`
+      : `开始执行待处理任务"${next.subject}"。请先调用 TaskUpdate 将其标记为 in_progress，完成后再标记为 completed。`
+    sendMessage(sessionId, msg)
   }, [sessionId, nextPending, taskList, sendMessage])
 
   const handleDeclineTasks = useCallback(() => {
@@ -166,10 +169,11 @@ export function ActiveSession({ sessionId }: { sessionId: string }) {
     if (continueTimerRef.current) clearTimeout(continueTimerRef.current)
     continueTimerRef.current = setTimeout(() => {
       const resume = nextPending ?? taskList.find((t) => t.status === 'in_progress')
-      const verb = nextPending ? 'Continue with the next pending task' : 'Resume the in-progress task'
-      if (resume) {
-        sendMessageRef.current(sessionId, `${verb}: ${resume.subject}`)
-      }
+      if (!resume) return
+      const msg = resume.status === 'in_progress'
+        ? `任务"${resume.subject}"仍标记为进行中，但你已处于空闲状态。如果该任务的工作已经完成，请立即调用 TaskUpdate 将其标记为 completed。如果尚未完成，请继续执行。`
+        : `存在待处理任务"${resume.subject}"。如果你已经完成了该任务的工作，请立即调用 TaskUpdate 将其标记为 completed。否则，请调用 TaskUpdate 将其标记为 in_progress 并开始执行。`
+      sendMessageRef.current(sessionId, msg)
     }, 3000)
 
     return () => {

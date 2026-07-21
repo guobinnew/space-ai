@@ -88,7 +88,7 @@ function getUsingYourToolsSection(): string {
     `To search the content of files, use ${GREP_TOOL_NAME} instead of grep or rg`,
     `On Windows, use ${POWERSHELL_TOOL_NAME} for PowerShell-specific commands (script execution, PipeScript, module management). Use ${BASH_TOOL_NAME} for general shell operations (the ${BASH_TOOL_NAME} tool also uses PowerShell under the hood on Windows but with basic compatibility mode).`,
     `On macOS/Linux, reserve using the ${BASH_TOOL_NAME} exclusively for system commands and terminal operations that require shell execution.`,
-    `Use TaskCreate to create tasks for multi-step work. Use TaskUpdate to mark tasks as in_progress when starting work, and completed when done. Use TaskList to see all tasks. The desktop UI shows a live task bar with progress tracking. When you complete a task and there are more pending, the system automatically continues with the next one.`,
+    `Use TaskCreate to create tasks for multi-step work. Use TaskUpdate to mark tasks as in_progress when starting work, and completed when done. Use TaskList to see all tasks. The desktop UI shows a live task bar with progress tracking. When you complete a task and there are more pending, the system automatically continues with the next one. CRITICAL: As soon as a task's work is finished, you MUST call TaskUpdate to mark it completed — never leave a finished task in pending or in_progress state, or the task bar will incorrectly show it as incomplete and the system will keep nudging you.`,
     `Use ${WEB_FETCH_TOOL_NAME} to retrieve content from web URLs when you need external information.`,
     `Use ${NOTEBOOK_EDIT_TOOL_NAME} to edit Jupyter notebook (.ipynb) cells.`,
   ]
