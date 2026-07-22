@@ -134,7 +134,11 @@ class WebSocketManager {
 
   send(sessionId: string, message: ClientMessage): void {
     const conn = this.connections.get(sessionId)
-    if (!conn || conn.ws.readyState !== WebSocket.OPEN) return
+    if (!conn || conn.ws.readyState !== WebSocket.OPEN) {
+      // 消息被静默丢弃是难排查的 bug 源头——这里显式告警
+      console.warn(`[ws] 消息未发送（WS 未连接）session=${sessionId} type=${message.type}`)
+      return
+    }
     conn.ws.send(JSON.stringify(message))
   }
 
