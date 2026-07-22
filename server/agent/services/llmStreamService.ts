@@ -109,8 +109,9 @@ const MAX_TASK_CONTINUE_NUDGES = 3
  */
 const MAX_CONSECUTIVE_IDENTICAL_TOOLS = 3
 const TASK_CONTINUE_NUDGE = (subject: string) =>
-  `立即继续执行任务"${subject}"。直接调用所需工具完成剩余工作——不要只回复文字说明。` +
-  `只有当该任务确实已全部完成时，才调用 TaskUpdate 标记为 completed。`
+  `立即继续执行任务"${subject}"。首先调用 TaskList 查看当前所有任务，` +
+  `基于已有任务规划下一步（可优化调整任务描述）。**严禁重复创建任何已存在的任务**——` +
+  `直接对已有任务调用 TaskUpdate 修改状态后继续执行。不要只回复文字说明。`
 
 /** 查询当前会话中是否有 in_progress 任务（用于循环内续跑）。 */
 async function tryGetInProgressTask(sessionId: string): Promise<{ subject: string } | null> {
