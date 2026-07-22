@@ -102,6 +102,12 @@ const MAX_OUTPUT_TOKENS_RECOVERY_NUDGE =
  * 超过后视为 agent 确实无法推进，结束本轮（避免无限循环）。
  */
 const MAX_TASK_CONTINUE_NUDGES = 3
+
+/**
+ * 连续相同工具调用（相同 name + 相同 input）的最大次数。
+ * 超过则判定为陷入循环，中断执行以避免反复输出同样信息。
+ */
+const MAX_CONSECUTIVE_IDENTICAL_TOOLS = 3
 const TASK_CONTINUE_NUDGE = (subject: string) =>
   `立即继续执行任务"${subject}"。直接调用所需工具完成剩余工作——不要只回复文字说明。` +
   `只有当该任务确实已全部完成时，才调用 TaskUpdate 标记为 completed。`
@@ -456,6 +462,9 @@ async function runAnthropicLoop(
   const accumulatedToolCalls: Array<{ id: string; toolName: string; input: Record<string, unknown>; result?: string; isError?: boolean }> = []
   let maxOutputTokensRecoveryCount = 0
   let taskContinueCount = 0
+  let lastToolSig: string | null = null
+  let consecutiveRepeat = 0
+  let loopDetected = false
   let completed = false
 
   for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
@@ -578,6 +587,18 @@ async function runAnthropicLoop(
     const toolResults: AnthropicContentBlock[] = []
     for (const tu of response.toolUses) {
       if (isCancelled()) break
+      // 检测连续相同的工具调用（相同 name + 相同 input），避免陷入无限循环反复输出同样信息
+      const sig = tu.name + ':' + JSON.stringify(tu.input)
+      if (sig === lastToolSig) {
+        consecutiveRepeat++
+      } else {
+        consecutiveRepeat = 1
+        lastToolSig = sig
+      }
+      if (consecutiveRepeat >= MAX_CONSECUTIVE_IDENTICAL_TOOLS) {
+        loopDetected = true
+        break
+      }
       // Notify frontend: tool call started
       onChunk({ type: 'tool_call', toolCallId: tu.id, toolName: tu.name, input: tu.input })
 
@@ -610,11 +631,19 @@ async function runAnthropicLoop(
     if (toolResults.length > 0) {
       messages.push({ role: 'user', content: toolResults })
     }
+
+    // 连续相同工具调用超阈值 —— 中断以避免无限循环
+    if (loopDetected) {
+      const notice = `\n\n[检测到重复的工具调用（连续 ${MAX_CONSECUTIVE_IDENTICAL_TOOLS} 次相同操作），已停止执行以避免无限循环。请检查任务或调整描述后重试。]`
+      fullText += notice
+      onChunk({ type: 'content_delta', text: notice })
+      break
+    }
   }
 
   // Hit the round cap without finishing — surface a clear notice so the user
   // knows the task was paused (not silently dropped mid-way).
-  if (!completed && !isCancelled()) {
+  if (!completed && !loopDetected && !isCancelled()) {
     const notice = `\n\n[已达到单轮最大工具调用次数（${MAX_TOOL_ROUNDS}），任务暂停。如需继续，请回复"继续"。]`
     fullText += notice
     onChunk({ type: 'content_delta', text: notice })
@@ -836,6 +865,9 @@ async function runOpenAILoop(
   let fullText = ''
   let maxOutputTokensRecoveryCount = 0
   let taskContinueCount = 0
+  let lastToolSig: string | null = null
+  let consecutiveRepeat = 0
+  let loopDetected = false
   let completed = false
 
   for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
@@ -941,6 +973,18 @@ async function runOpenAILoop(
     // Add tool results
     for (const tu of response.toolUses) {
       if (isCancelled()) break
+      // 检测连续相同的工具调用，避免无限循环
+      const sig = tu.name + ':' + JSON.stringify(tu.input)
+      if (sig === lastToolSig) {
+        consecutiveRepeat++
+      } else {
+        consecutiveRepeat = 1
+        lastToolSig = sig
+      }
+      if (consecutiveRepeat >= MAX_CONSECUTIVE_IDENTICAL_TOOLS) {
+        loopDetected = true
+        break
+      }
       // Notify frontend: tool call started
       onChunk({ type: 'tool_call', toolCallId: tu.id, toolName: tu.name, input: tu.input })
 
@@ -953,10 +997,17 @@ async function runOpenAILoop(
         tool_call_id: tu.id,
       })
     }
+
+    if (loopDetected) {
+      const notice = `\n\n[检测到重复的工具调用（连续 ${MAX_CONSECUTIVE_IDENTICAL_TOOLS} 次相同操作），已停止执行以避免无限循环。请检查任务或调整描述后重试。]`
+      fullText += notice
+      onChunk({ type: 'content_delta', text: notice })
+      break
+    }
   }
 
   // Hit the round cap without finishing — surface a clear notice.
-  if (!completed && !isCancelled()) {
+  if (!completed && !loopDetected && !isCancelled()) {
     const notice = `\n\n[已达到单轮最大工具调用次数（${MAX_TOOL_ROUNDS}），任务暂停。如需继续，请回复"继续"。]`
     fullText += notice
     onChunk({ type: 'content_delta', text: notice })
