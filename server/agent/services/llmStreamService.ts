@@ -718,10 +718,11 @@ async function callAnthropic(
   let inputTokens = 0
   let outputTokens = 0
   const thinkingBlocks: Array<{ thinking: string; signature: string }> = []
+  let thinkingStuck = false
 
   while (true) {
     const { done, value } = await reader.read()
-    if (done) break
+    if (done || thinkingStuck) break
 
     streamTimeout.reset()
 
@@ -787,6 +788,19 @@ async function callAnthropic(
             } else {
               block.thinking = prev + t
             }
+
+            // 检测思考内容是否陷入循环：最后 N 字符与前面 N 字符相同 → 模型在重复思考同一内容
+            const LOOP_CHECK = 80
+            if (block.thinking.length > LOOP_CHECK * 4) {
+              const tail = block.thinking.slice(-LOOP_CHECK)
+              const prev = block.thinking.slice(-LOOP_CHECK * 2, -LOOP_CHECK)
+              if (tail === prev) {
+                thinkingStuck = true
+                onChunk({ type: 'thinking_delta', text: '\n\n[思考出现重复循环，已自动中断。]\n\n' })
+                block.thinking += '\n\n[思考出现重复循环，已自动中断。]'
+                break // break the for (line) loop
+              }
+            }
           } else if (delta.type === 'signature_delta' && delta.signature) {
             block.signature += delta.signature
           }
@@ -821,6 +835,8 @@ async function callAnthropic(
         // Skip malformed SSE lines
       }
     }
+    // 思考循环检测到后立即跳出 while 循环，不再等待下一个 chunk
+    if (thinkingStuck) break
   }
 
   // Parse tool uses from collected blocks
