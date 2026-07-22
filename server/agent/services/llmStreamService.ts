@@ -778,8 +778,15 @@ async function callAnthropic(
             outputTokens = event.usage.output_tokens
           }
         } else if (event.type === 'message_start' && event.message?.usage) {
-          inputTokens = event.message.usage.input_tokens || 0
-          outputTokens = event.message.usage.output_tokens || 0
+          const u = event.message.usage
+          // Anthropic 的 input_tokens 仅含「未缓存」部分；启用 prompt caching 后，
+          // system 提示词与早期历史落在 cache_read_input_tokens /
+          // cache_creation_input_tokens 中。三者相加才是完整上下文大小。
+          inputTokens =
+            (u.input_tokens || 0) +
+            (u.cache_creation_input_tokens || 0) +
+            (u.cache_read_input_tokens || 0)
+          outputTokens = u.output_tokens || 0
         }
       } catch {
         // Skip malformed SSE lines
