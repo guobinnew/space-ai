@@ -8,6 +8,7 @@
 import { useState } from 'react';
 import { useTranslation } from '../../i18n';
 import type { ToolCallInfo } from '../../types/chat';
+import { useEditorStore } from '../../stores/editorStore';
 
 const TOOL_ICONS: Record<string, JSX.Element> = {
   Bash: (
@@ -167,7 +168,10 @@ export function ToolCallBlock({ toolCall }: Props) {
   const resultSummary = result ? getResultSummary(result, isError ?? false) : '';
 
   const hasResult = Boolean(result);
-  const expandable = hasResult || toolName === 'Edit' || toolName === 'Write';
+  // Read 工具的结果是文件全文 —— 以「文件引用」卡片形式展示（点击在编辑器打开），
+  // 而非直接把全文文本铺在消息里。错误结果仍走可展开的文本展示。
+  const isFileRead = toolName === 'Read' && typeof input.file_path === 'string' && !(isError ?? false);
+  const expandable = !isFileRead && (hasResult || toolName === 'Edit' || toolName === 'Write');
 
   const statusColor =
     status === 'running'
@@ -188,14 +192,24 @@ export function ToolCallBlock({ toolCall }: Props) {
       <div
         role="button"
         tabIndex={0}
-        onClick={() => expandable && setExpanded((v) => !v)}
+        onClick={() => {
+          if (isFileRead) {
+            void useEditorStore.getState().openFile(input.file_path as string);
+          } else if (expandable) {
+            setExpanded((v) => !v);
+          }
+        }}
         onKeyDown={(e) => {
-          if (expandable && (e.key === 'Enter' || e.key === ' ')) {
+          if (isFileRead && (e.key === 'Enter' || e.key === ' ')) {
+            e.preventDefault();
+            void useEditorStore.getState().openFile(input.file_path as string);
+          } else if (expandable && (e.key === 'Enter' || e.key === ' ')) {
             e.preventDefault();
             setExpanded((v) => !v);
           }
         }}
-        className={`flex w-full items-center gap-2 px-3 py-2 text-left transition-colors ${expandable ? 'cursor-pointer hover:bg-[var(--color-surface-hover)]/50' : ''}`}
+        className={`flex w-full items-center gap-2 px-3 py-2 text-left transition-colors ${(expandable || isFileRead) ? 'cursor-pointer hover:bg-[var(--color-surface-hover)]/50' : ''}`}
+        title={isFileRead ? (input.file_path as string) : undefined}
       >
         <span className="text-[var(--color-text-tertiary)]">{icon}</span>
         <span className="text-[11px] font-semibold text-[var(--color-text-secondary)]">
@@ -219,6 +233,11 @@ export function ToolCallBlock({ toolCall }: Props) {
         {expandable && (
           <span className="text-[14px] text-[var(--color-text-tertiary)]">
             {expanded ? '▸' : '▾'}
+          </span>
+        )}
+        {isFileRead && (
+          <span className="shrink-0 text-[11px] text-[var(--color-text-tertiary)]" title="在编辑器中打开">
+            ↗
           </span>
         )}
       </div>
