@@ -487,7 +487,7 @@ async function runAnthropicLoop(
       while (true) {
         try {
           response = await callAnthropic(
-            baseUrl, apiKey, model, systemPrompt, messages, toolDefs, onChunk,
+            baseUrl, apiKey, model, systemPrompt, messages, toolDefs, onChunk, isCancelled,
           )
           break
         } catch (err) {
@@ -661,6 +661,8 @@ async function callAnthropic(
   messages: AnthropicMessage[],
   toolDefs: ReturnType<typeof getToolDefinitions>,
   onChunk: (chunk: StreamChunk) => void,
+  /* 用户在「停止」按钮点击时设置的外部取消信号；检查后立即中断读取 */
+  isCancelled?: () => boolean,
 ): Promise<LLMResponse> {
   const url = `${baseUrl}/v1/messages`
   const body: Record<string, unknown> = {
@@ -722,7 +724,7 @@ async function callAnthropic(
 
   while (true) {
     const { done, value } = await reader.read()
-    if (done || thinkingStuck) break
+    if (done || thinkingStuck || isCancelled?.()) break
 
     streamTimeout.reset()
 
@@ -908,7 +910,7 @@ async function runOpenAILoop(
       while (true) {
         try {
           response = await callOpenAI(
-            baseUrl, apiKey, model, messages, toolDefs, onChunk,
+            baseUrl, apiKey, model, messages, toolDefs, onChunk, isCancelled,
           )
           break
         } catch (err) {
@@ -1040,6 +1042,7 @@ async function callOpenAI(
   messages: OpenAIMessage[],
   toolDefs: ReturnType<typeof getToolDefinitions>,
   onChunk: (chunk: StreamChunk) => void,
+  isCancelled?: () => boolean,
 ): Promise<LLMResponse> {
   const url = `${baseUrl}/chat/completions`
   const body: Record<string, unknown> = {
@@ -1094,7 +1097,7 @@ async function callOpenAI(
 
   while (true) {
     const { done, value } = await reader.read()
-    if (done) break
+    if (done || isCancelled?.()) break
 
     streamTimeout.reset()
 
