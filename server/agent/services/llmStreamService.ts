@@ -25,6 +25,7 @@ import {
   DEFAULT_CONTEXT_WINDOW_OPENAI,
   MAX_REACTIVE_COMPACT_RETRIES,
 } from './compactService'
+import { listTasks } from './taskService'
 import { getToolDefinitions, getTool } from '../tools'
 import type { ToolContext, AskUserRequest } from '../tools'
 import type { ApiFormat } from '../types/provider'
@@ -95,6 +96,26 @@ const MAX_OUTPUT_TOKENS_RECOVERY_LIMIT = 3
 const MAX_OUTPUT_TOKENS_RECOVERY_NUDGE =
   'Output token limit hit. Resume directly — no apology, no recap of what you were doing. ' +
   'Pick up mid-thought if that is where the cut happened. Break remaining work into smaller pieces.'
+
+/**
+ * 单轮对话内，agent 无工具调用结束但仍有 in_progress 任务时，注入续跑 nudge 的最大次数。
+ * 超过后视为 agent 确实无法推进，结束本轮（避免无限循环）。
+ */
+const MAX_TASK_CONTINUE_NUDGES = 3
+const TASK_CONTINUE_NUDGE = (subject: string) =>
+  `立即继续执行任务"${subject}"。直接调用所需工具完成剩余工作——不要只回复文字说明。` +
+  `只有当该任务确实已全部完成时，才调用 TaskUpdate 标记为 completed。`
+
+/** 查询当前会话中是否有 in_progress 任务（用于循环内续跑）。 */
+async function tryGetInProgressTask(sessionId: string): Promise<{ subject: string } | null> {
+  try {
+    const tasks = await listTasks(sessionId)
+    const t = tasks.find((x) => x.status === 'in_progress')
+    return t ? { subject: t.subject } : null
+  } catch {
+    return null
+  }
+}
 
 /** 工具调用信息 */
 interface ToolUse {
@@ -434,6 +455,7 @@ async function runAnthropicLoop(
   let accumulatedThinking = ''
   const accumulatedToolCalls: Array<{ id: string; toolName: string; input: Record<string, unknown>; result?: string; isError?: boolean }> = []
   let maxOutputTokensRecoveryCount = 0
+  let taskContinueCount = 0
   let completed = false
 
   for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
@@ -492,6 +514,12 @@ async function runAnthropicLoop(
       }
     }
 
+    // [诊断] 记录每轮的工具调用与停止原因，定位「nudge 后不继续」问题
+    console.log(
+      `[LLM] round=${round} tools=[${response.toolUses.map((t) => t.name).join(',')}] ` +
+        `stop=${response.stopReason} textLen=${response.text.length} msgCount=${messages.length}`,
+    )
+
     // If no tool calls, we're done. We intentionally do NOT gate on
     // stopReason === 'tool_use': some API proxies don't relay the standard
     // stop_reason (they send end_turn/stop or omit it), and gating on it
@@ -516,6 +544,18 @@ async function runAnthropicLoop(
     }
 
     if (response.toolUses.length === 0) {
+      // Agent ended without tool calls. If there's still an in_progress task,
+      // nudge to continue WITHIN this turn (more reliable than a separate
+      // frontend-initiated turn — no WS round-trip / polling lag). Mirrors the
+      // max_tokens recovery pattern.
+      const inProgress = await tryGetInProgressTask(toolContext.sessionId)
+      if (inProgress && taskContinueCount < MAX_TASK_CONTINUE_NUDGES) {
+        taskContinueCount++
+        console.log(`[LLM] task-continue nudge #${taskContinueCount}: "${inProgress.subject}"`)
+        if (response.text) messages.push({ role: 'assistant', content: response.text })
+        messages.push({ role: 'user', content: TASK_CONTINUE_NUDGE(inProgress.subject) })
+        continue
+      }
       completed = true
       break
     }
@@ -788,6 +828,7 @@ async function runOpenAILoop(
 
   let fullText = ''
   let maxOutputTokensRecoveryCount = 0
+  let taskContinueCount = 0
   let completed = false
 
   for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
@@ -841,6 +882,12 @@ async function runOpenAILoop(
       fullText += response.text
     }
 
+    // [诊断] 记录每轮工具调用与停止原因
+    console.log(
+      `[LLM/openai] round=${round} tools=[${response.toolUses.map((t) => t.name).join(',')}] ` +
+        `stop=${response.stopReason} textLen=${response.text.length} msgCount=${messages.length}`,
+    )
+
     // max_output_tokens recovery (see Anthropic loop for rationale).
     if (
       response.stopReason === 'max_tokens' &&
@@ -858,6 +905,16 @@ async function runOpenAILoop(
     // If no tool calls, we're done. Don't gate on stopReason === 'tool_use'
     // (see Anthropic loop for rationale — proxies may not relay stop_reason).
     if (response.toolUses.length === 0) {
+      // Agent ended without tool calls. If there's still an in_progress task,
+      // nudge to continue within this turn (see Anthropic loop for rationale).
+      const inProgress = await tryGetInProgressTask(toolContext.sessionId)
+      if (inProgress && taskContinueCount < MAX_TASK_CONTINUE_NUDGES) {
+        taskContinueCount++
+        console.log(`[LLM/openai] task-continue nudge #${taskContinueCount}: "${inProgress.subject}"`)
+        if (response.text) messages.push({ role: 'assistant', content: response.text })
+        messages.push({ role: 'user', content: TASK_CONTINUE_NUDGE(inProgress.subject) })
+        continue
+      }
       completed = true
       break
     }

@@ -17,7 +17,6 @@ import { QueryQueue } from '../components/chat/QueryQueue';
 import { EditorPanel } from '../components/editor/EditorPanel';
 import { Modal } from '../components/shared/Modal';
 import { useTranslation } from '../i18n';
-import { wsManager } from '../api/websocket';
 
 const DEFAULT_CHAT_WIDTH = 540;
 const MIN_EDITOR_WIDTH = 400;
@@ -96,10 +95,6 @@ export function ActiveSession({ sessionId }: { sessionId: string }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId])
 
-  // Refs to avoid effect re-runs when context functions change
-  const sendMessageRef = useRef(sendMessage)
-  sendMessageRef.current = sendMessage
-
   // Poll task list every 3s — always poll to detect pending tasks
   // even after agent goes idle (enables auto-continue)
   useEffect(() => {
@@ -152,40 +147,10 @@ export function ActiveSession({ sessionId }: { sessionId: string }) {
     suppressAutoContinueRef.current = true
   }, [])
 
-  // Auto-continue: when the agent goes idle but tasks remain, nudge it to keep going.
-  // Resume either the next pending task, or a task left stuck in `in_progress`
-  // (which otherwise makes nextPending null and halts the loop prematurely).
-  const continueTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  useEffect(() => {
-    if (!sessionId) return
-    if (sessionState.chatState !== 'idle' || !hasPending) return
-    // Wait for the user's decision on the open-session prompt before auto-running
-    if (promptActiveRef.current || suppressAutoContinueRef.current) return
-
-    const stuckTask = taskList.find((t) => t.status === 'in_progress') ?? null
-    const next = nextPending ?? stuckTask
-    if (!next) return
-
-    // Debounce: wait 3s after idle before sending continue
-    if (continueTimerRef.current) clearTimeout(continueTimerRef.current)
-    continueTimerRef.current = setTimeout(() => {
-      const resume = nextPending ?? taskList.find((t) => t.status === 'in_progress')
-      if (!resume) return
-      if (!wsManager.isConnected(sessionId)) {
-        console.warn('[auto-continue] WS 未连接，跳过 nudge:', resume.subject)
-        return
-      }
-      const msg = resume.status === 'in_progress'
-        ? `立即继续执行任务"${resume.subject}"。直接调用所需工具完成剩余工作——不要只回复文字说明。只有当该任务确实已全部完成时，才调用 TaskUpdate 标记为 completed。`
-        : `立即开始执行任务"${resume.subject}"：先调用 TaskUpdate 标记为 in_progress，然后立即调用所需工具完成它——不要只回复文字说明。`
-      console.log('[auto-continue] 发送 nudge:', resume.subject, 'status=', resume.status)
-      sendMessageRef.current(sessionId, msg)
-    }, 3000)
-
-    return () => {
-      if (continueTimerRef.current) clearTimeout(continueTimerRef.current)
-    }
-  }, [sessionId, sessionState.chatState, hasPending, nextPending, taskList])
+  // 任务续跑已移至服务端 agentic loop 内（llmStreamService 的 task-continue nudge）：
+  // 当 agent 无工具调用结束但仍有 in_progress 任务时，在循环内注入 nudge 继续执行，
+  // 比前端发起独立轮次更可靠（无 WS 往返/轮询延迟，也不会产生幽灵 user 消息）。
+  // 此处不再做前端自动续跑；打开会话时的「是否继续」询问与手动「继续」按钮仍保留。
 
   // Drag handler for resizing chat/editor split
   const handleDragStart = useCallback((e: React.MouseEvent) => {
