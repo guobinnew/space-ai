@@ -18,6 +18,13 @@ const RESERVED_SUMMARY_TOKENS = 20000
 /** 压缩触发缓冲（参考 smart-code AUTOCOMPACT_BUFFER_TOKENS） */
 const AUTOCOMPACT_BUFFER_TOKENS = 13000
 
+/** partial compact：保留近期 N 条消息不压缩（保留即时上下文） */
+export const KEEP_RECENT_MESSAGES = 6
+/** microcompact：保留近期 N 条工具结果不截断 */
+export const KEEP_RECENT_TOOL_RESULTS = 3
+/** reactive compact：上下文超限时的最大压缩重试次数 */
+export const MAX_REACTIVE_COMPACT_RETRIES = 2
+
 function estimateTokensForContent(content: unknown): number {
   if (!content) return 0
   if (typeof content === 'string') return Math.ceil(content.length / 4)
@@ -84,4 +91,94 @@ export function shouldAutoCompact(
   const tokenCount = estimateTokensForMessages(messages)
   const threshold = getAutoCompactThreshold(contextWindow)
   return tokenCount >= threshold
+}
+
+// ─── partial compact：保留近期消息 ───────────────────────────
+
+/** 判断消息是否为工具结果（Anthropic 的 tool_result block 或 OpenAI 的 tool 角色） */
+function containsToolResult(m: AnyMessage): boolean {
+  if (m.role === 'tool') return true
+  if (Array.isArray(m.content)) {
+    return (m.content as unknown[]).some((b) => {
+      if (!b || typeof b !== 'object') return false
+      return (b as Record<string, unknown>).type === 'tool_result'
+    })
+  }
+  return false
+}
+
+/**
+ * 将消息列表切分为「需摘要的旧消息」与「原样保留的近期消息」。
+ * - 保留近期 keepRecent 条消息
+ * - 调整切分点跳过孤立的 tool_result（其 tool_use 已被摘要走，保留会无效）
+ * - 若可摘要部分太少则不切分（返回空 toSummarize）
+ */
+export function splitForPartialCompact(
+  messages: readonly AnyMessage[],
+  keepRecent: number,
+): { toSummarize: AnyMessage[]; toKeep: AnyMessage[] } {
+  const n = messages.length
+  if (n <= keepRecent + 2) {
+    return { toSummarize: [], toKeep: messages.slice() }
+  }
+  let keepStart = n - keepRecent
+  // 向后移动切分点，跳过被保留段开头的孤立 tool_result
+  while (keepStart < n && containsToolResult(messages[keepStart])) {
+    keepStart++
+  }
+  if (keepStart >= n - 1) {
+    return { toSummarize: [], toKeep: messages.slice() }
+  }
+  return {
+    toSummarize: messages.slice(0, keepStart),
+    toKeep: messages.slice(keepStart),
+  }
+}
+
+// ─── microcompact：无 LLM 截断旧工具结果 ─────────────────────
+
+/**
+ * 原地截断旧工具结果内容（保留近期 KEEP_RECENT_TOOL_RESULTS 条），
+ * 用占位符替换以释放上下文空间。不调用 LLM，开销极低。
+ * @returns 被截断的消息条数
+ */
+export function microcompactInPlace(
+  messages: AnyMessage[],
+  keepRecentToolResults: number = KEEP_RECENT_TOOL_RESULTS,
+): number {
+  const toolResultIndices: number[] = []
+  for (let i = 0; i < messages.length; i++) {
+    if (containsToolResult(messages[i])) toolResultIndices.push(i)
+  }
+  const cutoff = toolResultIndices.length - keepRecentToolResults
+  if (cutoff <= 0) return 0
+  const toTruncate = toolResultIndices.slice(0, cutoff)
+  const placeholder = '[Tool output truncated to save context space]'
+  for (const idx of toTruncate) {
+    const m = messages[idx]
+    if (m.role === 'tool') {
+      m.content = placeholder
+    } else if (Array.isArray(m.content)) {
+      m.content = (m.content as unknown[]).map((b) => {
+        if (b && typeof b === 'object' && (b as Record<string, unknown>).type === 'tool_result') {
+          return { ...(b as object), content: placeholder }
+        }
+        return b
+      })
+    }
+  }
+  return toTruncate.length
+}
+
+// ─── reactive compact：prompt-too-long 错误检测 ──────────────
+
+/**
+ * 判断错误是否为「上下文/prompt 超长」类错误（用于触发被动压缩重试）。
+ * 兼容 Anthropic（"prompt is too long"）与 OpenAI（"context_length_exceeded"）。
+ */
+export function isPromptTooLongError(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err)
+  return /prompt is too long|context_length_exceeded|too long|maximum context|context length|exceeds the model|input length|input.*exceed|reduce the length/i.test(
+    msg,
+  )
 }

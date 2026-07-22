@@ -17,8 +17,13 @@ import { getSystemPrompt } from '../constants/prompts'
 import { getCompactPrompt, getCompactSystemPrompt, getCompactUserSummaryMessage } from '../constants/compactPrompt'
 import {
   shouldAutoCompact,
+  splitForPartialCompact,
+  microcompactInPlace,
+  isPromptTooLongError,
+  KEEP_RECENT_MESSAGES,
   DEFAULT_CONTEXT_WINDOW_ANTHROPIC,
   DEFAULT_CONTEXT_WINDOW_OPENAI,
+  MAX_REACTIVE_COMPACT_RETRIES,
 } from './compactService'
 import { getToolDefinitions, getTool } from '../tools'
 import type { ToolContext, AskUserRequest } from '../tools'
@@ -334,6 +339,78 @@ async function callOpenAIForCompact(
   return data.choices?.[0]?.message?.content ?? ''
 }
 
+// ─── 压缩编排：partial / micro / reactive ─────────────────────
+
+type GenericMessage = { role: string; content: unknown }
+
+/**
+ * 执行 partial LLM 压缩：仅摘要旧消息，保留近期 KEEP_RECENT_MESSAGES 条原样。
+ * 原地重建 messages = [可选 system, 摘要user消息, ...近期消息]。
+ * @returns 是否成功压缩
+ */
+async function llmPartialCompact(
+  messages: GenericMessage[],
+  callCompact: (toSummarize: GenericMessage[]) => Promise<string>,
+  systemPromptToPreserve?: string,
+): Promise<boolean> {
+  const split = splitForPartialCompact(messages, KEEP_RECENT_MESSAGES)
+  if (split.toSummarize.length === 0) return false
+  try {
+    const summary = await callCompact(split.toSummarize)
+    if (!summary || !summary.trim()) return false
+    messages.length = 0
+    if (systemPromptToPreserve) {
+      messages.push({ role: 'system', content: systemPromptToPreserve } as never)
+    }
+    messages.push({ role: 'user', content: getCompactUserSummaryMessage(summary) } as never)
+    for (const m of split.toKeep) messages.push(m as never)
+    return true
+  } catch {
+    return false
+  }
+}
+
+/**
+ * 主动压缩（每轮开始时检测）：先 microcompact（无 LLM），仍超阈值再做 partial LLM 压缩。
+ */
+async function runAutoCompact(
+  messages: GenericMessage[],
+  contextWindow: number,
+  callCompact: (toSummarize: GenericMessage[]) => Promise<string>,
+  onChunk: (c: StreamChunk) => void,
+  systemPromptToPreserve?: string,
+): Promise<void> {
+  if (!shouldAutoCompact(messages, contextWindow)) return
+  // 1) microcompact：截断旧工具结果（无 API 调用）
+  const truncated = microcompactInPlace(messages)
+  if (!shouldAutoCompact(messages, contextWindow)) {
+    if (truncated > 0) {
+      onChunk({ type: 'content_delta', text: '\n\n[已清理旧工具输出以释放上下文空间。]\n\n' })
+    }
+    return
+  }
+  // 2) partial LLM 压缩：摘要旧消息，保留近期消息
+  const compacted = await llmPartialCompact(messages, callCompact, systemPromptToPreserve)
+  if (compacted) {
+    onChunk({ type: 'content_delta', text: '\n\n[上下文已达上限，已自动压缩历史对话并继续执行任务。]\n\n' })
+  }
+}
+
+/**
+ * 被动压缩（prompt-too-long 错误时）：强制 microcompact + partial LLM 压缩后重试。
+ * @returns 是否成功压缩（成功则可重试 LLM 调用）
+ */
+async function forceReactiveCompact(
+  messages: GenericMessage[],
+  callCompact: (toSummarize: GenericMessage[]) => Promise<string>,
+  onChunk: (c: StreamChunk) => void,
+  systemPromptToPreserve?: string,
+): Promise<boolean> {
+  onChunk({ type: 'content_delta', text: '\n\n[上下文超限，正在压缩历史对话后重试…]\n\n' })
+  microcompactInPlace(messages)
+  return llmPartialCompact(messages, callCompact, systemPromptToPreserve)
+}
+
 // ─── Anthropic agentic loop ──────────────────────────────────
 
 async function runAnthropicLoop(
@@ -365,23 +442,38 @@ async function runAnthropicLoop(
     onChunk({ type: 'status', state: 'thinking' })
 
     // 上下文压缩：当消息接近上下文窗口时，先压缩历史再继续（参考 smart-code autocompact）
-    if (shouldAutoCompact(messages, DEFAULT_CONTEXT_WINDOW_ANTHROPIC)) {
-      try {
-        const summary = await callAnthropicForCompact(baseUrl, apiKey, model, messages)
-        if (summary && summary.trim()) {
-          // Anthropic 的 systemPrompt 单独传给 callAnthropic，故 messages 仅保留摘要
-          messages.length = 0
-          messages.push({ role: 'user', content: getCompactUserSummaryMessage(summary) })
-          onChunk({ type: 'content_delta', text: '\n\n[上下文已达上限，已自动压缩历史对话并继续执行任务。]\n\n' })
+    await runAutoCompact(
+      messages,
+      DEFAULT_CONTEXT_WINDOW_ANTHROPIC,
+      (ms) => callAnthropicForCompact(baseUrl, apiKey, model, ms as AnthropicMessage[]),
+      onChunk,
+    )
+
+    // 调用 LLM；若遇到 prompt-too-long 错误，被动压缩后重试（reactive compact）
+    let response: Awaited<ReturnType<typeof callAnthropic>>
+    {
+      let reactiveRetries = 0
+      while (true) {
+        try {
+          response = await callAnthropic(
+            baseUrl, apiKey, model, systemPrompt, messages, toolDefs, onChunk,
+          )
+          break
+        } catch (err) {
+          if (isPromptTooLongError(err) && reactiveRetries < MAX_REACTIVE_COMPACT_RETRIES) {
+            reactiveRetries++
+            const compacted = await forceReactiveCompact(
+              messages,
+              (ms) => callAnthropicForCompact(baseUrl, apiKey, model, ms as AnthropicMessage[]),
+              onChunk,
+            )
+            if (!compacted) throw err
+            continue
+          }
+          throw err
         }
-      } catch {
-        // compaction failed — continue with full context
       }
     }
-
-    const response = await callAnthropic(
-      baseUrl, apiKey, model, systemPrompt, messages, toolDefs, onChunk,
-    )
 
     // Send usage info to frontend
     if (response.inputTokens > 0 || response.outputTokens > 0) {
@@ -704,24 +796,41 @@ async function runOpenAILoop(
     onChunk({ type: 'status', state: 'thinking' })
 
     // 上下文压缩：当消息接近上下文窗口时，先压缩历史再继续（参考 smart-code autocompact）
-    if (shouldAutoCompact(messages, DEFAULT_CONTEXT_WINDOW_OPENAI)) {
-      try {
-        const summary = await callOpenAIForCompact(baseUrl, apiKey, model, messages)
-        if (summary && summary.trim()) {
-          // 保留 system prompt（OpenAI 格式 system 在 messages 内），用摘要替换其余历史
-          messages.length = 0
-          messages.push({ role: 'system', content: systemPrompt })
-          messages.push({ role: 'user', content: getCompactUserSummaryMessage(summary) })
-          onChunk({ type: 'content_delta', text: '\n\n[上下文已达上限，已自动压缩历史对话并继续执行任务。]\n\n' })
+    // OpenAI 格式 system 在 messages 内，需保留 systemPrompt
+    await runAutoCompact(
+      messages,
+      DEFAULT_CONTEXT_WINDOW_OPENAI,
+      (ms) => callOpenAIForCompact(baseUrl, apiKey, model, ms as OpenAIMessage[]),
+      onChunk,
+      systemPrompt,
+    )
+
+    // 调用 LLM；若遇到 prompt-too-long 错误，被动压缩后重试（reactive compact）
+    let response: Awaited<ReturnType<typeof callOpenAI>>
+    {
+      let reactiveRetries = 0
+      while (true) {
+        try {
+          response = await callOpenAI(
+            baseUrl, apiKey, model, messages, toolDefs, onChunk,
+          )
+          break
+        } catch (err) {
+          if (isPromptTooLongError(err) && reactiveRetries < MAX_REACTIVE_COMPACT_RETRIES) {
+            reactiveRetries++
+            const compacted = await forceReactiveCompact(
+              messages,
+              (ms) => callOpenAIForCompact(baseUrl, apiKey, model, ms as OpenAIMessage[]),
+              onChunk,
+              systemPrompt,
+            )
+            if (!compacted) throw err
+            continue
+          }
+          throw err
         }
-      } catch {
-        // compaction failed — continue with full context
       }
     }
-
-    const response = await callOpenAI(
-      baseUrl, apiKey, model, messages, toolDefs, onChunk,
-    )
 
     // Send usage info to frontend
     if (response.inputTokens > 0 || response.outputTokens > 0) {
