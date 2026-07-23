@@ -108,17 +108,22 @@ const MAX_TASK_CONTINUE_NUDGES = 3
  * 超过则判定为陷入循环，中断执行以避免反复输出同样信息。
  */
 const MAX_CONSECUTIVE_IDENTICAL_TOOLS = 3
-const TASK_CONTINUE_NUDGE = (subject: string) =>
-  `立即继续执行任务"${subject}"。首先调用 TaskList 查看当前所有任务，` +
-  `基于已有任务规划下一步（可优化调整任务描述）。**严禁重复创建任何已存在的任务**——` +
-  `直接对已有任务调用 TaskUpdate 修改状态后继续执行。不要只回复文字说明。`
+const TASK_CONTINUE_NUDGE = (subject: string, status: string) =>
+  status === 'pending'
+    ? `立即开始执行"${subject}"：先用 TaskUpdate 标记为 in_progress，然后调用所需工具完成它。` +
+      `**不要只输出分析文字而不调用工具**——必须通过调用 Read/Bash/Grep/Edit 等工具实际推进任务。`
+    : `立即继续执行"${subject}"。首先调用 TaskList 查看当前所有任务，` +
+        `基于已有任务直接推进。**严禁重复创建任何已存在的任务**——` +
+        `直接对已有任务调用 TaskUpdate 修改状态后继续执行。不要只回复文字说明。`
 
-/** 查询当前会话中是否有 in_progress 任务（用于循环内续跑）。 */
-async function tryGetInProgressTask(sessionId: string): Promise<{ subject: string } | null> {
+/** 查询当前会话中未完成的任务（in_progress 或 pending，用于循环内续跑）。 */
+async function tryGetUnfinishedTask(
+  sessionId: string,
+): Promise<{ subject: string; status: string } | null> {
   try {
     const tasks = await listTasks(sessionId)
-    const t = tasks.find((x) => x.status === 'in_progress')
-    return t ? { subject: t.subject } : null
+    const t = tasks.find((x) => x.status === 'in_progress') ?? tasks.find((x) => x.status === 'pending')
+    return t ? { subject: t.subject, status: t.status } : null
   } catch {
     return null
   }
@@ -554,16 +559,16 @@ async function runAnthropicLoop(
     }
 
     if (response.toolUses.length === 0) {
-      // Agent ended without tool calls. If there's still an in_progress task,
+      // Agent ended without tool calls. If there's still an unfinished task
+      // (in_progress or pending—the agent may have analyzed but not started),
       // nudge to continue WITHIN this turn (more reliable than a separate
-      // frontend-initiated turn — no WS round-trip / polling lag). Mirrors the
-      // max_tokens recovery pattern.
-      const inProgress = await tryGetInProgressTask(toolContext.sessionId)
-      if (inProgress && taskContinueCount < MAX_TASK_CONTINUE_NUDGES) {
+      // frontend-initiated turn — no WS round-trip / polling lag).
+      const unfinished = await tryGetUnfinishedTask(toolContext.sessionId)
+      if (unfinished && taskContinueCount < MAX_TASK_CONTINUE_NUDGES) {
         taskContinueCount++
-        console.log(`[LLM] task-continue nudge #${taskContinueCount}: "${inProgress.subject}"`)
+        console.log(`[LLM] task-continue nudge #${taskContinueCount}: "${unfinished.subject}" (${unfinished.status})`)
         if (response.text) messages.push({ role: 'assistant', content: response.text })
-        messages.push({ role: 'user', content: TASK_CONTINUE_NUDGE(inProgress.subject) })
+        messages.push({ role: 'user', content: TASK_CONTINUE_NUDGE(unfinished.subject, unfinished.status) })
         continue
       }
       completed = true
@@ -963,14 +968,14 @@ async function runOpenAILoop(
     // If no tool calls, we're done. Don't gate on stopReason === 'tool_use'
     // (see Anthropic loop for rationale — proxies may not relay stop_reason).
     if (response.toolUses.length === 0) {
-      // Agent ended without tool calls. If there's still an in_progress task,
-      // nudge to continue within this turn (see Anthropic loop for rationale).
-      const inProgress = await tryGetInProgressTask(toolContext.sessionId)
-      if (inProgress && taskContinueCount < MAX_TASK_CONTINUE_NUDGES) {
+      // Agent ended without tool calls. If there's still an unfinished task
+      // (in_progress or pending), nudge to continue within this turn.
+      const unfinished = await tryGetUnfinishedTask(toolContext.sessionId)
+      if (unfinished && taskContinueCount < MAX_TASK_CONTINUE_NUDGES) {
         taskContinueCount++
-        console.log(`[LLM/openai] task-continue nudge #${taskContinueCount}: "${inProgress.subject}"`)
+        console.log(`[LLM/openai] task-continue nudge #${taskContinueCount}: "${unfinished.subject}" (${unfinished.status})`)
         if (response.text) messages.push({ role: 'assistant', content: response.text })
-        messages.push({ role: 'user', content: TASK_CONTINUE_NUDGE(inProgress.subject) })
+        messages.push({ role: 'user', content: TASK_CONTINUE_NUDGE(unfinished.subject, unfinished.status) })
         continue
       }
       completed = true
