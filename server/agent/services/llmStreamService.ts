@@ -729,7 +729,7 @@ async function callAnthropic(
   let thinkingStuck = false
   /** 纯思考（无文本/工具产出）的起始时间戳，用于超时检测 */
   let thinkingStartTime = 0
-  const MAX_THINKING_MS = 60_000 // 60 秒纯思考上限
+  const MAX_THINKING_MS = 300_000 // 5 分钟纯思考上限
 
   while (true) {
     const { done, value } = await reader.read()
@@ -856,11 +856,11 @@ async function callAnthropic(
     // 超时检测：纯思考流式传输超过阈值 → 认定陷入循环
     if (thinkingStartTime > 0 && Date.now() - thinkingStartTime > MAX_THINKING_MS && !thinkingStuck) {
       thinkingStuck = true
-      onChunk({ type: 'thinking_delta', text: `\n\n[思考超时（超过 ${MAX_THINKING_MS / 1000}s 未产出结果），已自动中断。]\n\n` })
-      // 给前面的 thinking 块追加提示
-      for (const [, block] of blocks) {
-        if (block.type === 'thinking' && block.thinking.length > 0) {
-          block.thinking += `\n\n[思考超时（超过 ${MAX_THINKING_MS / 1000}s 未产出结果），已自动中断。]`
+      onChunk({ type: 'thinking_delta', text: `\n\n[思考超时（超过 5 分钟未产出结果），已自动中断。]\n\n` })
+        // 给前面的 thinking 块追加提示
+        for (const [, block] of blocks) {
+          if (block.type === 'thinking' && block.thinking.length > 0) {
+            block.thinking += `\n\n[思考超时（超过 5 分钟未产出结果），已自动中断。]`
         }
       }
     }
