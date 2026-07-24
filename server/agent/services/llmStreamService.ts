@@ -480,7 +480,8 @@ async function runAnthropicLoop(
   let loopDetected = false
   let completed = false
 
-  for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
+  let round = 0
+  while (round < MAX_TOOL_ROUNDS) {
     if (isCancelled()) break
 
     onChunk({ type: 'status', state: 'thinking' })
@@ -673,6 +674,10 @@ async function runAnthropicLoop(
       onChunk({ type: 'content_delta', text: notice })
       break
     }
+
+    // 仅在实际执行工具调用（含正常完成、检测到循环）的轮次递增计数值，
+    // 跳过 max_tokens 恢复和 task-continue nudge 轮次（它们使用 continue 跳过至此）。
+    round++
   }
 
   // Hit the round cap without finishing — surface a clear notice so the user
@@ -947,7 +952,8 @@ async function runOpenAILoop(
   let loopDetected = false
   let completed = false
 
-  for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
+  let round = 0
+  while (round < MAX_TOOL_ROUNDS) {
     if (isCancelled()) break
 
     onChunk({ type: 'status', state: 'thinking' })
@@ -1081,6 +1087,8 @@ async function runOpenAILoop(
       onChunk({ type: 'content_delta', text: notice })
       break
     }
+
+    round++
   }
 
   // Hit the round cap without finishing — surface a clear notice.
