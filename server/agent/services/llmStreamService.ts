@@ -727,6 +727,9 @@ async function callAnthropic(
   let outputTokens = 0
   const thinkingBlocks: Array<{ thinking: string; signature: string }> = []
   let thinkingStuck = false
+  /** 纯思考（无文本/工具产出）的起始时间戳，用于超时检测 */
+  let thinkingStartTime = 0
+  const MAX_THINKING_MS = 60_000 // 60 秒纯思考上限
 
   while (true) {
     const { done, value } = await reader.read()
@@ -761,8 +764,12 @@ async function callAnthropic(
               thinking: '',
               signature: '',
             })
+            // 思考结束—模型开始调用工具，重置思考超时计时器
+            thinkingStartTime = 0
           } else if (block.type === 'thinking') {
             blocks.set(idx, { type: 'thinking', text: '', toolId: '', toolName: '', inputJson: '', thinking: '', signature: '' })
+            // 记录思考开始时间，用于超时检测
+            if (thinkingStartTime === 0) thinkingStartTime = Date.now()
           }
         } else if (event.type === 'content_block_delta') {
           const idx = event.index
@@ -774,6 +781,8 @@ async function callAnthropic(
             block.text += delta.text
             fullText += delta.text
             onChunk({ type: 'content_delta', text: delta.text })
+            // 思考结束—模型开始输出文本,重置思考超时计时器
+            thinkingStartTime = 0
           } else if (delta.type === 'input_json_delta' && delta.partial_json) {
             block.inputJson += delta.partial_json
           } else if (delta.type === 'thinking_delta' && delta.thinking) {
@@ -844,6 +853,17 @@ async function callAnthropic(
       }
     }
     // 思考循环检测到后立即跳出 while 循环，不再等待下一个 chunk
+    // 超时检测：纯思考流式传输超过阈值 → 认定陷入循环
+    if (thinkingStartTime > 0 && Date.now() - thinkingStartTime > MAX_THINKING_MS && !thinkingStuck) {
+      thinkingStuck = true
+      onChunk({ type: 'thinking_delta', text: `\n\n[思考超时（超过 ${MAX_THINKING_MS / 1000}s 未产出结果），已自动中断。]\n\n` })
+      // 给前面的 thinking 块追加提示
+      for (const [, block] of blocks) {
+        if (block.type === 'thinking' && block.thinking.length > 0) {
+          block.thinking += `\n\n[思考超时（超过 ${MAX_THINKING_MS / 1000}s 未产出结果），已自动中断。]`
+        }
+      }
+    }
     if (thinkingStuck) break
   }
 
