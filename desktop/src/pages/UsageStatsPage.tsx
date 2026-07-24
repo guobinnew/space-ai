@@ -1,3 +1,5 @@
+import { useChatStore } from '../stores/chatStore';
+
 /**
  * 用量统计页面 —— 显示所有会话的累计 token 消耗。
  * 点击侧边栏「用量统计」打开此页。
