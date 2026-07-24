@@ -1,17 +1,25 @@
 /**
  * Usage Statistics API
  *
- * GET /api/usage?days=7&model=Anthropic  — 查询用量汇总
+ * GET  /api/usage?days=7&model=Anthropic  — 查询用量汇总
+ * POST /api/usage/cleanup                — 清理服务商为空的旧记录
  */
-import { queryUsage } from '../services/usageService'
+import { queryUsage, cleanupEmptyProvider } from '../services/usageService'
 
-export async function handleUsageApi(req: Request, _url: URL): Promise<Response> {
+export async function handleUsageApi(req: Request, url: URL): Promise<Response> {
   try {
+    const path = url.pathname
+
+    // POST /api/usage/cleanup
+    if (req.method === 'POST' && path.endsWith('/cleanup')) {
+      const removed = await cleanupEmptyProvider()
+      return Response.json({ removed, message: `已清理 ${removed} 条服务商为空的记录` })
+    }
+
     if (req.method !== 'GET') {
       return Response.json({ error: 'METHOD_NOT_ALLOWED', message: 'Method not allowed' }, { status: 405 })
     }
 
-    const url = new URL(req.url)
     const daysParam = url.searchParams.get('days') || '7'
     const modelParam = url.searchParams.get('model') || ''
     const days = Math.min(365, Math.max(1, parseInt(daysParam, 10) || 7))

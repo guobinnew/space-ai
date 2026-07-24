@@ -47,14 +47,47 @@ const EVENTS_FILE = path.join(CONFIG_DIR, 'usage', 'events.jsonl')
 
 // ── 核心函数 ─────────────────────────────────────────────
 
-/** 追加一条用量事件记录 */
+/** 追加一条用量事件记录（服务商为空时跳过记录） */
 export async function recordUsage(event: UsageEvent): Promise<void> {
+  if (!event.provider) return // 服务商为空不记录
+
   const dir = path.dirname(EVENTS_FILE)
   await fs.mkdir(dir, { recursive: true })
 
   const line = JSON.stringify(event) + '\n'
   // 追加写入（原子操作：先写临时文件再 rename 由 JSONL 追加保证, 这里直接用 appendFile）
   await fs.appendFile(EVENTS_FILE, line, 'utf-8')
+}
+
+/** 清理已有记录中服务商为空的条目，返回清理的行数 */
+export async function cleanupEmptyProvider(): Promise<number> {
+  try {
+    const raw = await fs.readFile(EVENTS_FILE, 'utf-8')
+    const lines = raw.split('\n').filter(Boolean)
+    const kept: string[] = []
+    let removed = 0
+
+    for (const line of lines) {
+      try {
+        const ev = JSON.parse(line) as UsageEvent
+        if (!ev.provider) {
+          removed++
+          continue
+        }
+        kept.push(line)
+      } catch {
+        // 跳过损坏的行（保留）
+        kept.push(line)
+      }
+    }
+
+    // 重新写入
+    await fs.writeFile(EVENTS_FILE, kept.join('\n') + (kept.length > 0 ? '\n' : ''), 'utf-8')
+    return removed
+  } catch {
+    // 文件不存在或读取失败
+    return 0
+  }
 }
 
 /** 查询指定天数内的用量汇总，可筛选模型 */

@@ -9,6 +9,7 @@ import { handleApiRequest } from './router'
 import { corsHeaders } from './middleware/cors'
 import { requireAuth } from './middleware/auth'
 import { conversationService } from './services/conversationService'
+import { cleanupEmptyProvider } from './services/usageService'
 import type { StreamChunk } from './services/llmStreamService'
 import type { WebSocketData } from './types'
 import path from 'node:path'
@@ -144,6 +145,11 @@ async function serveWithRetry(
 }
 
 export async function startServer(port = PORT, host = HOST) {
+  // 启动时自动清理服务商为空的旧用量记录
+  cleanupEmptyProvider().then((removed) => {
+    if (removed > 0) console.log(`[Usage] 已清理 ${removed} 条服务商为空的用量记录`)
+  }).catch(() => {})
+
   const localConnectHost =
     host === '0.0.0.0' || host === '127.0.0.1' || host === 'localhost'
       ? '127.0.0.1'
