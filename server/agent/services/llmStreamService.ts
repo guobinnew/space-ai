@@ -93,6 +93,8 @@ const MAX_TOOL_ROUNDS = 50
 
 /** 输出被 max_tokens 截断时的恢复尝试次数（参考 smart-code MAX_OUTPUT_TOKENS_RECOVERY_LIMIT） */
 const MAX_OUTPUT_TOKENS_RECOVERY_LIMIT = 3
+/** 思考循环时禁用 extended thinking 降级重试次数（加上首次 = 共 3 次尝试）。 */
+const MAX_THINKING_STUCK_RETRIES = 2
 const MAX_OUTPUT_TOKENS_RECOVERY_NUDGE =
   'Output token limit hit. Resume directly — no apology, no recap of what you were doing. ' +
   'Pick up mid-thought if that is where the cut happened. Break remaining work into smaller pieces.'
@@ -150,6 +152,11 @@ interface LLMResponse {
   outputTokens: number
   /** Thinking blocks (with signatures) for conversation history */
   thinkingBlocks: Array<{ thinking: string; signature: string }>
+  /**
+   * 本次调用是否因思考循环/超时而中断。
+   * 外层 loop 检测到此标志后可降级思考预算重试。
+   */
+  thinkingStuck?: boolean
 }
 
 // ─── Anthropic 消息格式 ──────────────────────────────────────
@@ -490,11 +497,21 @@ async function runAnthropicLoop(
     let response: Awaited<ReturnType<typeof callAnthropic>>
     {
       let reactiveRetries = 0
+      let thinkingStuckRetries = 0
+      let thinkingBudgetForThisCall: number | undefined
       while (true) {
         try {
           response = await callAnthropic(
             baseUrl, apiKey, model, systemPrompt, messages, toolDefs, onChunk, isCancelled,
+            thinkingBudgetForThisCall,
           )
+          // 思考循环检测 -> 降级思考预算重试（最多 2 次 thinking 特定重试）
+          if (response.thinkingStuck && thinkingStuckRetries < MAX_THINKING_STUCK_RETRIES) {
+            thinkingStuckRetries++
+            console.log(`[LLM] thinking stuck #${thinkingStuckRetries}, retrying with thinking disabled`)
+            thinkingBudgetForThisCall = 0 // 禁用 extended thinking 后重试
+            continue
+          }
           break
         } catch (err) {
           if (isPromptTooLongError(err) && reactiveRetries < MAX_REACTIVE_COMPACT_RETRIES) {
@@ -510,6 +527,17 @@ async function runAnthropicLoop(
           throw err
         }
       }
+    }
+
+    // 思考循环重试 3 次仍失败 → 通知用户任务执行失败，跳出 agentic loop
+    if (response.thinkingStuck) {
+      const notice = `[任务执行失败：模型持续陷入思考循环（已尝试 ${MAX_REACTIVE_COMPACT_RETRIES + 1} 次降级重试），` +
+        `无法产出有效结果。请简化任务描述或换一种方式提问。]`
+      fullText += notice
+      // 不要重复叠加 round cap 提示
+      completed = true
+      onChunk({ type: 'content_delta', text: '\n\n' + notice + '\n\n' })
+      break
     }
 
     // Send usage info to frontend
@@ -669,6 +697,11 @@ async function callAnthropic(
   onChunk: (chunk: StreamChunk) => void,
   /* 用户在「停止」按钮点击时设置的外部取消信号；检查后立即中断读取 */
   isCancelled?: () => boolean,
+  /**
+   * 思考预算（token）。设为 0 可禁用 extended thinking，用于思考循环降级重试。
+   * 默认 32000。
+   */
+  thinkingBudget?: number,
 ): Promise<LLMResponse> {
   const url = `${baseUrl}/v1/messages`
   const body: Record<string, unknown> = {
@@ -678,7 +711,7 @@ async function callAnthropic(
     messages,
     stream: true,
     // Enable extended thinking for complex code generation
-    thinking: { type: 'enabled', budget_tokens: 32000 },
+    thinking: { type: 'enabled', budget_tokens: thinkingBudget ?? 32000 },
   }
   if (toolDefs.length > 0) {
     body.tools = toolDefs
@@ -884,7 +917,7 @@ async function callAnthropic(
   }
 
   streamTimeout.clear()
-  return { text: fullText, toolUses, stopReason, inputTokens, outputTokens, thinkingBlocks }
+  return { text: fullText, toolUses, stopReason, inputTokens, outputTokens, thinkingBlocks, thinkingStuck }
 }
 
 // ─── OpenAI agentic loop ─────────────────────────────────────
