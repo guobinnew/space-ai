@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useMemo } from 'react'
+import ReactECharts from 'echarts-for-react'
 import { useChatStore } from '../stores/chatStore'
 import { fetchUsage, type UsageQueryResult, type ModelUsageSummary } from '../api/usage'
 import { api } from '../api/client'
@@ -205,174 +206,118 @@ type DayData = { date: string; input: number; output: number; cacheRead: number;
 function CombinedChart({ days }: { days: DayData[] }) {
   if (days.length === 0) return null
 
-  const containerRef = React.useRef<HTMLDivElement>(null)
+  // 解析 CSS 变量为实际颜色值（ECharts 不支持 CSS var）
+  const cssColor = (name: string) =>
+    getComputedStyle(document.documentElement).getPropertyValue(name).trim() || '#000'
 
-  const W = 600
-  const H = 180
-  const PAD = { t: 20, r: 12, b: 32, l: 48 }
-  const plotW = W - PAD.l - PAD.r
-  const plotH = H - PAD.t - PAD.b
+  const brandColor = cssColor('--color-brand')
+  const successColor = cssColor('--color-success')
+  const textSecondary = cssColor('--color-text-secondary')
+  const textTertiary = cssColor('--color-text-tertiary')
+  const borderColor = cssColor('--color-border')
+  const bgColor = cssColor('--color-surface')
+  const tooltipBg = cssColor('--color-surface-elevated')
 
-  // 统一 Y 轴范围：柱子取 input+output，折线只考虑 input/output
-  const barMax = Math.max(...days.map((d) => d.input + d.output), 1)
-  const lineMax = Math.max(...days.map((d) => Math.max(d.input, d.output)), 1)
-  const maxVal = Math.max(barMax, lineMax)
-  const niceMax = Math.ceil(maxVal / 10 ** Math.max(0, Math.floor(Math.log10(maxVal)) - 1)) * 10 ** Math.max(0, Math.floor(Math.log10(maxVal)) - 1)
+  const dates = days.map((d) => d.date.slice(5))
 
-  const barW = Math.min(16, plotW / days.length * 0.5)
-  const gap = plotW / days.length
+  // 格式化数字
+  const fmtAxis = (v: number) =>
+    v >= 1000000 ? (v / 1000000).toFixed(v % 1000000 === 0 ? 0 : 1) + 'M'
+      : v >= 1000 ? (v / 1000).toFixed(v % 1000 === 0 ? 0 : 1) + 'K'
+      : v.toLocaleString()
 
-  const xCenter = (i: number) => PAD.l + i * gap + gap / 2
-  const yScale = (v: number) => PAD.t + plotH - (v / niceMax) * plotH
-
-  // 光滑曲线（Catmull-Rom → 三次贝塞尔）
-  const smoothLine = (key: 'input' | 'output') => {
-    const pts = days.map((d, i) => ({ x: xCenter(i), y: yScale(d[key]) }))
-    if (pts.length === 0) return ''
-    if (pts.length === 1) return `M${pts[0].x},${pts[0].y}`
-    let d = `M${pts[0].x},${pts[0].y}`
-    for (let i = 0; i < pts.length - 1; i++) {
-      const p0 = pts[i === 0 ? 0 : i - 1]
-      const p1 = pts[i]
-      const p2 = pts[i + 1]
-      const p3 = pts[i + 2 >= pts.length ? pts.length - 1 : i + 2]
-      const cp1x = p1.x + (p2.x - p0.x) / 6
-      const cp1y = Math.min(p1.y + (p2.y - p0.y) / 6, yScale(0))
-      const cp2x = p2.x - (p3.x - p1.x) / 6
-      const cp2y = Math.min(p2.y - (p3.y - p1.y) / 6, yScale(0))
-      d += ` C${cp1x.toFixed(1)},${cp1y.toFixed(1)} ${cp2x.toFixed(1)},${cp2y.toFixed(1)} ${p2.x.toFixed(1)},${p2.y.toFixed(1)}`
-    }
-    return d
-  }
-
-  // Y 轴刻度
-  const yTicks = 4
-  const yLabels: number[] = []
-  for (let i = 0; i <= yTicks; i++) yLabels.push((niceMax / yTicks) * i)
-
-  // X 轴日期标签
-  const xLabelIndices = days.map((_, i) => i).filter((i) => {
-    if (days.length <= 14) return true
-    if (i === 0 || i === days.length - 1) return true
-    return i % Math.ceil(days.length / 10) === 0
-  })
-
-  const [hoverIdx, setHoverIdx] = React.useState(-1)
-
-  // tooltip 定位
-  const tooltipStyle = React.useMemo(() => {
-    if (hoverIdx < 0 || !containerRef.current) return {}
-    const svgW = containerRef.current.clientWidth
-    const pixelX = (xCenter(hoverIdx) / W) * svgW
-    const pct = (pixelX / svgW) * 100
-    if (pct < 10) return { left: '0', right: 'auto' }  // 靠左
-    if (pct > 90) return { left: 'auto', right: '0' }    // 靠右
-    return { left: `${pct}%`, right: 'auto', transform: 'translateX(-50%)' }
-  }, [hoverIdx, days.length])
+  const option = useMemo(() => ({
+    color: [brandColor, successColor],
+    tooltip: {
+      trigger: 'axis' as const,
+      backgroundColor: tooltipBg,
+      borderColor,
+      borderWidth: 1,
+      textStyle: { color: textSecondary, fontSize: 12 },
+      formatter: (params: Array<{ seriesName: string; value: number; axisValueLabel: string }>) => {
+        const date = params[0]?.axisValueLabel || ''
+        const lines: string[] = [`<b style="color:${textSecondary}">${date}</b>`]
+        for (const p of params) {
+          const c = p.seriesName === '输入' ? brandColor : successColor
+          lines.push(`<span style="color:${c}">● ${p.seriesName} ${p.value.toLocaleString()}</span>`)
+        }
+        return lines.join('<br/>')
+      },
+    },
+    legend: {
+      show: true,
+      top: 0,
+      itemWidth: 12,
+      itemHeight: 3,
+      textStyle: { color: textSecondary, fontSize: 12 },
+      data: ['输入', '输出'],
+    },
+    grid: { top: 28, right: 10, bottom: 22, left: 48 },
+    xAxis: {
+      type: 'category' as const,
+      data: dates,
+      axisLine: { lineStyle: { color: borderColor } },
+      axisTick: { show: false },
+      axisLabel: {
+        color: textTertiary,
+        fontSize: 10,
+        interval: days.length > 14 ? 'auto' as const : 0,
+      },
+    },
+    yAxis: {
+      type: 'value' as const,
+      min: 0,
+      splitLine: { lineStyle: { color: borderColor, opacity: 0.35 } },
+      axisLabel: {
+        color: textTertiary,
+        fontSize: 11,
+        formatter: fmtAxis,
+      },
+    },
+    series: [
+      // 柱状图：输入（下方）
+      {
+        name: '输入',
+        type: 'bar',
+        stack: 'total',
+        barMaxWidth: 16,
+        itemStyle: { color: brandColor, opacity: 0.5, borderRadius: [2, 2, 0, 0] },
+        data: days.map((d) => d.input || 0),
+      },
+      // 柱状图：输出（上方）
+      {
+        name: '输出',
+        type: 'bar',
+        stack: 'total',
+        barMaxWidth: 16,
+        itemStyle: { color: successColor, opacity: 0.7, borderRadius: [2, 2, 0, 0] },
+        data: days.map((d) => d.output || 0),
+      },
+      // 折线：输入
+      {
+        name: '输入',
+        type: 'line',
+        smooth: true,
+        symbol: 'none',
+        lineStyle: { width: 2 },
+        data: days.map((d) => d.input || 0),
+      },
+      // 折线：输出
+      {
+        name: '输出',
+        type: 'line',
+        smooth: true,
+        symbol: 'none',
+        lineStyle: { width: 2 },
+        data: days.map((d) => d.output || 0),
+      },
+    ],
+  }), [days, brandColor, successColor, textSecondary, textTertiary, borderColor])
 
   return (
     <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
-      {/* 图例 */}
-      <div className="flex flex-wrap gap-x-4 gap-y-1 mb-2 text-xs text-[var(--color-text-secondary)]">
-        <LegendItem color="var(--color-brand)" label="输入" />
-        <LegendItem color="var(--color-success)" label="输出" />
-      </div>
-
-      <div ref={containerRef} className="relative overflow-x-auto" style={{ minHeight: H / 600 * 100 + 'vw' }}>
-        <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ minWidth: days.length > 30 ? 800 : undefined }}>
-          {/* —— 背景网格 —— */}
-          <g style={{ fontSize: 10 }}>          {yLabels.map((v) => (
-            <g key={v}>
-              <line x1={PAD.l} y1={yScale(v)} x2={W - PAD.r} y2={yScale(v)}
-                stroke="var(--color-border)" strokeWidth={0.5} opacity={0.4} />
-              <text x={PAD.l - 6} y={yScale(v) + 4} textAnchor="end"
-                fill="var(--color-text-tertiary)" className="tabular-nums">
-                {v >= 1000000 ? (v / 1000000).toFixed(v % 1000000 === 0 ? 0 : 1) + 'M'
-                  : v >= 1000 ? (v / 1000).toFixed(v % 1000 === 0 ? 0 : 1) + 'K'
-                  : v.toLocaleString()}
-              </text>
-            </g>
-          ))}
-
-          {/* —— 堆叠柱 —— */}
-          {days.map((d, i) => {
-            const cx = xCenter(i)
-            const y0 = yScale(0)
-            const yOut = yScale(d.output)
-            const yIn = yScale(d.input + d.output)
-            return (
-              <g key={`bar-${i}`}>
-                <rect x={cx - barW / 2} y={yOut} width={barW} height={Math.max(1, y0 - yOut)}
-                  fill="var(--color-success)" opacity={d.input + d.output > 0 ? 0.6 : 0.06}
-                  rx={1} />
-                {d.input > 0 && (
-                  <rect x={cx - barW / 2} y={yIn} width={barW} height={Math.max(1, yOut - yIn)}
-                    fill="var(--color-brand)" opacity={0.45} rx={1} />
-                )}
-              </g>
-            )
-          })}
-
-          {/* —— 光滑折线 —— */}
-          <path d={smoothLine('input')} fill="none" stroke="var(--color-brand)" strokeWidth={2}
-            strokeLinejoin="round" strokeLinecap="round" />
-          <path d={smoothLine('output')} fill="none" stroke="var(--color-success)" strokeWidth={2}
-            strokeLinejoin="round" strokeLinecap="round" />
-
-          {/* —— X 轴标签 —— */}
-          {xLabelIndices.map((i) => (
-            <text key={i} x={xCenter(i)} y={H - 4} textAnchor="middle"
-              fill="var(--color-text-tertiary)">
-              {days[i].date.slice(5)}
-            </text>
-          ))}
-
-          {/* —— hover 热区 —— */}
-          {days.map((d, i) => {
-            const cx = xCenter(i)
-            return (
-              <g key={`hover-${i}`}>
-                <rect x={PAD.l + i * gap} y={PAD.t} width={gap} height={plotH}
-                  fill="transparent" className="cursor-pointer"
-                  onMouseEnter={() => setHoverIdx(i)} onMouseLeave={() => setHoverIdx(-1)} />
-                {hoverIdx === i && (
-                  <>
-                    <line x1={cx} y1={PAD.t} x2={cx} y2={PAD.t + plotH}
-                      stroke="var(--color-border)" strokeWidth={1} opacity={0.5} />
-                    <circle cx={cx} cy={yScale(d.input)} r={3} fill="var(--color-brand)" />
-                    <circle cx={cx} cy={yScale(d.output)} r={3} fill="var(--color-success)" />
-                  </>
-                )}
-              </g>
-            )
-          })}
-        </g></svg>
-
-        {/* hover tooltip */}
-        {hoverIdx >= 0 && (
-          <div className="absolute top-0 z-10 pointer-events-none"
-            style={tooltipStyle}>
-            <div className="bg-[var(--color-surface-elevated)] border border-[var(--color-border)] rounded-md px-2.5 py-1.5 shadow-lg text-xs whitespace-nowrap">
-              <div className="font-medium text-[var(--color-text-primary)] mb-1">{days[hoverIdx].date}</div>
-              <div className="text-[var(--color-brand)]">输入 {days[hoverIdx].input.toLocaleString()}</div>
-              <div className="text-[var(--color-success)]">输出 {days[hoverIdx].output.toLocaleString()}</div>
-            </div>
-          </div>
-        )}
-      </div>
+      <ReactECharts option={option} style={{ height: 180 }} notMerge />
     </div>
-  )
-}
-
-function LegendItem({ color, label, dashed }: { color: string; label: string; dashed?: boolean }) {
-  return (
-    <span className="inline-flex items-center gap-1.5">
-      <span className="w-3 h-[2px] rounded-full shrink-0" style={{
-        backgroundColor: color,
-        ...(dashed ? { backgroundImage: `repeating-linear-gradient(to right, ${color} 0, ${color} 4px, transparent 4px, transparent 7px)` } : {}),
-      }} />
-      {label}
-    </span>
   )
 }
 
