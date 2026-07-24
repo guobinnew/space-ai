@@ -213,9 +213,9 @@ function CombinedChart({ days }: { days: DayData[] }) {
   const plotW = W - PAD.l - PAD.r
   const plotH = H - PAD.t - PAD.b
 
-  // 统一 Y 轴范围
+  // 统一 Y 轴范围：柱子取 input+output，折线只考虑 input/output
   const barMax = Math.max(...days.map((d) => d.input + d.output), 1)
-  const lineMax = Math.max(...days.map((d) => Math.max(d.input, d.output, d.cacheRead, d.cacheCreation)), 1)
+  const lineMax = Math.max(...days.map((d) => Math.max(d.input, d.output)), 1)
   const maxVal = Math.max(barMax, lineMax)
   const niceMax = Math.ceil(maxVal / 10 ** Math.max(0, Math.floor(Math.log10(maxVal)) - 1)) * 10 ** Math.max(0, Math.floor(Math.log10(maxVal)) - 1)
 
@@ -225,8 +225,25 @@ function CombinedChart({ days }: { days: DayData[] }) {
   const xCenter = (i: number) => PAD.l + i * gap + gap / 2
   const yScale = (v: number) => PAD.t + plotH - (v / niceMax) * plotH
 
-  const linePath = (key: 'input' | 'output' | 'cacheRead' | 'cacheCreation') =>
-    days.map((d, i) => `${i === 0 ? 'M' : 'L'}${(PAD.l + i * gap + gap / 2).toFixed(1)},${yScale(d[key]).toFixed(1)}`).join('')
+  // 光滑曲线（Catmull-Rom → 三次贝塞尔）
+  const smoothLine = (key: 'input' | 'output') => {
+    const pts = days.map((d, i) => ({ x: xCenter(i), y: yScale(d[key]) }))
+    if (pts.length === 0) return ''
+    if (pts.length === 1) return `M${pts[0].x},${pts[0].y}`
+    let d = `M${pts[0].x},${pts[0].y}`
+    for (let i = 0; i < pts.length - 1; i++) {
+      const p0 = pts[i === 0 ? 0 : i - 1]
+      const p1 = pts[i]
+      const p2 = pts[i + 1]
+      const p3 = pts[i + 2 >= pts.length ? pts.length - 1 : i + 2]
+      const cp1x = p1.x + (p2.x - p0.x) / 6
+      const cp1y = p1.y + (p2.y - p0.y) / 6
+      const cp2x = p2.x - (p3.x - p1.x) / 6
+      const cp2y = p2.y - (p3.y - p1.y) / 6
+      d += ` C${cp1x.toFixed(1)},${cp1y.toFixed(1)} ${cp2x.toFixed(1)},${cp2y.toFixed(1)} ${p2.x.toFixed(1)},${p2.y.toFixed(1)}`
+    }
+    return d
+  }
 
   // Y 轴刻度
   const yTicks = 4
@@ -255,12 +272,10 @@ function CombinedChart({ days }: { days: DayData[] }) {
 
   return (
     <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
-      {/* 图例 — text-xs 与页面按钮/标签一致 */}
+      {/* 图例 */}
       <div className="flex flex-wrap gap-x-4 gap-y-1 mb-2 text-xs text-[var(--color-text-secondary)]">
         <LegendItem color="var(--color-brand)" label="输入" />
         <LegendItem color="var(--color-success)" label="输出" />
-        <LegendItem color="var(--color-accent)" label="缓存读" dashed />
-        <LegendItem color="var(--color-warning)" label="缓存创" dashed />
       </div>
 
       <div ref={containerRef} className="relative overflow-x-auto" style={{ minHeight: H / 600 * 100 + 'vw' }}>
@@ -298,15 +313,11 @@ function CombinedChart({ days }: { days: DayData[] }) {
             )
           })}
 
-          {/* —— 折线 —— */}
-          <path d={linePath('input')} fill="none" stroke="var(--color-brand)" strokeWidth={2}
+          {/* —— 光滑折线 —— */}
+          <path d={smoothLine('input')} fill="none" stroke="var(--color-brand)" strokeWidth={2}
             strokeLinejoin="round" strokeLinecap="round" />
-          <path d={linePath('output')} fill="none" stroke="var(--color-success)" strokeWidth={2}
+          <path d={smoothLine('output')} fill="none" stroke="var(--color-success)" strokeWidth={2}
             strokeLinejoin="round" strokeLinecap="round" />
-          <path d={linePath('cacheRead')} fill="none" stroke="var(--color-accent)" strokeWidth={1.5}
-            strokeDasharray="4 3" strokeLinejoin="round" strokeLinecap="round" opacity={0.7} />
-          <path d={linePath('cacheCreation')} fill="none" stroke="var(--color-warning)" strokeWidth={1.5}
-            strokeDasharray="4 3" strokeLinejoin="round" strokeLinecap="round" opacity={0.7} />
 
           {/* —— X 轴标签 —— */}
           {xLabelIndices.map((i) => (
@@ -316,7 +327,7 @@ function CombinedChart({ days }: { days: DayData[] }) {
             </text>
           ))}
 
-          {/* —— hover 热区（在最上层，确保响应鼠标） —— */}
+          {/* —— hover 热区 —— */}
           {days.map((d, i) => {
             const cx = xCenter(i)
             return (
@@ -330,8 +341,6 @@ function CombinedChart({ days }: { days: DayData[] }) {
                       stroke="var(--color-border)" strokeWidth={1} opacity={0.5} />
                     <circle cx={cx} cy={yScale(d.input)} r={3} fill="var(--color-brand)" />
                     <circle cx={cx} cy={yScale(d.output)} r={3} fill="var(--color-success)" />
-                    {d.cacheRead > 0 && <circle cx={cx} cy={yScale(d.cacheRead)} r={2.5} fill="var(--color-accent)" />}
-                    {d.cacheCreation > 0 && <circle cx={cx} cy={yScale(d.cacheCreation)} r={2.5} fill="var(--color-warning)" />}
                   </>
                 )}
               </g>
@@ -339,7 +348,7 @@ function CombinedChart({ days }: { days: DayData[] }) {
           })}
         </svg>
 
-        {/* hover tooltip — 跟随鼠标列居中 */}
+        {/* hover tooltip */}
         {hoverIdx >= 0 && (
           <div className="absolute top-0 z-10 -translate-x-1/2 pointer-events-none"
             style={{
@@ -350,8 +359,6 @@ function CombinedChart({ days }: { days: DayData[] }) {
               <div className="font-medium text-[var(--color-text-primary)] mb-1">{days[hoverIdx].date}</div>
               <div className="text-[var(--color-brand)]">输入 {days[hoverIdx].input.toLocaleString()}</div>
               <div className="text-[var(--color-success)]">输出 {days[hoverIdx].output.toLocaleString()}</div>
-              <div className="text-[var(--color-accent)]">缓存读 {days[hoverIdx].cacheRead.toLocaleString()}</div>
-              <div className="text-[var(--color-warning)]">缓存创 {days[hoverIdx].cacheCreation.toLocaleString()}</div>
             </div>
           </div>
         )}
