@@ -255,7 +255,7 @@ export async function streamChat(
   // The last message is the current user message (already saved by conversationService)
   // Use all messages except we'll let the loop handle it
 
-  const toolContext: ToolContext = { workDir, sessionId, askUser }
+  const toolContext: ToolContext = { workDir, sessionId, askUser, providerName: provider.name }
 
   onChunk({ type: 'status', state: 'thinking' })
   onChunk({ type: 'content_start' })
@@ -716,6 +716,7 @@ async function runAnthropicLoop(
     recordUsage({
       date: new Date().toISOString().slice(0, 10),
       model,
+      provider: toolContext.providerName || '',
       sessionId: toolContext.sessionId,
       timestamp: new Date().toISOString(),
       totalInput,
@@ -1167,6 +1168,7 @@ async function runOpenAILoop(
     recordUsage({
       date: new Date().toISOString().slice(0, 10),
       model,
+      provider: toolContext.providerName || '',
       sessionId: toolContext.sessionId,
       timestamp: new Date().toISOString(),
       totalInput,

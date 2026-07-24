@@ -6,6 +6,8 @@ import path from 'node:path'
 export type UsageEvent = {
   date: string        // YYYY-MM-DD
   model: string       // 模型名，例如 "claude-sonnet-4-20250514"
+  /** 服务商名称（来自设置），例如"我的 Anthropic 代理"；空时 fallback 到模型前缀推断 */
+  provider: string
   totalInput: number
   totalOutput: number
   totalCacheRead: number
@@ -68,11 +70,11 @@ export async function queryUsage(
         const evDate = new Date(ev.date)
         if (evDate < cutoff) continue // 跳过超出范围的记录
 
-        // 提取服务商（模型名前缀）
-        const provider = extractProvider(ev.model)
-        providerSet.add(provider)
+        // 服务商：优先用记录中的 provider 字段，旧记录回退到模型名推断
+        const eventProvider = ev.provider || extractProvider(ev.model)
+        providerSet.add(eventProvider)
 
-        if (model && provider !== model && ev.model !== model) continue
+        if (model && eventProvider !== model) continue
 
         const existing = dayMap.get(ev.date)
         if (existing) {

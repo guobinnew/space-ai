@@ -31,6 +31,8 @@ export interface ToolContext {
   workDir: string
   /** 会话 ID */
   sessionId: string
+  /** 服务商名称（来自设置，例如"My Anthropic Provider"），用于用量统计 */
+  providerName?: string
   /** 向用户提问并等待回答（返回 JSON string） */
   askUser?: (request: AskUserRequest) => Promise<string>
 }
