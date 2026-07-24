@@ -279,7 +279,7 @@ function CombinedChart({ days }: { days: DayData[] }) {
       </div>
 
       <div ref={containerRef} className="relative overflow-x-auto" style={{ minHeight: H / 600 * 100 + 'vw' }}>
-        <svg viewBox={`0 0 ${W} ${H}`} className="w-full text-xs" style={{ minWidth: days.length > 30 ? 800 : undefined }}>
+        <svg viewBox={`0 0 ${W} ${H}`} className="w-full" fontSize="10" style={{ minWidth: days.length > 30 ? 800 : undefined }}>
           {/* —— 背景网格 —— */}
           {yLabels.map((v) => (
             <g key={v}>
