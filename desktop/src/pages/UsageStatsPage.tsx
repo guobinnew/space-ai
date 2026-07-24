@@ -237,9 +237,9 @@ function CombinedChart({ days }: { days: DayData[] }) {
       const p2 = pts[i + 1]
       const p3 = pts[i + 2 >= pts.length ? pts.length - 1 : i + 2]
       const cp1x = p1.x + (p2.x - p0.x) / 6
-      const cp1y = p1.y + (p2.y - p0.y) / 6
+      const cp1y = Math.min(p1.y + (p2.y - p0.y) / 6, yScale(0))
       const cp2x = p2.x - (p3.x - p1.x) / 6
-      const cp2y = p2.y - (p3.y - p1.y) / 6
+      const cp2y = Math.min(p2.y - (p3.y - p1.y) / 6, yScale(0))
       d += ` C${cp1x.toFixed(1)},${cp1y.toFixed(1)} ${cp2x.toFixed(1)},${cp2y.toFixed(1)} ${p2.x.toFixed(1)},${p2.y.toFixed(1)}`
     }
     return d
