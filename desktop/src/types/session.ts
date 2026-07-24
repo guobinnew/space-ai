@@ -26,4 +26,4 @@ export type SessionDetail = SessionListItem & {
   messages: ChatMessage[]
 }
 
-export type TabType = 'home' | 'settings' | 'session'
+export type TabType = 'home' | 'settings' | 'session' | 'stats'

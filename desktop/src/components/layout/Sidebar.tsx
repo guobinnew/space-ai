@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { useUIStore, HOME_TAB_ID, SETTINGS_TAB_ID } from '../../stores/uiStore';
+import { useUIStore, HOME_TAB_ID, SETTINGS_TAB_ID, STATS_TAB_ID } from '../../stores/uiStore';
 import { useSessionStore } from '../../stores/sessionStore';
 import { useTranslation } from '../../i18n';
 import type { SessionListItem } from '../../types/session';
@@ -202,8 +202,17 @@ export function Sidebar() {
 
       {!sidebarOpen && <div className="flex-1" aria-hidden="true" />}
 
-      {/* Footer: settings */}
-      <div className={`border-t border-[var(--color-border)] p-3 ${sidebarOpen ? '' : 'flex justify-center'}`}>
+      {/* Footer: stats + settings */}
+      <div className={`border-t border-[var(--color-border)] p-3 flex flex-col gap-1 ${sidebarOpen ? '' : 'items-center'}`}>
+        <NavItem
+          active={activeTabId === STATS_TAB_ID}
+          collapsed={!sidebarOpen}
+          label={t('sidebar.stats')}
+          onClick={() => openTab(STATS_TAB_ID, t('sidebar.stats'), 'stats')}
+          icon={<ChartIcon />}
+        >
+          {t('sidebar.stats')}
+        </NavItem>
         <NavItem
           active={activeTabId === SETTINGS_TAB_ID}
           collapsed={!sidebarOpen}
@@ -291,6 +300,16 @@ function PlusIcon() {
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <line x1="12" y1="5" x2="12" y2="19" />
       <line x1="5" y1="12" x2="19" y2="12" />
+    </svg>
+  );
+}
+
+function ChartIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="18" y1="20" x2="18" y2="10" />
+      <line x1="12" y1="20" x2="12" y2="4" />
+      <line x1="6" y1="20" x2="6" y2="14" />
     </svg>
   );
 }
