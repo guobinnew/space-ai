@@ -1,14 +1,22 @@
 import { useEffect, useState } from 'react'
 import { useChatStore } from '../stores/chatStore'
 import { fetchUsage, type UsageDaySummary, type UsageQueryResult } from '../api/usage'
+import { api } from '../api/client'
 
 type ViewMode = 7 | 30
+
+type LightProvider = {
+  id: string
+  name: string
+  model: string
+}
 
 export function UsageStatsPage() {
   const sessions = useChatStore().sessions
   const [view, setView] = useState<ViewMode>(7)
   const [data, setData] = useState<UsageQueryResult | null>(null)
   const [provider, setProvider] = useState<string>('')
+  const [providers, setProviders] = useState<LightProvider[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -24,7 +32,14 @@ export function UsageStatsPage() {
     return () => { cancelled = true }
   }, [view, provider])
 
-  // 会话内存用量聚合（已有功能）
+  // 获取服务商列表（来自设置）
+  useEffect(() => {
+    api.get<{ providers: LightProvider[]; activeId: string }>('/api/providers')
+      .then((res) => setProviders(res.providers))
+      .catch(() => {})
+  }, [])
+
+  // 会话内存用量聚合
   let memTotalInput = 0
   let memTotalOutput = 0
   let memTotalCacheRead = 0
@@ -70,8 +85,8 @@ export function UsageStatsPage() {
           className="px-2.5 py-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] text-xs text-[var(--color-text-primary)] outline-none"
         >
           <option value="">全部服务商</option>
-          {(data?.providers ?? []).map((p) => (
-            <option key={p} value={p}>{p}</option>
+          {providers.map((p) => (
+            <option key={p.id} value={p.name}>{p.name}</option>
           ))}
         </select>
       </div>
@@ -122,12 +137,13 @@ function UsageBarChart({ days }: { days: UsageDaySummary[] }) {
 
   return (
     <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
-      {/* 双色柱状图 —— 每根柱子分两段：输入（蓝色底）+ 输出（绿色顶） */}
+      {/* 双色柱状图 */}
       <div className="flex items-end gap-[2px] h-36 pb-1">
         {days.map((d) => {
           const inputH = Math.max(2, (d.input / barMax) * 120)
           const outputH = Math.max(2, (d.output / barMax) * 120)
           const totalH = inputH + outputH
+          const hasData = d.input > 0 || d.output > 0
           return (
             <div
               key={d.date}
@@ -137,26 +153,35 @@ function UsageBarChart({ days }: { days: UsageDaySummary[] }) {
               {/* tooltip */}
               <div className="absolute bottom-full mb-1 hidden group-hover:block z-10 bg-[var(--color-surface-elevated)] border border-[var(--color-border)] rounded-md px-2 py-1 shadow-lg text-xs whitespace-nowrap">
                 <div className="font-medium text-[var(--color-text-primary)]">{d.date}</div>
-                <div className="text-[var(--color-brand)]">输入: {d.input.toLocaleString()}</div>
-                <div className="text-[var(--color-success)]">输出: {d.output.toLocaleString()}</div>
-                {(d.cacheRead > 0 || d.cacheCreation > 0) && (
+                {hasData ? (
                   <>
-                    <div className="text-[var(--color-accent)]">缓存读: {d.cacheRead.toLocaleString()}</div>
-                    <div className="text-[var(--color-warning)]">缓存创: {d.cacheCreation.toLocaleString()}</div>
+                    <div className="text-[var(--color-brand)]">输入: {d.input.toLocaleString()}</div>
+                    <div className="text-[var(--color-success)]">输出: {d.output.toLocaleString()}</div>
+                    {(d.cacheRead > 0 || d.cacheCreation > 0) && (
+                      <>
+                        <div className="text-[var(--color-accent)]">缓存读: {d.cacheRead.toLocaleString()}</div>
+                        <div className="text-[var(--color-warning)]">缓存创: {d.cacheCreation.toLocaleString()}</div>
+                      </>
+                    )}
                   </>
+                ) : (
+                  <div className="text-[var(--color-text-tertiary)]">无用数据</div>
                 )}
               </div>
-              {/* 柱子 —— 输出段（上方） */}
+              {/* 柱子 —— 输出段 */}
               <div
                 className="w-full rounded-t-[2px] transition-opacity group-hover:opacity-80"
-                style={{ height: `${outputH}px`, backgroundColor: 'var(--color-success)', opacity: 0.8 }}
+                style={{ height: `${outputH}px`, backgroundColor: 'var(--color-success)', opacity: hasData ? 0.8 : 0.1 }}
               />
-              {/* 柱子 —— 输入段（下方） */}
+              {/* 柱子 —— 输入段 */}
               <div
                 className="w-full transition-opacity group-hover:opacity-80"
-                style={{ height: `${inputH}px`, backgroundColor: 'var(--color-brand)', opacity: 0.6 }}
+                style={{ height: `${inputH}px`, backgroundColor: 'var(--color-brand)', opacity: hasData ? 0.6 : 0.08 }}
               />
-              {/* 日期标签（每隔几天显示避免拥挤） */}
+              {/* 底部小点标记有数据的天 */}
+              {hasData && (
+                <div className="absolute bottom-0 w-1 h-1 rounded-full" style={{ backgroundColor: 'var(--color-brand)', opacity: 0.4 }} />
+              )}
             </div>
           )
         })}
@@ -184,7 +209,9 @@ function UsageBarChart({ days }: { days: UsageDaySummary[] }) {
           <div className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: 'var(--color-success)', opacity: 0.8 }} />
           输出
         </div>
-        <span className="ml-auto">{days.length} 天</span>
+        <span className="ml-auto text-[var(--color-text-tertiary)]">
+          {days.filter((d) => d.input + d.output > 0).length}/{days.length} 天有数据
+        </span>
       </div>
     </div>
   )

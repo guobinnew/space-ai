@@ -97,10 +97,18 @@ export async function queryUsage(
     // 文件不存在或读取失败：返回空结果
   }
 
-  const daysArr = [...dayMap.values()].sort((a, b) => a.date.localeCompare(b.date))
+  // 填充范围内缺失的天数（数据为 0 的天也保留，保证图表连续）
+  const allDays: UsageDaySummary[] = []
+  for (let i = days - 1; i >= 0; i--) {
+    const d = new Date()
+    d.setDate(d.getDate() - i)
+    const dateStr = d.toISOString().slice(0, 10)
+    const existing = dayMap.get(dateStr)
+    allDays.push(existing ?? { date: dateStr, input: 0, output: 0, cacheRead: 0, cacheCreation: 0 })
+  }
 
   return {
-    days: daysArr,
+    days: allDays,
     providers: [...providerSet].sort(),
     rangeDays: days,
   }
