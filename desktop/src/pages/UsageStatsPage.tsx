@@ -259,15 +259,15 @@ function CombinedChart({ days }: { days: DayData[] }) {
 
   const [hoverIdx, setHoverIdx] = React.useState(-1)
 
-  // tooltip 定位：与柱子中心 xCenter(i) 一致
-  const tooltipLeft = React.useMemo(() => {
-    if (hoverIdx < 0 || !containerRef.current) return '50%'
+  // tooltip 定位
+  const tooltipStyle = React.useMemo(() => {
+    if (hoverIdx < 0 || !containerRef.current) return {}
     const svgW = containerRef.current.clientWidth
     const pixelX = (xCenter(hoverIdx) / W) * svgW
     const pct = (pixelX / svgW) * 100
-    if (pct < 15) return '12px'
-    if (pct > 85) return undefined
-    return `${pct}%`
+    if (pct < 10) return { left: '0', right: 'auto' }  // 靠左
+    if (pct > 90) return { left: 'auto', right: '0' }    // 靠右
+    return { left: `${pct}%`, right: 'auto', transform: 'translateX(-50%)' }
   }, [hoverIdx, days.length])
 
   return (
@@ -350,11 +350,8 @@ function CombinedChart({ days }: { days: DayData[] }) {
 
         {/* hover tooltip */}
         {hoverIdx >= 0 && (
-          <div className="absolute top-0 z-10 -translate-x-1/2 pointer-events-none"
-            style={{
-              left: tooltipLeft ?? 'auto',
-              right: tooltipLeft === undefined ? '12px' : 'auto',
-            }}>
+          <div className="absolute top-0 z-10 pointer-events-none"
+            style={tooltipStyle}>
             <div className="bg-[var(--color-surface-elevated)] border border-[var(--color-border)] rounded-md px-2.5 py-1.5 shadow-lg text-xs whitespace-nowrap">
               <div className="font-medium text-[var(--color-text-primary)] mb-1">{days[hoverIdx].date}</div>
               <div className="text-[var(--color-brand)]">输入 {days[hoverIdx].input.toLocaleString()}</div>
