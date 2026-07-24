@@ -279,14 +279,14 @@ function CombinedChart({ days }: { days: DayData[] }) {
       </div>
 
       <div ref={containerRef} className="relative overflow-x-auto" style={{ minHeight: H / 600 * 100 + 'vw' }}>
-        <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ minWidth: days.length > 30 ? 800 : undefined }}>
+        <svg viewBox={`0 0 ${W} ${H}`} className="w-full text-xs" style={{ minWidth: days.length > 30 ? 800 : undefined }}>
           {/* —— 背景网格 —— */}
           {yLabels.map((v) => (
             <g key={v}>
               <line x1={PAD.l} y1={yScale(v)} x2={W - PAD.r} y2={yScale(v)}
                 stroke="var(--color-border)" strokeWidth={0.5} opacity={0.4} />
               <text x={PAD.l - 6} y={yScale(v) + 4} textAnchor="end"
-                fill="var(--color-text-tertiary)" style={{ fontSize: 11 }} className="tabular-nums">
+                fill="var(--color-text-tertiary)" className="tabular-nums">
                 {v >= 1000000 ? (v / 1000000).toFixed(v % 1000000 === 0 ? 0 : 1) + 'M'
                   : v >= 1000 ? (v / 1000).toFixed(v % 1000 === 0 ? 0 : 1) + 'K'
                   : v.toLocaleString()}
@@ -322,7 +322,7 @@ function CombinedChart({ days }: { days: DayData[] }) {
           {/* —— X 轴标签 —— */}
           {xLabelIndices.map((i) => (
             <text key={i} x={xCenter(i)} y={H - 4} textAnchor="middle"
-              fill="var(--color-text-tertiary)" style={{ fontSize: 11 }}>
+              fill="var(--color-text-tertiary)">
               {days[i].date.slice(5)}
             </text>
           ))}
