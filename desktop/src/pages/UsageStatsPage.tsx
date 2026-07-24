@@ -153,11 +153,8 @@ export function UsageStatsPage() {
               </select>
             </div>
 
-            {/* 柱状图 */}
-            <StackedBarChart days={data.days} />
-
-            {/* 趋势曲线图 */}
-            <LineChart days={data.days} />
+            {/* 组合图表（柱状图 + 曲线图） */}
+            <CombinedChart days={data.days} />
             {/* 图例 */}
             {groupsList.length > 0 && (
               <div className="flex flex-wrap gap-x-5 gap-y-1.5 text-xs text-[var(--color-text-secondary)]">
@@ -201,103 +198,39 @@ function StatCard({ label, value, color }: { label: string; value: string; color
   )
 }
 
-// ─── 堆叠柱状图 ──────────────────────────────────────────
+// ─── 组合图表（柱状图 + 曲线图）───────────────────────────
 
-function StackedBarChart({ days }: { days: { date: string; input: number; output: number }[] }) {
-  if (days.length === 0) return null
+type DayData = { date: string; input: number; output: number; cacheRead: number; cacheCreation: number }
 
-  const maxVal = Math.max(...days.map((d) => d.input + d.output), 1)
-
-  return (
-    <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
-      <div className="flex items-end gap-[3px] h-36 pb-1">
-        {days.map((d) => {
-          const pct = ((d.input + d.output) / maxVal) * 120
-          return (
-            <div key={d.date} className="flex-1 flex flex-col justify-end group relative" style={{ minHeight: Math.max(pct, 2) }}>
-              {/* tooltip */}
-              <div className="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 hidden group-hover:block z-10 bg-[var(--color-surface-elevated)] border border-[var(--color-border)] rounded-md px-2 py-1.5 shadow-lg text-xs whitespace-nowrap">
-                <div className="font-medium text-[var(--color-text-primary)] mb-0.5">{d.date}</div>
-                <div className="text-[var(--color-brand)]">输入: {d.input.toLocaleString()}</div>
-                <div className="text-[var(--color-success)]">输出: {d.output.toLocaleString()}</div>
-                {d.input + d.output > 0 && (
-                  <div className="text-[var(--color-text-tertiary)] border-t border-[var(--color-border)] mt-1 pt-1">
-                    总计: {(d.input + d.output).toLocaleString()}
-                  </div>
-                )}
-              </div>
-              {/* 堆叠柱：输出（上方） */}
-              <div
-                className="w-full rounded-t-[2px] transition-opacity group-hover:opacity-80"
-                style={{
-                  height: `${Math.max(2, (d.output / maxVal) * 120)}px`,
-                  backgroundColor: 'var(--color-success)',
-                  opacity: d.input + d.output > 0 ? 0.75 : 0.08,
-                }}
-              />
-              {/* 堆叠柱：输入（下方） */}
-              <div
-                className="w-full transition-opacity group-hover:opacity-80"
-                style={{
-                  height: `${Math.max(2, (d.input / maxVal) * 120)}px`,
-                  backgroundColor: 'var(--color-brand)',
-                  opacity: d.input + d.output > 0 ? 0.5 : 0.06,
-                }}
-              />
-              {d.input + d.output === 0 && (
-                <div className="absolute bottom-0 w-full h-[1px] bg-[var(--color-border)] opacity-20" />
-              )}
-            </div>
-          )
-        })}
-      </div>
-      {/* 日期标签 */}
-      <div className="flex gap-[3px] mt-1">
-        {days.map((d, i) => {
-          const show = days.length <= 14 || i % Math.ceil(days.length / 14) === 0 || i === days.length - 1
-          return (
-            <div key={d.date} className="flex-1 text-center">
-              <span className={`text-[9px] text-[var(--color-text-tertiary)] ${show ? '' : 'invisible'}`}>
-                {d.date.slice(5)}
-              </span>
-            </div>
-          )
-        })}
-      </div>
-    </div>
-  )
-}
-
-// ─── 趋势曲线图 ──────────────────────────────────────────
-
-function LineChart({ days }: { days: { date: string; input: number; output: number; cacheRead: number; cacheCreation: number }[] }) {
+function CombinedChart({ days }: { days: DayData[] }) {
   if (days.length === 0) return null
 
   const W = 600
-  const H = 200
-  const PAD = { t: 16, r: 12, b: 28, l: 48 }
+  const H = 240
+  const PAD = { t: 20, r: 12, b: 32, l: 48 }
   const plotW = W - PAD.l - PAD.r
   const plotH = H - PAD.t - PAD.b
 
-  const maxVal = Math.max(...days.map((d) => Math.max(d.input, d.output, d.cacheRead, d.cacheCreation)), 1)
+  // 柱状图 & 曲线图统一 Y 轴范围：取所有值的最大值
+  const barMax = Math.max(...days.map((d) => d.input + d.output), 1)
+  const lineMax = Math.max(...days.map((d) => Math.max(d.input, d.output, d.cacheRead, d.cacheCreation)), 1)
+  const maxVal = Math.max(barMax, lineMax)
   const niceMax = Math.ceil(maxVal / 10 ** Math.max(0, Math.floor(Math.log10(maxVal)) - 1)) * 10 ** Math.max(0, Math.floor(Math.log10(maxVal)) - 1)
 
-  const xScale = (i: number) => PAD.l + (i / Math.max(days.length - 1, 1)) * plotW
+  const barW = Math.min(16, plotW / days.length * 0.5)
+  const gap = plotW / days.length
+
+  const xCenter = (i: number) => PAD.l + i * gap + gap / 2
   const yScale = (v: number) => PAD.t + plotH - (v / niceMax) * plotH
 
-  // 生成折线 path
-  const linePath = (key: 'input' | 'output' | 'cacheRead' | 'cacheCreation') => {
-    return days
-      .map((d, i) => `${i === 0 ? 'M' : 'L'}${xScale(i).toFixed(1)},${yScale(d[key]).toFixed(1)}`)
-      .join('')
-  }
+  // 折线 path
+  const linePath = (key: 'input' | 'output' | 'cacheRead' | 'cacheCreation') =>
+    days.map((d, i) => `${i === 0 ? 'M' : 'L'}${(PAD.l + i * gap + gap / 2).toFixed(1)},${yScale(d[key]).toFixed(1)}`).join('')
 
-  // Y 轴刻度标签
+  // Y 轴刻度
   const yTicks = 4
   const yLabels: number[] = []
-  for (let i = 0; i <= yTicks; i++) {
-    yLabels.push((niceMax / yTicks) * i)
-  }
+  for (let i = 0; i <= yTicks; i++) yLabels.push((niceMax / yTicks) * i)
 
   // X 轴日期标签
   const xLabelIndices = days.map((_, i) => i).filter((i) => {
@@ -306,7 +239,6 @@ function LineChart({ days }: { days: { date: string; input: number; output: numb
     return i % Math.ceil(days.length / 10) === 0
   })
 
-  // hover 状态
   const [hoverIdx, setHoverIdx] = React.useState(-1)
 
   return (
@@ -321,7 +253,7 @@ function LineChart({ days }: { days: { date: string; input: number; output: numb
 
       <div className="relative overflow-x-auto">
         <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ minWidth: days.length > 30 ? 800 : undefined }}>
-          {/* 网格线 */}
+          {/* —— 背景网格 —— */}
           {yLabels.map((v) => (
             <g key={v}>
               <line x1={PAD.l} y1={yScale(v)} x2={W - PAD.r} y2={yScale(v)}
@@ -335,47 +267,68 @@ function LineChart({ days }: { days: { date: string; input: number; output: numb
             </g>
           ))}
 
-          {/* X 轴标签 */}
+          {/* —— 堆叠柱 —— */}
+          {days.map((d, i) => {
+            const cx = xCenter(i)
+            const y0 = yScale(0)
+            const yOut = yScale(d.output)
+            const yIn = yScale(d.input + d.output)
+            return (
+              <g key={`bar-${i}`}>
+                {/* 输出柱（上方） */}
+                <rect x={cx - barW / 2} y={yOut} width={barW} height={Math.max(1, y0 - yOut)}
+                  fill="var(--color-success)" opacity={d.input + d.output > 0 ? 0.6 : 0.06}
+                  rx={1} />
+                {/* 输入柱（下方） */}
+                {d.input > 0 && (
+                  <rect x={cx - barW / 2} y={yIn} width={barW} height={Math.max(1, yOut - yIn)}
+                    fill="var(--color-brand)" opacity={0.45} rx={1} />
+                )}
+              </g>
+            )
+          })}
+
+          {/* —— 折线 —— */}
+          <path d={linePath('input')} fill="none" stroke="var(--color-brand)" strokeWidth={2}
+            strokeLinejoin="round" strokeLinecap="round" />
+          <path d={linePath('output')} fill="none" stroke="var(--color-success)" strokeWidth={2}
+            strokeLinejoin="round" strokeLinecap="round" />
+          <path d={linePath('cacheRead')} fill="none" stroke="var(--color-accent)" strokeWidth={1.5}
+            strokeDasharray="4 3" strokeLinejoin="round" strokeLinecap="round" opacity={0.7} />
+          <path d={linePath('cacheCreation')} fill="none" stroke="var(--color-warning)" strokeWidth={1.5}
+            strokeDasharray="4 3" strokeLinejoin="round" strokeLinecap="round" opacity={0.7} />
+
+          {/* —— X 轴标签 —— */}
           {xLabelIndices.map((i) => (
-            <text key={i} x={xScale(i)} y={H - 4} textAnchor="middle"
+            <text key={i} x={xCenter(i)} y={H - 4} textAnchor="middle"
               className="fill-[var(--color-text-tertiary)] text-[8px]">
               {days[i].date.slice(5)}
             </text>
           ))}
 
-          {/* 折线：输入 */}
-          <path d={linePath('input')} fill="none" stroke="var(--color-brand)" strokeWidth={2}
-            strokeLinejoin="round" strokeLinecap="round" />
-          {/* 折线：输出 */}
-          <path d={linePath('output')} fill="none" stroke="var(--color-success)" strokeWidth={2}
-            strokeLinejoin="round" strokeLinecap="round" />
-          {/* 折线：缓存读 */}
-          <path d={linePath('cacheRead')} fill="none" stroke="var(--color-accent)" strokeWidth={1.5}
-            strokeDasharray="4 3" strokeLinejoin="round" strokeLinecap="round" opacity={0.7} />
-          {/* 折线：缓存创 */}
-          <path d={linePath('cacheCreation')} fill="none" stroke="var(--color-warning)" strokeWidth={1.5}
-            strokeDasharray="4 3" strokeLinejoin="round" strokeLinecap="round" opacity={0.7} />
-
-          {/* 数据点 & 透明 hover 条 */}
-          {days.map((d, i) => (
-            <g key={i}>
-              <rect x={xScale(i) - plotW / days.length / 2} y={PAD.t} width={plotW / days.length}
-                height={plotH} fill="transparent" className="cursor-pointer"
-                onMouseEnter={() => setHoverIdx(i)} onMouseLeave={() => setHoverIdx(-1)} />
-              {/* hover 数据点 */}
-              {hoverIdx === i && (
-                <>
-                  <circle cx={xScale(i)} cy={yScale(d.input)} r={3} fill="var(--color-brand)" />
-                  <circle cx={xScale(i)} cy={yScale(d.output)} r={3} fill="var(--color-success)" />
-                  {d.cacheRead > 0 && <circle cx={xScale(i)} cy={yScale(d.cacheRead)} r={2.5} fill="var(--color-accent)" />}
-                  {d.cacheCreation > 0 && <circle cx={xScale(i)} cy={yScale(d.cacheCreation)} r={2.5} fill="var(--color-warning)" />}
-                  {/* 悬停十字线 */}
-                  <line x1={xScale(i)} y1={PAD.t} x2={xScale(i)} y2={PAD.t + plotH}
-                    stroke="var(--color-border)" strokeWidth={1} opacity={0.5} />
-                </>
-              )}
-            </g>
-          ))}
+          {/* —— hover 热区 —— */}
+          {days.map((d, i) => {
+            const cx = xCenter(i)
+            return (
+              <g key={`hover-${i}`}>
+                <rect x={PAD.l + i * gap} y={PAD.t} width={gap} height={plotH}
+                  fill="transparent" className="cursor-pointer"
+                  onMouseEnter={() => setHoverIdx(i)} onMouseLeave={() => setHoverIdx(-1)} />
+                {hoverIdx === i && (
+                  <>
+                    {/* 竖线 */}
+                    <line x1={cx} y1={PAD.t} x2={cx} y2={PAD.t + plotH}
+                      stroke="var(--color-border)" strokeWidth={1} opacity={0.5} />
+                    {/* 数据点标记 */}
+                    <circle cx={cx} cy={yScale(d.input)} r={3} fill="var(--color-brand)" />
+                    <circle cx={cx} cy={yScale(d.output)} r={3} fill="var(--color-success)" />
+                    {d.cacheRead > 0 && <circle cx={cx} cy={yScale(d.cacheRead)} r={2.5} fill="var(--color-accent)" />}
+                    {d.cacheCreation > 0 && <circle cx={cx} cy={yScale(d.cacheCreation)} r={2.5} fill="var(--color-warning)" />}
+                  </>
+                )}
+              </g>
+            )
+          })}
         </svg>
 
         {/* hover tooltip */}
