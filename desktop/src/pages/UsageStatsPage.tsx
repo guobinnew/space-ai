@@ -242,15 +242,12 @@ function CombinedChart({ days }: { days: DayData[] }) {
 
   const [hoverIdx, setHoverIdx] = React.useState(-1)
 
-  // tooltip 定位：相对于容器宽度的百分比
+  // tooltip 定位：与柱子中心 xCenter(i) 一致
   const tooltipLeft = React.useMemo(() => {
     if (hoverIdx < 0 || !containerRef.current) return '50%'
     const svgW = containerRef.current.clientWidth
-    const leftPad = (PAD.l / W) * svgW
-    const plotWidth = (plotW / W) * svgW
-    const colGap = plotWidth / Math.max(days.length - 1, 1)
-    const pct = ((leftPad + hoverIdx * colGap) / svgW) * 100
-    // 超出左右边界时偏移
+    const pixelX = (xCenter(hoverIdx) / W) * svgW
+    const pct = (pixelX / svgW) * 100
     if (pct < 15) return '12px'
     if (pct > 85) return undefined
     return `${pct}%`
