@@ -26,6 +26,7 @@ import {
   MAX_REACTIVE_COMPACT_RETRIES,
 } from './compactService'
 import { listTasks } from './taskService'
+import { recordUsage } from './usageService'
 import { getToolDefinitions, getTool } from '../tools'
 import type { ToolContext, AskUserRequest } from '../tools'
 import type { ApiFormat } from '../types/provider'
@@ -710,6 +711,19 @@ async function runAnthropicLoop(
   }
 
   // Send accumulated token usage stats for this turn
+  if (totalInput > 0 || totalOutput > 0) {
+    // 持久化到用量历史
+    recordUsage({
+      date: new Date().toISOString().slice(0, 10),
+      model,
+      sessionId: toolContext.sessionId,
+      timestamp: new Date().toISOString(),
+      totalInput,
+      totalOutput,
+      totalCacheRead,
+      totalCacheCreation,
+    }).catch(() => {})
+  }
   onChunk({
     type: 'usage_total',
     totalInput,
@@ -1149,6 +1163,18 @@ async function runOpenAILoop(
   }
 
   // Send accumulated token usage stats for this turn
+  if (totalInput > 0 || totalOutput > 0) {
+    recordUsage({
+      date: new Date().toISOString().slice(0, 10),
+      model,
+      sessionId: toolContext.sessionId,
+      timestamp: new Date().toISOString(),
+      totalInput,
+      totalOutput,
+      totalCacheRead,
+      totalCacheCreation,
+    }).catch(() => {})
+  }
   onChunk({
     type: 'usage_total',
     totalInput,

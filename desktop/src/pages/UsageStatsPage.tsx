@@ -1,95 +1,193 @@
-import { useChatStore } from '../stores/chatStore';
+import { useEffect, useState } from 'react'
+import { useChatStore } from '../stores/chatStore'
+import { fetchUsage, type UsageDaySummary, type UsageQueryResult } from '../api/usage'
 
-/**
- * 用量统计页面 —— 显示所有会话的累计 token 消耗。
- * 点击侧边栏「用量统计」打开此页。
- *
- * 注意：`totalUsage` 在客户端内存累积，不持久化到服务端。
- * 数据来源为已加载到 chatStore 的会话（用户实际发送过消息的会话）。
- */
+type ViewMode = 7 | 30
+
 export function UsageStatsPage() {
-  const sessions = useChatStore().sessions;
+  const sessions = useChatStore().sessions
+  const [view, setView] = useState<ViewMode>(7)
+  const [data, setData] = useState<UsageQueryResult | null>(null)
+  const [provider, setProvider] = useState<string>('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
 
-  // 聚合并所有会话的用量
-  let totalInput = 0;
-  let totalOutput = 0;
-  let totalCacheRead = 0;
-  let totalCacheCreation = 0;
-  let sessionCount = 0;
+  // 获取持久化用量数据
+  useEffect(() => {
+    let cancelled = false
+    setLoading(true)
+    setError('')
+    fetchUsage(view, provider || undefined)
+      .then((res) => { if (!cancelled) setData(res) })
+      .catch((e) => { if (!cancelled) setError(String(e)) })
+      .finally(() => { if (!cancelled) setLoading(false) })
+    return () => { cancelled = true }
+  }, [view, provider])
 
+  // 会话内存用量聚合（已有功能）
+  let memTotalInput = 0
+  let memTotalOutput = 0
+  let memTotalCacheRead = 0
+  let memTotalCacheCreation = 0
+  let memSessionCount = 0
   for (const key of Object.keys(sessions)) {
-    const s = sessions[key];
+    const s = sessions[key]
     if (s.totalUsage && (s.totalUsage.totalInput > 0 || s.totalUsage.totalOutput > 0)) {
-      totalInput += s.totalUsage.totalInput;
-      totalOutput += s.totalUsage.totalOutput;
-      totalCacheRead += s.totalUsage.totalCacheRead;
-      totalCacheCreation += s.totalUsage.totalCacheCreation;
-      sessionCount++;
+      memTotalInput += s.totalUsage.totalInput
+      memTotalOutput += s.totalUsage.totalOutput
+      memTotalCacheRead += s.totalUsage.totalCacheRead
+      memTotalCacheCreation += s.totalUsage.totalCacheCreation
+      memSessionCount++
     }
   }
 
-  const hasData = sessionCount > 0 || totalInput > 0;
-  const fmt = (n: number) => n.toLocaleString();
+  const hasMemoryData = memSessionCount > 0 || memTotalInput > 0
+  const fmt = (n: number) => n.toLocaleString()
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden p-6">
+    <div className="flex-1 flex flex-col overflow-hidden p-6 overflow-y-auto">
       <h1 className="text-lg font-semibold text-[var(--color-text-primary)] mb-1">用量统计</h1>
       <p className="text-xs text-[var(--color-text-tertiary)] mb-6">
-        统计范围：{sessionCount} 个会话 · 数据实时更新（仅内存，刷新页面后重置）
+        持久化用量（服务端） · {data ? `最近 ${view} 天` : '加载中…'}
       </p>
 
-      {!hasData ? (
-        <div className="flex-1 flex items-center justify-center">
-          <div className="text-center">
-            <div className="text-4xl mb-3 text-[var(--color-text-tertiary)]">{'\uD83D\uDCCA'}</div>
-            <p className="text-sm text-[var(--color-text-secondary)] mb-2">暂无用量数据</p>
-            <p className="text-xs text-[var(--color-text-tertiary)] max-w-sm mx-auto leading-relaxed">
-              发送消息后，token 用量将在每轮对话结束时累积。
-              <br />
-              数据仅保存在当前会话内存中，刷新页面后归零。
-            </p>
-          </div>
+      {/* 控制栏 */}
+      <div className="flex items-center gap-3 mb-5 flex-wrap">
+        <div className="flex rounded-lg border border-[var(--color-border)] overflow-hidden text-xs">
+          {([7, 30] as ViewMode[]).map((d) => (
+            <button
+              key={d}
+              onClick={() => setView(d)}
+              className={`px-3 py-1.5 transition-colors ${view === d ? 'bg-[var(--color-brand)] text-white' : 'bg-[var(--color-surface)] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)]'}`}
+            >
+              最近 {d} 天
+            </button>
+          ))}
         </div>
-      ) : (
-        <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-            <StatCard label="输入 Token" value={fmt(totalInput)} color="var(--color-brand)" />
-            <StatCard label="输出 Token" value={fmt(totalOutput)} color="var(--color-success)" />
-            <StatCard label="缓存读取" value={fmt(totalCacheRead)} color="var(--color-accent)" />
-            <StatCard label="缓存创建" value={fmt(totalCacheCreation)} color="var(--color-warning)" />
-          </div>
+        <select
+          value={provider}
+          onChange={(e) => setProvider(e.target.value)}
+          className="px-2.5 py-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] text-xs text-[var(--color-text-primary)] outline-none"
+        >
+          <option value="">全部服务商</option>
+          {(data?.providers ?? []).map((p) => (
+            <option key={p} value={p}>{p}</option>
+          ))}
+        </select>
+      </div>
 
-          <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
-            <h2 className="text-sm font-medium text-[var(--color-text-primary)] mb-3">总量合计</h2>
-            <div className="space-y-2">
-              <SummaryRow label="总输入" value={fmt(totalInput)} />
-              <SummaryRow label="总输出" value={fmt(totalOutput)} />
-              <SummaryRow label="缓存读" value={fmt(totalCacheRead)} />
-              <SummaryRow label="缓存创" value={fmt(totalCacheCreation)} />
-              <div className="border-t border-[var(--color-border)] pt-2 mt-2">
-                <SummaryRow label="总计（输入+输出）" value={fmt(totalInput + totalOutput)} bold />
-              </div>
-              {totalInput + totalOutput > 0 && (
-                <SummaryRow
-                  label="缓存命中率"
-                  value={`${Math.round((totalCacheRead / (totalInput + totalCacheRead)) * 100)}%`}
-                />
-              )}
+      {/* 图表区域 */}
+      {loading && <div className="text-xs text-[var(--color-text-tertiary)] py-10 text-center">加载用量数据…</div>}
+      {error && <div className="text-xs text-[var(--color-text-danger)] py-10 text-center">{error}</div>}
+      {!loading && !error && data && <UsageBarChart days={data.days} />}
+
+      {/* 会话内存用量 */}
+      {hasMemoryData && (
+        <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 mt-6">
+          <h2 className="text-sm font-medium text-[var(--color-text-primary)] mb-3">
+            本次会话用量（内存，仅当前会话期间有效）
+          </h2>
+          <div className="space-y-2">
+            <SummaryRow label="会话数" value={String(memSessionCount)} />
+            <SummaryRow label="总输入" value={fmt(memTotalInput)} />
+            <SummaryRow label="总输出" value={fmt(memTotalOutput)} />
+            <SummaryRow label="缓存读" value={fmt(memTotalCacheRead)} />
+            <SummaryRow label="缓存创" value={fmt(memTotalCacheCreation)} />
+            <div className="border-t border-[var(--color-border)] pt-2 mt-2">
+              <SummaryRow label="总计（输入+输出）" value={fmt(memTotalInput + memTotalOutput)} bold />
             </div>
           </div>
-        </>
+        </div>
       )}
     </div>
-  );
+  )
 }
 
-function StatCard({ label, value, color }: { label: string; value: string; color: string }) {
+// ─── 柱状图组件 ────────────────────────────────────────
+
+function UsageBarChart({ days }: { days: UsageDaySummary[] }) {
+  if (days.length === 0) {
+    return (
+      <div className="text-center py-16">
+        <div className="text-3xl mb-3 text-[var(--color-text-tertiary)]">{'\uD83D\uDCCA'}</div>
+        <p className="text-sm text-[var(--color-text-secondary)]">暂无用量数据</p>
+        <p className="text-xs text-[var(--color-text-tertiary)] mt-1">发送消息后，用量将在每轮对话结束时持久化记录。</p>
+      </div>
+    )
+  }
+
+  const maxInput = Math.max(...days.map((d) => d.input), 1)
+  const maxOutput = Math.max(...days.map((d) => d.output), 1)
+  const barMax = Math.max(maxInput, maxOutput)
+
   return (
     <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
-      <div className="text-[11px] text-[var(--color-text-tertiary)] mb-1">{label}</div>
-      <div className="text-2xl font-semibold tabular-nums" style={{ color }}>{value}</div>
+      {/* 双色柱状图 —— 每根柱子分两段：输入（蓝色底）+ 输出（绿色顶） */}
+      <div className="flex items-end gap-[2px] h-36 pb-1">
+        {days.map((d) => {
+          const inputH = Math.max(2, (d.input / barMax) * 120)
+          const outputH = Math.max(2, (d.output / barMax) * 120)
+          const totalH = inputH + outputH
+          return (
+            <div
+              key={d.date}
+              className="flex-1 flex flex-col items-center justify-end group relative"
+              style={{ minHeight: Math.max(totalH, 4) }}
+            >
+              {/* tooltip */}
+              <div className="absolute bottom-full mb-1 hidden group-hover:block z-10 bg-[var(--color-surface-elevated)] border border-[var(--color-border)] rounded-md px-2 py-1 shadow-lg text-xs whitespace-nowrap">
+                <div className="font-medium text-[var(--color-text-primary)]">{d.date}</div>
+                <div className="text-[var(--color-brand)]">输入: {d.input.toLocaleString()}</div>
+                <div className="text-[var(--color-success)]">输出: {d.output.toLocaleString()}</div>
+                {(d.cacheRead > 0 || d.cacheCreation > 0) && (
+                  <>
+                    <div className="text-[var(--color-accent)]">缓存读: {d.cacheRead.toLocaleString()}</div>
+                    <div className="text-[var(--color-warning)]">缓存创: {d.cacheCreation.toLocaleString()}</div>
+                  </>
+                )}
+              </div>
+              {/* 柱子 —— 输出段（上方） */}
+              <div
+                className="w-full rounded-t-[2px] transition-opacity group-hover:opacity-80"
+                style={{ height: `${outputH}px`, backgroundColor: 'var(--color-success)', opacity: 0.8 }}
+              />
+              {/* 柱子 —— 输入段（下方） */}
+              <div
+                className="w-full transition-opacity group-hover:opacity-80"
+                style={{ height: `${inputH}px`, backgroundColor: 'var(--color-brand)', opacity: 0.6 }}
+              />
+              {/* 日期标签（每隔几天显示避免拥挤） */}
+            </div>
+          )
+        })}
+      </div>
+      {/* 日期标签 */}
+      <div className="flex gap-[2px] mt-1">
+        {days.map((d, i) => {
+          const showLabel = days.length <= 14 || i % Math.ceil(days.length / 14) === 0 || i === days.length - 1
+          return (
+            <div key={d.date} className="flex-1 text-center">
+              <span className={`text-[9px] text-[var(--color-text-tertiary)] ${showLabel ? '' : 'invisible'}`}>
+                {d.date.slice(5)}
+              </span>
+            </div>
+          )
+        })}
+      </div>
+      {/* 图例 */}
+      <div className="flex items-center gap-4 mt-3 text-[11px] text-[var(--color-text-tertiary)]">
+        <div className="flex items-center gap-1">
+          <div className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: 'var(--color-brand)', opacity: 0.6 }} />
+          输入
+        </div>
+        <div className="flex items-center gap-1">
+          <div className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: 'var(--color-success)', opacity: 0.8 }} />
+          输出
+        </div>
+        <span className="ml-auto">{days.length} 天</span>
+      </div>
     </div>
-  );
+  )
 }
 
 function SummaryRow({ label, value, bold }: { label: string; value: string; bold?: boolean }) {
@@ -98,5 +196,5 @@ function SummaryRow({ label, value, bold }: { label: string; value: string; bold
       <span className="text-[var(--color-text-secondary)]">{label}</span>
       <span className={`tabular-nums ${bold ? 'font-semibold text-[var(--color-text-primary)]' : 'text-[var(--color-text-primary)]'}`}>{value}</span>
     </div>
-  );
+  )
 }

@@ -15,6 +15,7 @@ import { handleSettingsApi } from './api/settings'
 import { handleFilesystemApi } from './api/filesystem'
 import { handleGitApi } from './api/git'
 import { handleTasksApi } from './api/tasks'
+import { handleUsageApi } from './api/usage'
 import { ApiError, errorResponse } from './middleware/errorHandler'
 
 export async function handleApiRequest(req: Request, url: URL): Promise<Response> {
@@ -54,6 +55,9 @@ export async function handleApiRequest(req: Request, url: URL): Promise<Response
 
       case 'tasks':
         return await handleTasksApi(req, url, segments)
+
+      case 'usage':
+        return await handleUsageApi(req, url)
 
       case 'health':
         return Response.json({ status: 'ok', timestamp: new Date().toISOString() })
