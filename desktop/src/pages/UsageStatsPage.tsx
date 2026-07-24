@@ -215,8 +215,6 @@ function CombinedChart({ days }: { days: DayData[] }) {
   const textSecondary = cssColor('--color-text-secondary')
   const textTertiary = cssColor('--color-text-tertiary')
   const borderColor = cssColor('--color-border')
-  const bgColor = cssColor('--color-surface')
-  const tooltipBg = cssColor('--color-surface-elevated')
 
   const dates = days.map((d) => d.date.slice(5))
 
@@ -230,14 +228,21 @@ function CombinedChart({ days }: { days: DayData[] }) {
     color: [brandColor, successColor],
     tooltip: {
       trigger: 'axis' as const,
-      backgroundColor: tooltipBg,
-      borderColor,
+      backgroundColor: '#fff',
+      borderColor: '#e5e7eb',
       borderWidth: 1,
-      textStyle: { color: textSecondary, fontSize: 12 },
+      textStyle: { color: '#374151', fontSize: 12 },
       formatter: (params: Array<{ seriesName: string; value: number; axisValueLabel: string }>) => {
-        const date = params[0]?.axisValueLabel || ''
-        const lines: string[] = [`<b style="color:${textSecondary}">${date}</b>`]
-        for (const p of params) {
+        // 去重：相同 seriesName 只显示一个（bar 与 line 同名）
+        const seen = new Set<string>()
+        const uniq = params.filter((p) => {
+          if (seen.has(p.seriesName)) return false
+          seen.add(p.seriesName)
+          return true
+        })
+        const date = uniq[0]?.axisValueLabel || ''
+        const lines: string[] = [`<b style="color:#374151">${date}</b>`]
+        for (const p of uniq) {
           const c = p.seriesName === '输入' ? brandColor : successColor
           lines.push(`<span style="color:${c}">● ${p.seriesName} ${p.value.toLocaleString()}</span>`)
         }
