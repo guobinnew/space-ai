@@ -377,15 +377,16 @@ export function ChatProvider({ children }: { children: ReactNode }) {
             }));
             break;
           case 'usage_total':
-            updateSession(sessionId, (prev) => ({
-              ...prev,
-              totalUsage: {
+            updateSession(sessionId, (prev) => {
+              const newUsage = {
                 totalInput: prev.totalUsage.totalInput + msg.totalInput,
                 totalOutput: prev.totalUsage.totalOutput + msg.totalOutput,
                 totalCacheRead: prev.totalUsage.totalCacheRead + msg.totalCacheRead,
                 totalCacheCreation: prev.totalUsage.totalCacheCreation + msg.totalCacheCreation,
-              },
-            }));
+              };
+              console.log('[usage_total]', sessionId, msg, '→', newUsage);
+              return { ...prev, totalUsage: newUsage };
+            });
             break;
 
           case 'message_complete': {
