@@ -279,9 +279,9 @@ function CombinedChart({ days }: { days: DayData[] }) {
       </div>
 
       <div ref={containerRef} className="relative overflow-x-auto" style={{ minHeight: H / 600 * 100 + 'vw' }}>
-        <svg viewBox={`0 0 ${W} ${H}`} className="w-full" fontSize="10" style={{ minWidth: days.length > 30 ? 800 : undefined }}>
+        <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ minWidth: days.length > 30 ? 800 : undefined }}>
           {/* —— 背景网格 —— */}
-          {yLabels.map((v) => (
+          <g fontSize="10">          {yLabels.map((v) => (
             <g key={v}>
               <line x1={PAD.l} y1={yScale(v)} x2={W - PAD.r} y2={yScale(v)}
                 stroke="var(--color-border)" strokeWidth={0.5} opacity={0.4} />
@@ -346,7 +346,7 @@ function CombinedChart({ days }: { days: DayData[] }) {
               </g>
             )
           })}
-        </svg>
+        </g></svg>
 
         {/* hover tooltip */}
         {hoverIdx >= 0 && (
