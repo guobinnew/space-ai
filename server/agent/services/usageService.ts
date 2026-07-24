@@ -81,9 +81,9 @@ export async function queryUsage(
         const evDate = new Date(ev.date)
         if (evDate < cutoff) continue // 跳过超出范围的记录
 
-        // 服务商：优先用记录中的 provider 字段，旧记录回退到模型名推断
-        const eventProvider = ev.provider || extractProvider(ev.model)
-        providerSet.add(eventProvider)
+        // 服务商：直接用设置中记录的服务商名称；旧记录无 provider 字段则为空
+        const eventProvider = ev.provider || ''
+        if (eventProvider) providerSet.add(eventProvider)
 
         if (model && eventProvider !== model) continue
 
@@ -149,16 +149,4 @@ export async function queryUsage(
   }
 }
 
-/** 从模型名中提取服务商前缀 */
-function extractProvider(model: string): string {
-  const lower = model.toLowerCase()
-  if (lower.includes('claude')) return 'Anthropic'
-  if (lower.includes('gpt') || lower.includes('o1') || lower.includes('o3')) return 'OpenAI'
-  if (lower.includes('deepseek')) return 'DeepSeek'
-  if (lower.includes('qwen')) return 'Qwen'
-  if (lower.includes('moonshot') || lower.includes('kimi')) return 'Moonshot'
-  if (lower.includes('glm') || lower.includes('zhipu')) return 'GLM'
-  if (lower.includes('mimo') || lower.includes('minimax')) return 'MiniMax'
-  // 默认用模型名本身
-  return model
-}
+
