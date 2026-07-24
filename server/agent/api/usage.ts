@@ -4,12 +4,11 @@
  * GET /api/usage?days=7&model=Anthropic  — 查询用量汇总
  */
 import { queryUsage } from '../services/usageService'
-import { errorResponse } from '../middleware/errorHandler'
 
 export async function handleUsageApi(req: Request, _url: URL): Promise<Response> {
   try {
     if (req.method !== 'GET') {
-      return errorResponse(405, 'Method not allowed')
+      return Response.json({ error: 'METHOD_NOT_ALLOWED', message: 'Method not allowed' }, { status: 405 })
     }
 
     const url = new URL(req.url)
@@ -20,11 +19,9 @@ export async function handleUsageApi(req: Request, _url: URL): Promise<Response>
 
     const result = await queryUsage(days, model || undefined)
 
-    return new Response(JSON.stringify(result), {
-      headers: { 'Content-Type': 'application/json' },
-    })
+    return Response.json(result)
   } catch (err) {
     console.error('[usage-api]', err)
-    return errorResponse(500, 'Internal error')
+    return Response.json({ error: 'INTERNAL_ERROR', message: String(err) }, { status: 500 })
   }
 }
