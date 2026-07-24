@@ -11,8 +11,18 @@ export type UsageDaySummary = {
   cacheCreation: number
 }
 
+export type ModelUsageSummary = {
+  model: string
+  provider: string
+  input: number
+  output: number
+  cacheRead: number
+  cacheCreation: number
+}
+
 export type UsageQueryResult = {
   days: UsageDaySummary[]
+  models: ModelUsageSummary[]
   providers: string[]
   rangeDays: number
 }

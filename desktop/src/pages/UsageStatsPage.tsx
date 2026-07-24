@@ -1,22 +1,39 @@
 import { useEffect, useState } from 'react'
 import { useChatStore } from '../stores/chatStore'
-import { fetchUsage, type UsageDaySummary, type UsageQueryResult } from '../api/usage'
+import { fetchUsage, type UsageQueryResult, type ModelUsageSummary } from '../api/usage'
 import { api } from '../api/client'
 
 type ViewMode = 7 | 30
+type GroupBy = 'provider' | 'model'
 
-type LightProvider = {
-  id: string
-  name: string
-  model: string
+type LightProvider = { id: string; name: string; model: string }
+
+// ─── 服务商配色方案 ───────────────────────────────────────
+
+const PROVIDER_COLORS: Record<string, string> = {
+  Anthropic: '#d4a574',
+  OpenAI: '#10a37f',
+  DeepSeek: '#1a9b7c',
+  GLM: '#4a9eff',
+  Qwen: '#615ced',
+  Moonshot: '#7b68ee',
+  MiniMax: '#ff6b6b',
+}
+const FALLBACK_COLORS = ['#6b7280', '#8b5cf6', '#ec4899', '#f59e0b', '#14b8a6', '#f97316', '#84cc16']
+
+function colorFor(provider: string): string {
+  return PROVIDER_COLORS[provider] || FALLBACK_COLORS[(provider.length + provider.charCodeAt(0)) % FALLBACK_COLORS.length]
 }
 
+// ─── 主组件 ──────────────────────────────────────────────
+
 export function UsageStatsPage() {
-  const sessions = useChatStore().sessions
+  const chatStore = useChatStore()
   const [view, setView] = useState<ViewMode>(7)
   const [data, setData] = useState<UsageQueryResult | null>(null)
   const [provider, setProvider] = useState<string>('')
   const [providers, setProviders] = useState<LightProvider[]>([])
+  const [groupBy, setGroupBy] = useState<GroupBy>('provider')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -25,203 +42,282 @@ export function UsageStatsPage() {
     let cancelled = false
     setLoading(true)
     setError('')
-    fetchUsage(view, provider || undefined)
+    const pr = provider || undefined
+    fetchUsage(view, pr)
       .then((res) => { if (!cancelled) setData(res) })
       .catch((e) => { if (!cancelled) setError(String(e)) })
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
   }, [view, provider])
 
-  // 获取服务商列表（来自设置）
+  // 获取服务商列表
   useEffect(() => {
-    api.get<{ providers: LightProvider[]; activeId: string }>('/api/providers')
+    api.get<{ providers: LightProvider[] }>('/api/providers')
       .then((res) => setProviders(res.providers))
       .catch(() => {})
   }, [])
 
-  // 会话内存用量聚合
-  let memTotalInput = 0
-  let memTotalOutput = 0
-  let memTotalCacheRead = 0
-  let memTotalCacheCreation = 0
-  let memSessionCount = 0
-  for (const key of Object.keys(sessions)) {
-    const s = sessions[key]
-    if (s.totalUsage && (s.totalUsage.totalInput > 0 || s.totalUsage.totalOutput > 0)) {
-      memTotalInput += s.totalUsage.totalInput
-      memTotalOutput += s.totalUsage.totalOutput
-      memTotalCacheRead += s.totalUsage.totalCacheRead
-      memTotalCacheCreation += s.totalUsage.totalCacheCreation
-      memSessionCount++
+  // 当前活跃会话的实时用量
+  const realtime = Object.values(chatStore.sessions).reduce(
+    (acc, s) => {
+      const u = s.totalUsage
+      if (u && (u.totalInput > 0 || u.totalOutput > 0)) {
+        acc.input += u.totalInput; acc.output += u.totalOutput
+        acc.cacheRead += u.totalCacheRead; acc.cacheCreation += u.totalCacheCreation
+        acc.count++
+      }
+      return acc
+    },
+    { input: 0, output: 0, cacheRead: 0, cacheCreation: 0, count: 0 },
+  )
+
+  const fmt = (n: number) => n.toLocaleString()
+  const modelCount = data?.models?.length ?? 0
+  const totalUsage = (data?.days ?? []).reduce((s, d) => s + d.input + d.output, 0)
+
+  // 分组图例：从 model 数据提取按服务商或按模型的分组
+  const groupsList: Array<{ key: string; color: string; total: number }> = []
+  if (data?.models) {
+    const tmp = new Map<string, number>()
+    for (const m of data.models) {
+      const key = groupBy === 'provider' ? m.provider : m.model
+      tmp.set(key, (tmp.get(key) ?? 0) + m.input + m.output)
     }
+    for (const [key, total] of tmp) {
+      groupsList.push({ key, color: colorFor(key), total })
+    }
+    groupsList.sort((a, b) => b.total - a.total)
   }
 
-  const hasMemoryData = memSessionCount > 0 || memTotalInput > 0
-  const fmt = (n: number) => n.toLocaleString()
-
   return (
-    <div className="flex-1 flex flex-col overflow-hidden p-6 overflow-y-auto">
-      <h1 className="text-lg font-semibold text-[var(--color-text-primary)] mb-1">用量统计</h1>
-      <p className="text-xs text-[var(--color-text-tertiary)] mb-6">
-        持久化用量（服务端） · {data ? `最近 ${view} 天` : '加载中…'}
-      </p>
-
-      {/* 控制栏 */}
-      <div className="flex items-center gap-3 mb-5 flex-wrap">
-        <div className="flex rounded-lg border border-[var(--color-border)] overflow-hidden text-xs">
-          {([7, 30] as ViewMode[]).map((d) => (
-            <button
-              key={d}
-              onClick={() => setView(d)}
-              className={`px-3 py-1.5 transition-colors ${view === d ? 'bg-[var(--color-brand)] text-white' : 'bg-[var(--color-surface)] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)]'}`}
-            >
-              最近 {d} 天
-            </button>
-          ))}
-        </div>
-        <select
-          value={provider}
-          onChange={(e) => setProvider(e.target.value)}
-          className="px-2.5 py-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] text-xs text-[var(--color-text-primary)] outline-none"
-        >
-          <option value="">全部服务商</option>
-          {providers.map((p) => (
-            <option key={p.id} value={p.name}>{p.name}</option>
-          ))}
-        </select>
-      </div>
-
-      {/* 图表区域 */}
-      {loading && <div className="text-xs text-[var(--color-text-tertiary)] py-10 text-center">加载用量数据…</div>}
-      {error && <div className="text-xs text-[var(--color-text-danger)] py-10 text-center">{error}</div>}
-      {!loading && !error && data && <UsageBarChart days={data.days} />}
-
-      {/* 会话内存用量 */}
-      {hasMemoryData && (
-        <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 mt-6">
-          <h2 className="text-sm font-medium text-[var(--color-text-primary)] mb-3">
-            本次会话用量（内存，仅当前会话期间有效）
-          </h2>
-          <div className="space-y-2">
-            <SummaryRow label="会话数" value={String(memSessionCount)} />
-            <SummaryRow label="总输入" value={fmt(memTotalInput)} />
-            <SummaryRow label="总输出" value={fmt(memTotalOutput)} />
-            <SummaryRow label="缓存读" value={fmt(memTotalCacheRead)} />
-            <SummaryRow label="缓存创" value={fmt(memTotalCacheCreation)} />
-            <div className="border-t border-[var(--color-border)] pt-2 mt-2">
-              <SummaryRow label="总计（输入+输出）" value={fmt(memTotalInput + memTotalOutput)} bold />
+    <div className="flex-1 flex flex-col overflow-hidden">
+      {/* Header */}
+      <div className="flex-none px-6 pt-5 pb-3 border-b border-[var(--color-border)]">
+        <div className="flex items-center justify-between gap-4 flex-wrap">
+          <h1 className="text-xl font-semibold text-[var(--color-text-primary)]">Token 用量统计</h1>
+          <div className="flex items-center gap-2">
+            <div className="flex rounded-lg border border-[var(--color-border)] overflow-hidden text-xs">
+              {([7, 30] as ViewMode[]).map((d) => (
+                <button key={d} onClick={() => setView(d)}
+                  className={`px-3 py-1.5 transition-colors ${view === d ? 'bg-[var(--color-brand)] text-white' : 'bg-[var(--color-surface)] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)]'}`}
+                >最近 {d} 天</button>
+              ))}
             </div>
           </div>
         </div>
-      )}
+        {error && <p className="text-xs text-[var(--color-error)] mt-1">{error}</p>}
+      </div>
+
+      {/* Content */}
+      <div className="flex-1 overflow-y-auto p-6 space-y-6">
+        {/* 实时会话用量 */}
+        {realtime.count > 0 && (
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+            <StatCard label="实时 Input" value={fmt(realtime.input)} color="var(--color-brand)" />
+            <StatCard label="实时 Output" value={fmt(realtime.output)} color="var(--color-success)" />
+            <StatCard label="缓存读" value={fmt(realtime.cacheRead)} color="var(--color-accent)" />
+            <StatCard label="缓存创" value={fmt(realtime.cacheCreation)} color="var(--color-warning)" />
+            <StatCard label="活跃会话" value={fmt(realtime.count)} color="var(--color-text-primary)" />
+          </div>
+        )}
+
+        {/* 概览卡片 */}
+        {data && (
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <StatCard label="总 Token 数" value={fmt(totalUsage)} color="var(--color-brand)" />
+            <StatCard label="模型数" value={fmt(modelCount)} color="var(--color-text-primary)" />
+            <StatCard label="跨天数" value={fmt(data.days.length)} color="var(--color-text-primary)" />
+          </div>
+        )}
+
+        {/* 图表区 */}
+        {loading && <div className="text-sm text-[var(--color-text-tertiary)] py-16 text-center">加载用量数据…</div>}
+        {!loading && !error && data && (
+          <>
+            {/* 控制栏 */}
+            <div className="flex items-center gap-3 flex-wrap">
+              {/* 分组切换 */}
+              <div className="flex rounded-lg border border-[var(--color-border)] overflow-hidden text-xs">
+                {(['provider', 'model'] as GroupBy[]).map((g) => (
+                  <button key={g} onClick={() => setGroupBy(g)}
+                    className={`px-3 py-1.5 transition-colors ${groupBy === g ? 'bg-[var(--color-brand)] text-white' : 'bg-[var(--color-surface)] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)]'}`}
+                  >{g === 'provider' ? '按服务商' : '按模型'}</button>
+                ))}
+              </div>
+              {/* 服务商筛选 */}
+              <select value={provider} onChange={(e) => setProvider(e.target.value)}
+                className="px-2.5 py-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] text-xs text-[var(--color-text-primary)] outline-none"
+              >
+                <option value="">全部服务商</option>
+                {providers.map((p) => <option key={p.id} value={p.name}>{p.name}</option>)}
+              </select>
+            </div>
+
+            {/* 柱状图 */}
+            <StackedBarChart days={data.days} />
+            {/* 图例 */}
+            {groupsList.length > 0 && (
+              <div className="flex flex-wrap gap-x-5 gap-y-1.5 text-xs text-[var(--color-text-secondary)]">
+                {groupsList.map((g) => (
+                  <span key={g.key} className="flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ backgroundColor: g.color }} />
+                    {g.key}
+                    <span className="text-[var(--color-text-tertiary)] tabular-nums">{g.total.toLocaleString()}</span>
+                  </span>
+                ))}
+              </div>
+            )}
+
+            {/* 模型明细表 */}
+            {data.models && data.models.length > 0 && (
+              <ModelTable models={data.models} />
+            )}
+
+            {/* 无数据提示 */}
+            {data.days.length > 0 && totalUsage === 0 && (
+              <div className="text-center py-10">
+                <div className="text-2xl mb-2">{'\uD83D\uDCCA'}</div>
+                <p className="text-sm text-[var(--color-text-secondary)]">选定条件下暂无用量数据</p>
+              </div>
+            )}
+          </>
+        )}
+      </div>
     </div>
   )
 }
 
-// ─── 柱状图组件 ────────────────────────────────────────
+// ─── 统计卡片 ────────────────────────────────────────────
 
-function UsageBarChart({ days }: { days: UsageDaySummary[] }) {
-  if (days.length === 0) {
-    return (
-      <div className="text-center py-16">
-        <div className="text-3xl mb-3 text-[var(--color-text-tertiary)]">{'\uD83D\uDCCA'}</div>
-        <p className="text-sm text-[var(--color-text-secondary)]">暂无用量数据</p>
-        <p className="text-xs text-[var(--color-text-tertiary)] mt-1">发送消息后，用量将在每轮对话结束时持久化记录。</p>
-      </div>
-    )
-  }
+function StatCard({ label, value, color }: { label: string; value: string; color: string }) {
+  return (
+    <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
+      <div className="text-[11px] text-[var(--color-text-tertiary)] mb-1">{label}</div>
+      <div className="text-xl font-semibold tabular-nums" style={{ color }}>{value}</div>
+    </div>
+  )
+}
 
-  const maxInput = Math.max(...days.map((d) => d.input), 1)
-  const maxOutput = Math.max(...days.map((d) => d.output), 1)
-  const barMax = Math.max(maxInput, maxOutput)
+// ─── 堆叠柱状图 ──────────────────────────────────────────
+
+function StackedBarChart({ days }: { days: { date: string; input: number; output: number }[] }) {
+  if (days.length === 0) return null
+
+  const maxVal = Math.max(...days.map((d) => d.input + d.output), 1)
 
   return (
     <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
-      {/* 双色柱状图 */}
-      <div className="flex items-end gap-[2px] h-36 pb-1">
+      <div className="flex items-end gap-[3px] h-36 pb-1">
         {days.map((d) => {
-          const inputH = Math.max(2, (d.input / barMax) * 120)
-          const outputH = Math.max(2, (d.output / barMax) * 120)
-          const totalH = inputH + outputH
-          const hasData = d.input > 0 || d.output > 0
+          const pct = ((d.input + d.output) / maxVal) * 120
           return (
-            <div
-              key={d.date}
-              className="flex-1 flex flex-col items-center justify-end group relative"
-              style={{ minHeight: Math.max(totalH, 4) }}
-            >
+            <div key={d.date} className="flex-1 flex flex-col justify-end group relative" style={{ minHeight: Math.max(pct, 2) }}>
               {/* tooltip */}
-              <div className="absolute bottom-full mb-1 hidden group-hover:block z-10 bg-[var(--color-surface-elevated)] border border-[var(--color-border)] rounded-md px-2 py-1 shadow-lg text-xs whitespace-nowrap">
-                <div className="font-medium text-[var(--color-text-primary)]">{d.date}</div>
-                {hasData ? (
-                  <>
-                    <div className="text-[var(--color-brand)]">输入: {d.input.toLocaleString()}</div>
-                    <div className="text-[var(--color-success)]">输出: {d.output.toLocaleString()}</div>
-                    {(d.cacheRead > 0 || d.cacheCreation > 0) && (
-                      <>
-                        <div className="text-[var(--color-accent)]">缓存读: {d.cacheRead.toLocaleString()}</div>
-                        <div className="text-[var(--color-warning)]">缓存创: {d.cacheCreation.toLocaleString()}</div>
-                      </>
-                    )}
-                  </>
-                ) : (
-                  <div className="text-[var(--color-text-tertiary)]">无用数据</div>
+              <div className="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 hidden group-hover:block z-10 bg-[var(--color-surface-elevated)] border border-[var(--color-border)] rounded-md px-2 py-1.5 shadow-lg text-xs whitespace-nowrap">
+                <div className="font-medium text-[var(--color-text-primary)] mb-0.5">{d.date}</div>
+                <div className="text-[var(--color-brand)]">输入: {d.input.toLocaleString()}</div>
+                <div className="text-[var(--color-success)]">输出: {d.output.toLocaleString()}</div>
+                {d.input + d.output > 0 && (
+                  <div className="text-[var(--color-text-tertiary)] border-t border-[var(--color-border)] mt-1 pt-1">
+                    总计: {(d.input + d.output).toLocaleString()}
+                  </div>
                 )}
               </div>
-              {/* 柱子 —— 输出段 */}
+              {/* 堆叠柱：输出（上方） */}
               <div
                 className="w-full rounded-t-[2px] transition-opacity group-hover:opacity-80"
-                style={{ height: `${outputH}px`, backgroundColor: 'var(--color-success)', opacity: hasData ? 0.8 : 0.1 }}
+                style={{
+                  height: `${Math.max(2, (d.output / maxVal) * 120)}px`,
+                  backgroundColor: 'var(--color-success)',
+                  opacity: d.input + d.output > 0 ? 0.75 : 0.08,
+                }}
               />
-              {/* 柱子 —— 输入段 */}
+              {/* 堆叠柱：输入（下方） */}
               <div
                 className="w-full transition-opacity group-hover:opacity-80"
-                style={{ height: `${inputH}px`, backgroundColor: 'var(--color-brand)', opacity: hasData ? 0.6 : 0.08 }}
+                style={{
+                  height: `${Math.max(2, (d.input / maxVal) * 120)}px`,
+                  backgroundColor: 'var(--color-brand)',
+                  opacity: d.input + d.output > 0 ? 0.5 : 0.06,
+                }}
               />
-              {/* 底部小点标记有数据的天 */}
-              {hasData && (
-                <div className="absolute bottom-0 w-1 h-1 rounded-full" style={{ backgroundColor: 'var(--color-brand)', opacity: 0.4 }} />
+              {d.input + d.output === 0 && (
+                <div className="absolute bottom-0 w-full h-[1px] bg-[var(--color-border)] opacity-20" />
               )}
             </div>
           )
         })}
       </div>
       {/* 日期标签 */}
-      <div className="flex gap-[2px] mt-1">
+      <div className="flex gap-[3px] mt-1">
         {days.map((d, i) => {
-          const showLabel = days.length <= 14 || i % Math.ceil(days.length / 14) === 0 || i === days.length - 1
+          const show = days.length <= 14 || i % Math.ceil(days.length / 14) === 0 || i === days.length - 1
           return (
             <div key={d.date} className="flex-1 text-center">
-              <span className={`text-[9px] text-[var(--color-text-tertiary)] ${showLabel ? '' : 'invisible'}`}>
+              <span className={`text-[9px] text-[var(--color-text-tertiary)] ${show ? '' : 'invisible'}`}>
                 {d.date.slice(5)}
               </span>
             </div>
           )
         })}
       </div>
-      {/* 图例 */}
-      <div className="flex items-center gap-4 mt-3 text-[11px] text-[var(--color-text-tertiary)]">
-        <div className="flex items-center gap-1">
-          <div className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: 'var(--color-brand)', opacity: 0.6 }} />
-          输入
-        </div>
-        <div className="flex items-center gap-1">
-          <div className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: 'var(--color-success)', opacity: 0.8 }} />
-          输出
-        </div>
-        <span className="ml-auto text-[var(--color-text-tertiary)]">
-          {days.filter((d) => d.input + d.output > 0).length}/{days.length} 天有数据
-        </span>
-      </div>
     </div>
   )
 }
 
-function SummaryRow({ label, value, bold }: { label: string; value: string; bold?: boolean }) {
+// ─── 模型明细表 ──────────────────────────────────────────
+
+function ModelTable({ models }: { models: ModelUsageSummary[] }) {
+  const fmt = (n: number) => n.toLocaleString()
+  const truncate = (s: string, len: number) => s.length > len ? s.slice(0, len) + '…' : s
+
   return (
-    <div className="flex justify-between text-sm">
-      <span className="text-[var(--color-text-secondary)]">{label}</span>
-      <span className={`tabular-nums ${bold ? 'font-semibold text-[var(--color-text-primary)]' : 'text-[var(--color-text-primary)]'}`}>{value}</span>
+    <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] overflow-hidden">
+      <div className="overflow-x-auto">
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="border-b border-[var(--color-border)] bg-[var(--color-surface-container)]">
+              <th className="text-left px-4 py-2.5 font-medium text-[var(--color-text-primary)]">模型</th>
+              <th className="text-left px-4 py-2.5 font-medium text-[var(--color-text-primary)]">服务商</th>
+              <th className="text-right px-4 py-2.5 font-medium text-[var(--color-text-primary)]">Input</th>
+              <th className="text-right px-4 py-2.5 font-medium text-[var(--color-text-primary)]">Output</th>
+              <th className="text-right px-4 py-2.5 font-medium text-[var(--color-text-primary)]">缓存读</th>
+              <th className="text-right px-4 py-2.5 font-medium text-[var(--color-text-primary)]">缓存创</th>
+              <th className="text-right px-4 py-2.5 font-medium text-[var(--color-text-primary)]">总计</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-[var(--color-border)]">
+            {models.map((m) => (
+              <tr key={m.model} className="hover:bg-[var(--color-surface-hover)]/30 transition-colors">
+                <td className="px-4 py-2.5 text-[var(--color-text-primary)]" title={m.model}>
+                  {truncate(m.model, 45)}
+                </td>
+                <td className="px-4 py-2.5">
+                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium"
+                    style={{ backgroundColor: colorFor(m.provider) + '20', color: colorFor(m.provider) }}>
+                    {m.provider}
+                  </span>
+                </td>
+                <td className="px-4 py-2.5 text-right tabular-nums text-[var(--color-text-primary)]">{fmt(m.input)}</td>
+                <td className="px-4 py-2.5 text-right tabular-nums text-[var(--color-text-primary)]">{fmt(m.output)}</td>
+                <td className="px-4 py-2.5 text-right tabular-nums text-[var(--color-text-tertiary)]">{fmt(m.cacheRead)}</td>
+                <td className="px-4 py-2.5 text-right tabular-nums text-[var(--color-text-tertiary)]">{fmt(m.cacheCreation)}</td>
+                <td className="px-4 py-2.5 text-right tabular-nums font-medium text-[var(--color-text-primary)]">{fmt(m.input + m.output)}</td>
+              </tr>
+            ))}
+          </tbody>
+          <tfoot>
+            <tr className="border-t border-[var(--color-border)] bg-[var(--color-surface-container)] font-medium">
+              <td colSpan={2} className="px-4 py-2.5 text-[var(--color-text-primary)]">合计</td>
+              <td className="px-4 py-2.5 text-right tabular-nums text-[var(--color-text-primary)]">{fmt(models.reduce((a, m) => a + m.input, 0))}</td>
+              <td className="px-4 py-2.5 text-right tabular-nums text-[var(--color-text-primary)]">{fmt(models.reduce((a, m) => a + m.output, 0))}</td>
+              <td className="px-4 py-2.5 text-right tabular-nums text-[var(--color-text-tertiary)]">{fmt(models.reduce((a, m) => a + m.cacheRead, 0))}</td>
+              <td className="px-4 py-2.5 text-right tabular-nums text-[var(--color-text-tertiary)]">{fmt(models.reduce((a, m) => a + m.cacheCreation, 0))}</td>
+              <td className="px-4 py-2.5 text-right tabular-nums text-[var(--color-text-primary)]">{fmt(models.reduce((a, m) => a + m.input + m.output, 0))}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
     </div>
   )
 }

@@ -24,8 +24,18 @@ export type UsageDaySummary = {
   cacheCreation: number
 }
 
+export type ModelUsageSummary = {
+  model: string
+  provider: string
+  input: number
+  output: number
+  cacheRead: number
+  cacheCreation: number
+}
+
 export type UsageQueryResult = {
   days: UsageDaySummary[]
+  models: ModelUsageSummary[]
   providers: string[]
   rangeDays: number
 }
@@ -53,6 +63,7 @@ export async function queryUsage(
   model?: string,
 ): Promise<UsageQueryResult> {
   const dayMap = new Map<string, UsageDaySummary>()
+  const modelMap = new Map<string, ModelUsageSummary>()
   const providerSet = new Set<string>()
   let lineCount = 0
 
@@ -75,6 +86,25 @@ export async function queryUsage(
         providerSet.add(eventProvider)
 
         if (model && eventProvider !== model) continue
+
+        // 模型维度聚合
+        const modelKey = ev.model || 'unknown'
+        const existingModel = modelMap.get(modelKey)
+        if (existingModel) {
+          existingModel.input += ev.totalInput
+          existingModel.output += ev.totalOutput
+          existingModel.cacheRead += ev.totalCacheRead
+          existingModel.cacheCreation += ev.totalCacheCreation
+        } else {
+          modelMap.set(modelKey, {
+            model: modelKey,
+            provider: eventProvider,
+            input: ev.totalInput,
+            output: ev.totalOutput,
+            cacheRead: ev.totalCacheRead,
+            cacheCreation: ev.totalCacheCreation,
+          })
+        }
 
         const existing = dayMap.get(ev.date)
         if (existing) {
@@ -109,8 +139,11 @@ export async function queryUsage(
     allDays.push(existing ?? { date: dateStr, input: 0, output: 0, cacheRead: 0, cacheCreation: 0 })
   }
 
+  const modelsArr = [...modelMap.values()].sort((a, b) => (b.input + b.output) - (a.input + a.output))
+
   return {
     days: allDays,
+    models: modelsArr,
     providers: [...providerSet].sort(),
     rangeDays: days,
   }

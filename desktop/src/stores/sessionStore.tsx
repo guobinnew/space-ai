@@ -149,7 +149,6 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     <SessionContext.Provider
       value={{
         sessions,
-        setSessions,
         isLoading,
         error,
         messages,
