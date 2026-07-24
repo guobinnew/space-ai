@@ -25,7 +25,8 @@ type ChatInputProps = {
   onStop: () => void;
   isGenerating: boolean;
   disabled?: boolean;
-  usage?: { inputTokens: number; outputTokens: number } | null;
+  usage?: { inputTokens: number; outputTokens: number; cacheReadTokens: number; cacheCreationTokens: number } | null;
+  totalUsage?: { totalInput: number; totalOutput: number; totalCacheRead: number; totalCacheCreation: number } | null;
   placeholder?: string;
 };
 
@@ -33,7 +34,7 @@ type ActiveProvider = Pick<SavedProvider, 'id' | 'name' | 'models' | 'apiFormat'
 
 let refCounter = 0;
 
-export function ChatInput({ onSend, onStop, isGenerating, disabled, usage, placeholder }: ChatInputProps) {
+export function ChatInput({ onSend, onStop, isGenerating, disabled, usage, totalUsage, placeholder }: ChatInputProps) {
   const t = useTranslation();
   const [input, setInput] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -266,6 +267,14 @@ export function ChatInput({ onSend, onStop, isGenerating, disabled, usage, place
                 </div>
                 <span className="text-[10px] text-[var(--color-text-tertiary)] tabular-nums">{contextPercent}%</span>
               </div>
+            )}
+            {totalUsage && totalUsage.totalInput > 0 && (
+              <span
+                className="text-[10px] text-[var(--color-text-tertiary)] tabular-nums"
+                title={`累计: 输入 ${totalUsage.totalInput.toLocaleString()} · 输出 ${totalUsage.totalOutput.toLocaleString()} · 缓存读 ${totalUsage.totalCacheRead.toLocaleString()} · 缓存创 ${totalUsage.totalCacheCreation.toLocaleString()}`}
+              >
+                ⇄{totalUsage.totalInput + totalUsage.totalOutput}
+              </span>
             )}
 
             {isGenerating && (

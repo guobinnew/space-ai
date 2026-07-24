@@ -76,7 +76,9 @@ export type PerSessionChatState = {
   /** 待审批的计划（EnterPlanMode/ExitPlanMode） */
   pendingPlan: PendingPlan | null
   /** 上下文使用量（token 数） */
-  usage: { inputTokens: number; outputTokens: number } | null
+  usage: { inputTokens: number; outputTokens: number; cacheReadTokens: number; cacheCreationTokens: number } | null
+  /** 累计 token 用量统计（跨所有轮次、所有消息） */
+  totalUsage: { totalInput: number; totalOutput: number; totalCacheRead: number; totalCacheCreation: number }
   /** 排队待发送的查询列表 */
   queuedQueries: QueuedQuery[]
 }

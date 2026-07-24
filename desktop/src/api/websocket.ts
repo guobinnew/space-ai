@@ -19,7 +19,8 @@ type ServerMessage =
   | { type: 'tool_result'; toolCallId: string; result: string; isError: boolean }
   | { type: 'ask_question'; requestId: string; questions: unknown[] }
   | { type: 'plan_proposal'; requestId: string; plan: string }
-  | { type: 'usage'; inputTokens: number; outputTokens: number }
+  | { type: 'usage'; inputTokens: number; outputTokens: number; cacheReadTokens: number; cacheCreationTokens: number }
+  | { type: 'usage_total'; totalInput: number; totalOutput: number; totalCacheRead: number; totalCacheCreation: number }
   | { type: 'message_complete' }
   | { type: 'error'; message: string }
   | { type: 'pong' }

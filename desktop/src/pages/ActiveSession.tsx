@@ -409,6 +409,7 @@ export function ActiveSession({ sessionId }: { sessionId: string }) {
                 onStop={handleStop}
                 isGenerating={isGenerating}
                 usage={sessionState.usage}
+                totalUsage={sessionState.totalUsage}
                 placeholder={t('empty.placeholder')}
               />
               {/* Work directory bar + disclaimer */}
@@ -480,6 +481,7 @@ export function ActiveSession({ sessionId }: { sessionId: string }) {
                 onStop={handleStop}
                 isGenerating={isGenerating}
                 usage={sessionState.usage}
+                totalUsage={sessionState.totalUsage}
               />
               {/* Work directory bar + disclaimer */}
               <div className="max-w-3xl mx-auto mt-2 px-1 flex items-center justify-between gap-3">

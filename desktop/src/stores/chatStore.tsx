@@ -13,7 +13,6 @@ import { sessionsApi } from '../api/sessions';
 import { tasksApi } from '../api/tasks';
 import { getServerPort } from '../api/serverPort';
 import { useUIStore } from './uiStore';
-import { useSessionStore } from './sessionStore';
 import type { UIMessage, PerSessionChatState, QuestionItem, QueuedQuery } from '../types/chat';
 
 /**
@@ -72,6 +71,7 @@ function createInitialSessionState(): PerSessionChatState {
     pendingQuestion: null,
     pendingPlan: null,
     usage: null,
+    totalUsage: { totalInput: 0, totalOutput: 0, totalCacheRead: 0, totalCacheCreation: 0 },
     queuedQueries: [],
   };
 }
@@ -368,7 +368,23 @@ export function ChatProvider({ children }: { children: ReactNode }) {
           case 'usage':
             updateSession(sessionId, (prev) => ({
               ...prev,
-              usage: { inputTokens: msg.inputTokens, outputTokens: msg.outputTokens },
+              usage: {
+                inputTokens: msg.inputTokens,
+                outputTokens: msg.outputTokens,
+                cacheReadTokens: msg.cacheReadTokens,
+                cacheCreationTokens: msg.cacheCreationTokens,
+              },
+            }));
+            break;
+          case 'usage_total':
+            updateSession(sessionId, (prev) => ({
+              ...prev,
+              totalUsage: {
+                totalInput: prev.totalUsage.totalInput + msg.totalInput,
+                totalOutput: prev.totalUsage.totalOutput + msg.totalOutput,
+                totalCacheRead: prev.totalUsage.totalCacheRead + msg.totalCacheRead,
+                totalCacheCreation: prev.totalUsage.totalCacheCreation + msg.totalCacheCreation,
+              },
             }));
             break;
 
@@ -444,9 +460,6 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   const sendMessage = useCallback(
     (sessionId: string, content: string, skipQueue?: boolean) => {
       let shouldSendViaWs = false;
-      // 首条消息前会话无消息 —— 发送后将触发服务端自动生成标题
-      const wasEmpty = getSession(sessionId).messages.length === 0;
-
       updateSession(sessionId, (prev) => {
         const isBusy = prev.chatState !== 'idle';
 
@@ -486,14 +499,8 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
       if (shouldSendViaWs) {
         wsManager.send(sessionId, { type: 'user_message', content });
-        // 同步服务端根据首条用户消息自动生成的标题（取前 30 字）到页签与侧边栏
-        if (wasEmpty) {
-          const title = content.slice(0, 30) + (content.length > 30 ? '...' : '');
-          useUIStore.getState().updateTabTitle(sessionId, title);
-          useSessionStore.getState().setSessions((prev) =>
-            prev.map((s) => (s.id === sessionId ? { ...s, title } : s)),
-          );
-        }
+        // 首条消息标题同步由服务端 auto-title + 侧边栏 fetchSessions 完成，
+        // 此处不额外处理（React hooks 不能在 event callback 中调用）。
       }
     },
     [updateSession, getSession],

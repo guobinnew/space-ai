@@ -83,7 +83,8 @@ export type StreamChunk =
   | { type: 'tool_result'; toolCallId: string; result: string; isError: boolean }
   | { type: 'ask_question'; requestId: string; questions: unknown[] }
   | { type: 'plan_proposal'; requestId: string; plan: string }
-  | { type: 'usage'; inputTokens: number; outputTokens: number }
+  | { type: 'usage'; inputTokens: number; outputTokens: number; cacheReadTokens: number; cacheCreationTokens: number }
+  | { type: 'usage_total'; totalInput: number; totalOutput: number; totalCacheRead: number; totalCacheCreation: number }
   | { type: 'message_complete' }
   | { type: 'error'; message: string }
 
@@ -146,10 +147,14 @@ interface LLMResponse {
   toolUses: ToolUse[]
   /** 停止原因 */
   stopReason: 'end_turn' | 'tool_use' | 'max_tokens' | 'stop' | 'length' | 'other'
-  /** 输入 token 数（上下文使用量） */
+  /** 输入 token 数（含缓存，上下文使用量） */
   inputTokens: number
   /** 输出 token 数 */
   outputTokens: number
+  /** 缓存读取的 token 数（仅 Anthropic） */
+  cacheReadTokens: number
+  /** 缓存创建的 token 数（仅 Anthropic） */
+  cacheCreationTokens: number
   /** Thinking blocks (with signatures) for conversation history */
   thinkingBlocks: Array<{ thinking: string; signature: string }>
   /**
@@ -479,6 +484,10 @@ async function runAnthropicLoop(
   let consecutiveRepeat = 0
   let loopDetected = false
   let completed = false
+  let totalInput = 0
+  let totalOutput = 0
+  let totalCacheRead = 0
+  let totalCacheCreation = 0
 
   let round = 0
   while (round < MAX_TOOL_ROUNDS) {
@@ -541,10 +550,22 @@ async function runAnthropicLoop(
       break
     }
 
-    // Send usage info to frontend
+    // Send per-round usage to frontend (for context bar)
     if (response.inputTokens > 0 || response.outputTokens > 0) {
-      onChunk({ type: 'usage', inputTokens: response.inputTokens, outputTokens: response.outputTokens })
+      onChunk({
+        type: 'usage',
+        inputTokens: response.inputTokens,
+        outputTokens: response.outputTokens,
+        cacheReadTokens: response.cacheReadTokens,
+        cacheCreationTokens: response.cacheCreationTokens,
+      })
     }
+
+    // Accumulate total token usage across all rounds
+    totalInput += response.inputTokens
+    totalOutput += response.outputTokens
+    totalCacheRead += response.cacheReadTokens
+    totalCacheCreation += response.cacheCreationTokens
 
     // Accumulate text
     if (response.text) {
@@ -688,6 +709,15 @@ async function runAnthropicLoop(
     onChunk({ type: 'content_delta', text: notice })
   }
 
+  // Send accumulated token usage stats for this turn
+  onChunk({
+    type: 'usage_total',
+    totalInput,
+    totalOutput,
+    totalCacheRead,
+    totalCacheCreation,
+  })
+
   return { text: fullText, thinking: accumulatedThinking, toolCalls: accumulatedToolCalls }
 }
 
@@ -763,6 +793,8 @@ async function callAnthropic(
   let stopReason: LLMResponse['stopReason'] = 'other'
   let inputTokens = 0
   let outputTokens = 0
+  let cacheReadTokens = 0
+  let cacheCreationTokens = 0
   const thinkingBlocks: Array<{ thinking: string; signature: string }> = []
   let thinkingStuck = false
   /** 纯思考（无文本/工具产出）的起始时间戳，用于超时检测 */
@@ -885,6 +917,8 @@ async function callAnthropic(
             (u.cache_creation_input_tokens || 0) +
             (u.cache_read_input_tokens || 0)
           outputTokens = u.output_tokens || 0
+          cacheReadTokens = u.cache_read_input_tokens || 0
+          cacheCreationTokens = u.cache_creation_input_tokens || 0
         }
       } catch {
         // Skip malformed SSE lines
@@ -922,7 +956,7 @@ async function callAnthropic(
   }
 
   streamTimeout.clear()
-  return { text: fullText, toolUses, stopReason, inputTokens, outputTokens, thinkingBlocks, thinkingStuck }
+  return { text: fullText, toolUses, stopReason, inputTokens, outputTokens, cacheReadTokens, cacheCreationTokens, thinkingBlocks, thinkingStuck }
 }
 
 // ─── OpenAI agentic loop ─────────────────────────────────────
@@ -951,6 +985,10 @@ async function runOpenAILoop(
   let consecutiveRepeat = 0
   let loopDetected = false
   let completed = false
+  let totalInput = 0
+  let totalOutput = 0
+  let totalCacheRead = 0
+  let totalCacheCreation = 0
 
   let round = 0
   while (round < MAX_TOOL_ROUNDS) {
@@ -995,10 +1033,22 @@ async function runOpenAILoop(
       }
     }
 
-    // Send usage info to frontend
+    // Send per-round usage to frontend (for context bar)
     if (response.inputTokens > 0 || response.outputTokens > 0) {
-      onChunk({ type: 'usage', inputTokens: response.inputTokens, outputTokens: response.outputTokens })
+      onChunk({
+        type: 'usage',
+        inputTokens: response.inputTokens,
+        outputTokens: response.outputTokens,
+        cacheReadTokens: response.cacheReadTokens,
+        cacheCreationTokens: response.cacheCreationTokens,
+      })
     }
+
+    // Accumulate total token usage across all rounds
+    totalInput += response.inputTokens
+    totalOutput += response.outputTokens
+    totalCacheRead += response.cacheReadTokens
+    totalCacheCreation += response.cacheCreationTokens
 
     if (response.text) {
       fullText += response.text
@@ -1097,6 +1147,15 @@ async function runOpenAILoop(
     fullText += notice
     onChunk({ type: 'content_delta', text: notice })
   }
+
+  // Send accumulated token usage stats for this turn
+  onChunk({
+    type: 'usage_total',
+    totalInput,
+    totalOutput,
+    totalCacheRead,
+    totalCacheCreation,
+  })
 
   return fullText
 }
@@ -1240,7 +1299,7 @@ async function callOpenAI(
   else if (finishReason === 'length') stopReason = 'length'
 
   streamTimeout.clear()
-  return { text: fullText, toolUses, stopReason, inputTokens, outputTokens, thinkingBlocks: [] }
+  return { text: fullText, toolUses, stopReason, inputTokens, outputTokens, cacheReadTokens: 0, cacheCreationTokens: 0, thinkingBlocks: [] }
 }
 
 // ─── 工具执行 ────────────────────────────────────────────────
