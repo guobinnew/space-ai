@@ -208,7 +208,7 @@ function CombinedChart({ days }: { days: DayData[] }) {
   const containerRef = React.useRef<HTMLDivElement>(null)
 
   const W = 600
-  const H = 240
+  const H = 180
   const PAD = { t: 20, r: 12, b: 32, l: 48 }
   const plotW = W - PAD.l - PAD.r
   const plotH = H - PAD.t - PAD.b
