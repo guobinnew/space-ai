@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useChatStore } from '../stores/chatStore'
 import { fetchUsage, type UsageQueryResult, type ModelUsageSummary } from '../api/usage'
 import { api } from '../api/client'
@@ -155,6 +155,9 @@ export function UsageStatsPage() {
 
             {/* 柱状图 */}
             <StackedBarChart days={data.days} />
+
+            {/* 趋势曲线图 */}
+            <LineChart days={data.days} />
             {/* 图例 */}
             {groupsList.length > 0 && (
               <div className="flex flex-wrap gap-x-5 gap-y-1.5 text-xs text-[var(--color-text-secondary)]">
@@ -262,6 +265,143 @@ function StackedBarChart({ days }: { days: { date: string; input: number; output
         })}
       </div>
     </div>
+  )
+}
+
+// ─── 趋势曲线图 ──────────────────────────────────────────
+
+function LineChart({ days }: { days: { date: string; input: number; output: number; cacheRead: number; cacheCreation: number }[] }) {
+  if (days.length === 0) return null
+
+  const W = 600
+  const H = 200
+  const PAD = { t: 16, r: 12, b: 28, l: 48 }
+  const plotW = W - PAD.l - PAD.r
+  const plotH = H - PAD.t - PAD.b
+
+  const maxVal = Math.max(...days.map((d) => Math.max(d.input, d.output, d.cacheRead, d.cacheCreation)), 1)
+  const niceMax = Math.ceil(maxVal / 10 ** Math.max(0, Math.floor(Math.log10(maxVal)) - 1)) * 10 ** Math.max(0, Math.floor(Math.log10(maxVal)) - 1)
+
+  const xScale = (i: number) => PAD.l + (i / Math.max(days.length - 1, 1)) * plotW
+  const yScale = (v: number) => PAD.t + plotH - (v / niceMax) * plotH
+
+  // 生成折线 path
+  const linePath = (key: 'input' | 'output' | 'cacheRead' | 'cacheCreation') => {
+    return days
+      .map((d, i) => `${i === 0 ? 'M' : 'L'}${xScale(i).toFixed(1)},${yScale(d[key]).toFixed(1)}`)
+      .join('')
+  }
+
+  // Y 轴刻度标签
+  const yTicks = 4
+  const yLabels: number[] = []
+  for (let i = 0; i <= yTicks; i++) {
+    yLabels.push((niceMax / yTicks) * i)
+  }
+
+  // X 轴日期标签
+  const xLabelIndices = days.map((_, i) => i).filter((i) => {
+    if (days.length <= 14) return true
+    if (i === 0 || i === days.length - 1) return true
+    return i % Math.ceil(days.length / 10) === 0
+  })
+
+  // hover 状态
+  const [hoverIdx, setHoverIdx] = React.useState(-1)
+
+  return (
+    <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
+      {/* 图例 */}
+      <div className="flex flex-wrap gap-x-4 gap-y-1 mb-2 text-xs text-[var(--color-text-secondary)]">
+        <LegendItem color="var(--color-brand)" label="输入" />
+        <LegendItem color="var(--color-success)" label="输出" />
+        <LegendItem color="var(--color-accent)" label="缓存读" dashed />
+        <LegendItem color="var(--color-warning)" label="缓存创" dashed />
+      </div>
+
+      <div className="relative overflow-x-auto">
+        <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ minWidth: days.length > 30 ? 800 : undefined }}>
+          {/* 网格线 */}
+          {yLabels.map((v) => (
+            <g key={v}>
+              <line x1={PAD.l} y1={yScale(v)} x2={W - PAD.r} y2={yScale(v)}
+                stroke="var(--color-border)" strokeWidth={0.5} opacity={0.4} />
+              <text x={PAD.l - 6} y={yScale(v) + 3} textAnchor="end"
+                className="fill-[var(--color-text-tertiary)] text-[9px] tabular-nums">
+                {v >= 1000000 ? (v / 1000000).toFixed(v % 1000000 === 0 ? 0 : 1) + 'M'
+                  : v >= 1000 ? (v / 1000).toFixed(v % 1000 === 0 ? 0 : 1) + 'K'
+                  : v.toLocaleString()}
+              </text>
+            </g>
+          ))}
+
+          {/* X 轴标签 */}
+          {xLabelIndices.map((i) => (
+            <text key={i} x={xScale(i)} y={H - 4} textAnchor="middle"
+              className="fill-[var(--color-text-tertiary)] text-[8px]">
+              {days[i].date.slice(5)}
+            </text>
+          ))}
+
+          {/* 折线：输入 */}
+          <path d={linePath('input')} fill="none" stroke="var(--color-brand)" strokeWidth={2}
+            strokeLinejoin="round" strokeLinecap="round" />
+          {/* 折线：输出 */}
+          <path d={linePath('output')} fill="none" stroke="var(--color-success)" strokeWidth={2}
+            strokeLinejoin="round" strokeLinecap="round" />
+          {/* 折线：缓存读 */}
+          <path d={linePath('cacheRead')} fill="none" stroke="var(--color-accent)" strokeWidth={1.5}
+            strokeDasharray="4 3" strokeLinejoin="round" strokeLinecap="round" opacity={0.7} />
+          {/* 折线：缓存创 */}
+          <path d={linePath('cacheCreation')} fill="none" stroke="var(--color-warning)" strokeWidth={1.5}
+            strokeDasharray="4 3" strokeLinejoin="round" strokeLinecap="round" opacity={0.7} />
+
+          {/* 数据点 & 透明 hover 条 */}
+          {days.map((d, i) => (
+            <g key={i}>
+              <rect x={xScale(i) - plotW / days.length / 2} y={PAD.t} width={plotW / days.length}
+                height={plotH} fill="transparent" className="cursor-pointer"
+                onMouseEnter={() => setHoverIdx(i)} onMouseLeave={() => setHoverIdx(-1)} />
+              {/* hover 数据点 */}
+              {hoverIdx === i && (
+                <>
+                  <circle cx={xScale(i)} cy={yScale(d.input)} r={3} fill="var(--color-brand)" />
+                  <circle cx={xScale(i)} cy={yScale(d.output)} r={3} fill="var(--color-success)" />
+                  {d.cacheRead > 0 && <circle cx={xScale(i)} cy={yScale(d.cacheRead)} r={2.5} fill="var(--color-accent)" />}
+                  {d.cacheCreation > 0 && <circle cx={xScale(i)} cy={yScale(d.cacheCreation)} r={2.5} fill="var(--color-warning)" />}
+                  {/* 悬停十字线 */}
+                  <line x1={xScale(i)} y1={PAD.t} x2={xScale(i)} y2={PAD.t + plotH}
+                    stroke="var(--color-border)" strokeWidth={1} opacity={0.5} />
+                </>
+              )}
+            </g>
+          ))}
+        </svg>
+
+        {/* hover tooltip */}
+        {hoverIdx >= 0 && (
+          <div className="absolute top-2 right-2 z-10 bg-[var(--color-surface-elevated)] border border-[var(--color-border)] rounded-md px-2.5 py-1.5 shadow-lg text-xs whitespace-nowrap">
+            <div className="font-medium text-[var(--color-text-primary)] mb-1">{days[hoverIdx].date}</div>
+            <div className="text-[var(--color-brand)]">输入 {days[hoverIdx].input.toLocaleString()}</div>
+            <div className="text-[var(--color-success)]">输出 {days[hoverIdx].output.toLocaleString()}</div>
+            <div className="text-[var(--color-accent)]">缓存读 {days[hoverIdx].cacheRead.toLocaleString()}</div>
+            <div className="text-[var(--color-warning)]">缓存创 {days[hoverIdx].cacheCreation.toLocaleString()}</div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function LegendItem({ color, label, dashed }: { color: string; label: string; dashed?: boolean }) {
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <span className="w-3 h-[2px] rounded-full shrink-0" style={{
+        backgroundColor: color,
+        ...(dashed ? { backgroundImage: `repeating-linear-gradient(to right, ${color} 0, ${color} 4px, transparent 4px, transparent 7px)` } : {}),
+      }} />
+      {label}
+    </span>
   )
 }
 
