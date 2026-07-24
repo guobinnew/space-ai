@@ -205,13 +205,15 @@ type DayData = { date: string; input: number; output: number; cacheRead: number;
 function CombinedChart({ days }: { days: DayData[] }) {
   if (days.length === 0) return null
 
+  const containerRef = React.useRef<HTMLDivElement>(null)
+
   const W = 600
   const H = 240
   const PAD = { t: 20, r: 12, b: 32, l: 48 }
   const plotW = W - PAD.l - PAD.r
   const plotH = H - PAD.t - PAD.b
 
-  // 柱状图 & 曲线图统一 Y 轴范围：取所有值的最大值
+  // 统一 Y 轴范围
   const barMax = Math.max(...days.map((d) => d.input + d.output), 1)
   const lineMax = Math.max(...days.map((d) => Math.max(d.input, d.output, d.cacheRead, d.cacheCreation)), 1)
   const maxVal = Math.max(barMax, lineMax)
@@ -223,7 +225,6 @@ function CombinedChart({ days }: { days: DayData[] }) {
   const xCenter = (i: number) => PAD.l + i * gap + gap / 2
   const yScale = (v: number) => PAD.t + plotH - (v / niceMax) * plotH
 
-  // 折线 path
   const linePath = (key: 'input' | 'output' | 'cacheRead' | 'cacheCreation') =>
     days.map((d, i) => `${i === 0 ? 'M' : 'L'}${(PAD.l + i * gap + gap / 2).toFixed(1)},${yScale(d[key]).toFixed(1)}`).join('')
 
@@ -241,9 +242,23 @@ function CombinedChart({ days }: { days: DayData[] }) {
 
   const [hoverIdx, setHoverIdx] = React.useState(-1)
 
+  // tooltip 定位：相对于容器宽度的百分比
+  const tooltipLeft = React.useMemo(() => {
+    if (hoverIdx < 0 || !containerRef.current) return '50%'
+    const svgW = containerRef.current.clientWidth
+    const leftPad = (PAD.l / W) * svgW
+    const plotWidth = (plotW / W) * svgW
+    const colGap = plotWidth / Math.max(days.length - 1, 1)
+    const pct = ((leftPad + hoverIdx * colGap) / svgW) * 100
+    // 超出左右边界时偏移
+    if (pct < 15) return '12px'
+    if (pct > 85) return undefined
+    return `${pct}%`
+  }, [hoverIdx, days.length])
+
   return (
     <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
-      {/* 图例 */}
+      {/* 图例 — text-xs 与页面按钮/标签一致 */}
       <div className="flex flex-wrap gap-x-4 gap-y-1 mb-2 text-xs text-[var(--color-text-secondary)]">
         <LegendItem color="var(--color-brand)" label="输入" />
         <LegendItem color="var(--color-success)" label="输出" />
@@ -251,15 +266,15 @@ function CombinedChart({ days }: { days: DayData[] }) {
         <LegendItem color="var(--color-warning)" label="缓存创" dashed />
       </div>
 
-      <div className="relative overflow-x-auto">
+      <div ref={containerRef} className="relative overflow-x-auto" style={{ minHeight: H / 600 * 100 + 'vw' }}>
         <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ minWidth: days.length > 30 ? 800 : undefined }}>
           {/* —— 背景网格 —— */}
           {yLabels.map((v) => (
             <g key={v}>
               <line x1={PAD.l} y1={yScale(v)} x2={W - PAD.r} y2={yScale(v)}
                 stroke="var(--color-border)" strokeWidth={0.5} opacity={0.4} />
-              <text x={PAD.l - 6} y={yScale(v) + 3} textAnchor="end"
-                className="fill-[var(--color-text-tertiary)] text-[9px] tabular-nums">
+              <text x={PAD.l - 6} y={yScale(v) + 4} textAnchor="end"
+                fill="var(--color-text-tertiary)" style={{ fontSize: 11 }} className="tabular-nums">
                 {v >= 1000000 ? (v / 1000000).toFixed(v % 1000000 === 0 ? 0 : 1) + 'M'
                   : v >= 1000 ? (v / 1000).toFixed(v % 1000 === 0 ? 0 : 1) + 'K'
                   : v.toLocaleString()}
@@ -275,11 +290,9 @@ function CombinedChart({ days }: { days: DayData[] }) {
             const yIn = yScale(d.input + d.output)
             return (
               <g key={`bar-${i}`}>
-                {/* 输出柱（上方） */}
                 <rect x={cx - barW / 2} y={yOut} width={barW} height={Math.max(1, y0 - yOut)}
                   fill="var(--color-success)" opacity={d.input + d.output > 0 ? 0.6 : 0.06}
                   rx={1} />
-                {/* 输入柱（下方） */}
                 {d.input > 0 && (
                   <rect x={cx - barW / 2} y={yIn} width={barW} height={Math.max(1, yOut - yIn)}
                     fill="var(--color-brand)" opacity={0.45} rx={1} />
@@ -301,12 +314,12 @@ function CombinedChart({ days }: { days: DayData[] }) {
           {/* —— X 轴标签 —— */}
           {xLabelIndices.map((i) => (
             <text key={i} x={xCenter(i)} y={H - 4} textAnchor="middle"
-              className="fill-[var(--color-text-tertiary)] text-[8px]">
+              fill="var(--color-text-tertiary)" style={{ fontSize: 11 }}>
               {days[i].date.slice(5)}
             </text>
           ))}
 
-          {/* —— hover 热区 —— */}
+          {/* —— hover 热区（在最上层，确保响应鼠标） —— */}
           {days.map((d, i) => {
             const cx = xCenter(i)
             return (
@@ -316,10 +329,8 @@ function CombinedChart({ days }: { days: DayData[] }) {
                   onMouseEnter={() => setHoverIdx(i)} onMouseLeave={() => setHoverIdx(-1)} />
                 {hoverIdx === i && (
                   <>
-                    {/* 竖线 */}
                     <line x1={cx} y1={PAD.t} x2={cx} y2={PAD.t + plotH}
                       stroke="var(--color-border)" strokeWidth={1} opacity={0.5} />
-                    {/* 数据点标记 */}
                     <circle cx={cx} cy={yScale(d.input)} r={3} fill="var(--color-brand)" />
                     <circle cx={cx} cy={yScale(d.output)} r={3} fill="var(--color-success)" />
                     {d.cacheRead > 0 && <circle cx={cx} cy={yScale(d.cacheRead)} r={2.5} fill="var(--color-accent)" />}
@@ -331,14 +342,20 @@ function CombinedChart({ days }: { days: DayData[] }) {
           })}
         </svg>
 
-        {/* hover tooltip */}
+        {/* hover tooltip — 跟随鼠标列居中 */}
         {hoverIdx >= 0 && (
-          <div className="absolute top-2 right-2 z-10 bg-[var(--color-surface-elevated)] border border-[var(--color-border)] rounded-md px-2.5 py-1.5 shadow-lg text-xs whitespace-nowrap">
-            <div className="font-medium text-[var(--color-text-primary)] mb-1">{days[hoverIdx].date}</div>
-            <div className="text-[var(--color-brand)]">输入 {days[hoverIdx].input.toLocaleString()}</div>
-            <div className="text-[var(--color-success)]">输出 {days[hoverIdx].output.toLocaleString()}</div>
-            <div className="text-[var(--color-accent)]">缓存读 {days[hoverIdx].cacheRead.toLocaleString()}</div>
-            <div className="text-[var(--color-warning)]">缓存创 {days[hoverIdx].cacheCreation.toLocaleString()}</div>
+          <div className="absolute top-0 z-10 -translate-x-1/2 pointer-events-none"
+            style={{
+              left: tooltipLeft ?? 'auto',
+              right: tooltipLeft === undefined ? '12px' : 'auto',
+            }}>
+            <div className="bg-[var(--color-surface-elevated)] border border-[var(--color-border)] rounded-md px-2.5 py-1.5 shadow-lg text-xs whitespace-nowrap">
+              <div className="font-medium text-[var(--color-text-primary)] mb-1">{days[hoverIdx].date}</div>
+              <div className="text-[var(--color-brand)]">输入 {days[hoverIdx].input.toLocaleString()}</div>
+              <div className="text-[var(--color-success)]">输出 {days[hoverIdx].output.toLocaleString()}</div>
+              <div className="text-[var(--color-accent)]">缓存读 {days[hoverIdx].cacheRead.toLocaleString()}</div>
+              <div className="text-[var(--color-warning)]">缓存创 {days[hoverIdx].cacheCreation.toLocaleString()}</div>
+            </div>
           </div>
         )}
       </div>
