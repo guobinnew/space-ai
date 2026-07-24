@@ -17,7 +17,7 @@ const PROVIDER_COLORS: Record<string, string> = {
   GLM: '#4a9eff',
   Qwen: '#615ced',
   Moonshot: '#7b68ee',
-  MiniMax: '#ff6b6b',
+  MiniMax: '#ff8c42',
 }
 const FALLBACK_COLORS = ['#6b7280', '#8b5cf6', '#ec4899', '#f59e0b', '#14b8a6', '#f97316', '#84cc16']
 

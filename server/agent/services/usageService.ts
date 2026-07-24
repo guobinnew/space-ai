@@ -156,8 +156,9 @@ function extractProvider(model: string): string {
   if (lower.includes('gpt') || lower.includes('o1') || lower.includes('o3')) return 'OpenAI'
   if (lower.includes('deepseek')) return 'DeepSeek'
   if (lower.includes('qwen')) return 'Qwen'
-  if (lower.includes('mi') || lower.includes('moonshot')) return 'Moonshot'
+  if (lower.includes('moonshot') || lower.includes('kimi')) return 'Moonshot'
   if (lower.includes('glm') || lower.includes('zhipu')) return 'GLM'
+  if (lower.includes('mimo') || lower.includes('minimax')) return 'MiniMax'
   // 默认用模型名本身
   return model
 }
