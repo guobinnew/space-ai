@@ -88,16 +88,6 @@ export function ReadingPanel({ tts }: Props) {
               重来
             </button>
           )}
-
-          {/* 停止 */}
-          {(tts.isPlaying || tts.isPaused) && (
-            <button onClick={tts.stop}
-              className="flex items-center gap-1 px-2.5 py-1 text-xs rounded-md text-[var(--color-text-tertiary)] hover:text-[var(--color-error)] hover:bg-[var(--color-error)]/8 transition-colors"
-            >
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z M9 9h6v6H9z" /></svg>
-              停止
-            </button>
-          )}
         </div>
       </div>
 
