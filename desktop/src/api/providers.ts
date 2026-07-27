@@ -4,7 +4,7 @@
  * 参照 smart-code api/providers.ts 复刻。
  */
 
-import { api } from './client'
+import { api, getBaseUrl } from './client'
 import type {
   SavedProvider,
   CreateProviderInput,
@@ -61,7 +61,16 @@ export const providersApi = {
     return api.post<TestResultResponse>('/api/providers/test', input)
   },
 
-  testTts(id: string) {
-    return api.post<TestResultResponse>(`/api/providers/${encodeURIComponent(id)}/test-tts`)
+  testTts(id: string): Promise<{ ok: boolean; blob?: Blob; latencyMs?: number; error?: string }> {
+    const baseUrl = getBaseUrl()
+    return fetch(`${baseUrl}/api/providers/${encodeURIComponent(id)}/test-tts`, { method: 'POST' }).then(async (res) => {
+      if (res.ok) {
+        const blob = await res.blob()
+        const latencyMs = parseInt(res.headers.get('X-TTS-Latency') || '0', 10)
+        return { ok: true, blob, latencyMs }
+      }
+      const json = await res.json().catch(() => ({ result: { error: `HTTP ${res.status}` } }))
+      return { ok: false, error: json?.result?.error || `HTTP ${res.status}` }
+    })
   },
 }

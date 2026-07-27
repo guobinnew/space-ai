@@ -150,8 +150,19 @@ export async function handleProvidersApi(
     // /api/providers/:id/test-tts
     if (action === 'test-tts') {
       if (req.method !== 'POST') throw methodNotAllowed(req.method)
-      const result = await providerService.testTtsProvider(id)
-      return Response.json({ result })
+      const { result, audio } = await providerService.testTtsProvider(id)
+      if (audio && result.success) {
+        return new Response(audio.data, {
+          headers: {
+            'Content-Type': audio.contentType,
+            'Content-Length': audio.data.length.toString(),
+            'X-TTS-Latency': result.latencyMs.toString(),
+            'X-TTS-Model': result.modelUsed || '',
+            'Cache-Control': 'no-cache',
+          },
+        })
+      }
+      return Response.json({ result }, { status: 200 })
     }
 
     // /api/providers/:id

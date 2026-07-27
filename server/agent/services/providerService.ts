@@ -233,14 +233,14 @@ export class ProviderService {
     return { connectivity: step1 }
   }
 
-  /** 测试 TTS 连通性 */
-  async testTtsProvider(id: string): Promise<ProviderTestStepResult> {
+  /** 测试 TTS 连通性并返回音频 */
+  async testTtsProvider(id: string): Promise<{ result: ProviderTestStepResult; audio?: { data: Buffer; contentType: string } }> {
     const { providers } = await this.listProviders()
     const provider = providers.find((p) => p.id === id)
     if (!provider) throw new Error('Provider not found')
 
     const modelId = provider.models.tts
-    if (!modelId) return { success: false, latencyMs: 0, error: 'No TTS model configured' }
+    if (!modelId) return { result: { success: false, latencyMs: 0, error: 'No TTS model configured' } }
 
     const baseUrl = (provider.ttsBaseUrl || provider.baseUrl).replace(/\/+$/, '')
     const voice = provider.ttsVoice || 'alloy'
@@ -267,11 +267,12 @@ export class ProviderService {
           signal: AbortSignal.timeout(15000),
         })
         const latencyMs = Date.now() - start
-        if (!res.ok) return { success: false, latencyMs, error: `HTTP ${res.status}`, modelUsed: modelId, httpStatus: res.status }
-        const json = await res.json() as Record<string, unknown>
-        const hasAudio = !!(json as { choices?: Array<{ message?: { audio?: Record<string, unknown> } }> })?.choices?.[0]?.message?.audio
-        if (!hasAudio) return { success: false, latencyMs, error: 'No audio in response', modelUsed: modelId }
-        return { success: true, latencyMs, modelUsed: modelId, httpStatus: res.status }
+        if (!res.ok) return { result: { success: false, latencyMs, error: `HTTP ${res.status}`, modelUsed: modelId, httpStatus: res.status } }
+        const json = await res.json() as { choices?: Array<{ message?: { audio?: { data?: string } } }> }
+        const base64Data = json?.choices?.[0]?.message?.audio?.data
+        if (!base64Data) return { result: { success: false, latencyMs, error: 'No audio in response', modelUsed: modelId } }
+        const audio = Buffer.from(base64Data, 'base64')
+        return { result: { success: true, latencyMs, modelUsed: modelId, httpStatus: res.status }, audio: { data: audio, contentType: 'audio/wav' } }
       } else {
         const url = `${baseUrl}/audio/speech`
         const res = await fetch(url, {
@@ -281,21 +282,21 @@ export class ProviderService {
           signal: AbortSignal.timeout(15000),
         })
         const latencyMs = Date.now() - start
-        if (!res.ok) return { success: false, latencyMs, error: `HTTP ${res.status}`, modelUsed: modelId, httpStatus: res.status }
+        if (!res.ok) return { result: { success: false, latencyMs, error: `HTTP ${res.status}`, modelUsed: modelId, httpStatus: res.status } }
         const ct = res.headers.get('Content-Type') || ''
         if (!ct.includes('audio') && !ct.includes('mpeg') && !ct.includes('wav') && !ct.includes('octet')) {
-          return { success: false, latencyMs, error: `Unexpected content type: ${ct}`, modelUsed: modelId }
+          return { result: { success: false, latencyMs, error: `Unexpected content type: ${ct}`, modelUsed: modelId } }
         }
-        const size = parseInt(res.headers.get('Content-Length') || '0', 10) || (await res.arrayBuffer()).byteLength
-        if (size < 100) return { success: false, latencyMs, error: `Audio too small: ${size} bytes`, modelUsed: modelId }
-        return { success: true, latencyMs, modelUsed: modelId, httpStatus: res.status }
+        const buf = await res.arrayBuffer()
+        if (buf.byteLength < 100) return { result: { success: false, latencyMs, error: `Audio too small: ${buf.byteLength} bytes`, modelUsed: modelId } }
+        return { result: { success: true, latencyMs, modelUsed: modelId, httpStatus: res.status }, audio: { data: Buffer.from(buf), contentType: ct || 'audio/mpeg' } }
       }
     } catch (err: unknown) {
       const latencyMs = Date.now() - start
       if (err instanceof DOMException && err.name === 'TimeoutError') {
-        return { success: false, latencyMs, error: 'Request timed out (15s)', modelUsed: modelId }
+        return { result: { success: false, latencyMs, error: 'Request timed out (15s)', modelUsed: modelId } }
       }
-      return { success: false, latencyMs, error: err instanceof Error ? err.message : String(err), modelUsed: modelId }
+      return { result: { success: false, latencyMs, error: err instanceof Error ? err.message : String(err), modelUsed: modelId } }
     }
   }
 

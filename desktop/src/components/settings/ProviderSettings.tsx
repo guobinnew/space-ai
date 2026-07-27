@@ -12,7 +12,7 @@ export function ProviderSettings() {
   const [editingProvider, setEditingProvider] = useState<SavedProvider | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [testResults, setTestResults] = useState<Record<string, { loading: boolean; result?: ProviderTestResult }>>({});
-const [ttsTestResults, setTtsTestResults] = useState<Record<string, { loading: boolean; result?: ProviderTestStepResult }>>({});
+const [ttsTestResults, setTtsTestResults] = useState<Record<string, { loading: boolean; success?: boolean; latencyMs?: number; error?: string }>>({});
   const [error, setError] = useState<string | null>(null);
 
   const fetchProviders = async () => {
@@ -63,12 +63,21 @@ const [ttsTestResults, setTtsTestResults] = useState<Record<string, { loading: b
   const handleTtsTest = async (provider: SavedProvider) => {
     setTtsTestResults((r) => ({ ...r, [provider.id]: { loading: true } }));
     try {
-      const { result } = await providersApi.testTts(provider.id);
-      setTtsTestResults((r) => ({ ...r, [provider.id]: { loading: false, result } }));
+      const { ok, blob, latencyMs, error } = await providersApi.testTts(provider.id);
+      if (ok && blob) {
+        // 播放音频
+        const url = URL.createObjectURL(blob);
+        const audio = new Audio(url);
+        audio.onended = () => URL.revokeObjectURL(url);
+        audio.play().catch(() => {});
+        setTtsTestResults((r) => ({ ...r, [provider.id]: { loading: false, success: true, latencyMs } }));
+      } else {
+        setTtsTestResults((r) => ({ ...r, [provider.id]: { loading: false, success: false, error: error || '未知错误' } }));
+      }
     } catch {
       setTtsTestResults((r) => ({
         ...r,
-        [provider.id]: { loading: false, result: { success: false, latencyMs: 0, error: '请求失败' } },
+        [provider.id]: { loading: false, success: false, error: '请求失败' },
       }));
     }
   };
@@ -167,12 +176,12 @@ const [ttsTestResults, setTtsTestResults] = useState<Record<string, { loading: b
                       </span>
                     </div>
                   )}
-                  {ttsTest && !ttsTest.loading && ttsTest.result && (
+                  {ttsTest && !ttsTest.loading && ttsTest.success !== undefined && (
                     <div className="text-xs mt-1">
-                      <span className={ttsTest.result.success ? 'text-[var(--color-success)]' : 'text-[var(--color-error)]'}>
-                        {ttsTest.result.success
-                          ? `TTS ${t('settings.providers.connectivityOk')} (${ttsTest.result.latencyMs}ms)`
-                          : `TTS ${t('settings.providers.connectivityFailed')}: ${ttsTest.result.error || ''}`}
+                      <span className={ttsTest.success ? 'text-[var(--color-success)]' : 'text-[var(--color-error)]'}>
+                        {ttsTest.success
+                          ? `TTS ${t('settings.providers.connectivityOk')} (${ttsTest.latencyMs}ms)`
+                          : `TTS ${t('settings.providers.connectivityFailed')}: ${ttsTest.error || ''}`}
                       </span>
                     </div>
                   )}
