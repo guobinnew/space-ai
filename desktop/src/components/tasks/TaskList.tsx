@@ -27,7 +27,7 @@ export function TaskList({ tasks, onRefresh }: Props) {
       </div>
 
       {/* Task rows */}
-      <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] overflow-hidden">
+      <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]">
         {tasks.map((task) => (
           <TaskRow
             key={task.id}
