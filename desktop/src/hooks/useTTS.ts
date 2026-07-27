@@ -1,8 +1,8 @@
 /**
- * useTTS — 文本转语音播放 Hook（分段朗读 + 暂停/继续/重开）
+ * useTTS — 文本转语音播放 Hook（分段朗读 + 预加载缓存 + 暂停/继续/重开）
  *
  * 按段落分割文本，每段 ≤ 512 字符，确保在句子边界断句。
- * 逐段调用 TTS API，前一段播放完成后自动播放下一段。
+ * 逐段调用 TTS API，播放当前段时同步预取下一段音频，确保连贯性。
  * 支持暂停、继续、重新开始。
  */
 import { useRef, useState, useCallback, useEffect } from 'react'
@@ -45,6 +45,9 @@ function splitTextIntoSegments(text: string, maxLen = MAX_SEGMENT_LEN): string[]
   return segments.filter(Boolean)
 }
 
+// 缓存项：预取的音频 Blob + 对象 URL
+type CacheEntry = { blob: Blob; url: string }
+
 export function useTTS() {
   const [state, setState] = useState<TTSState>('idle')
   const [error, setError] = useState<string | null>(null)
@@ -56,9 +59,86 @@ export function useTTS() {
   const pausedRef = useRef(false)
   const segmentsRef = useRef<string[]>([])
   const voiceRef = useRef<string | undefined>(undefined)
+  // 预取缓存：segment index → { blob, url }
+  const cacheRef = useRef<Map<number, CacheEntry>>(new Map())
+  // 当前正在进行的预取请求（用于取消）
+  const prefetchAbortRef = useRef<AbortController | null>(null)
+
+  /** 清理所有缓存 URL */
+  const clearCache = useCallback(() => {
+    for (const [, entry] of cacheRef.current) {
+      URL.revokeObjectURL(entry.url)
+    }
+    cacheRef.current.clear()
+  }, [])
+
+  /** 清理指定索引之外的缓存 */
+  const pruneCache = useCallback((keepIndex: number) => {
+    for (const [idx, entry] of cacheRef.current) {
+      if (idx !== keepIndex && idx !== keepIndex + 1) {
+        URL.revokeObjectURL(entry.url)
+        cacheRef.current.delete(idx)
+      }
+    }
+  }, [])
 
   const cleanup = useCallback(() => {
     if (audioRef.current) { audioRef.current.pause(); audioRef.current = null }
+    if (prefetchAbortRef.current) { prefetchAbortRef.current.abort(); prefetchAbortRef.current = null }
+    clearCache()
+  }, [clearCache])
+
+  /** 获取指定段的音频（优先用缓存） */
+  const fetchSegmentAudio = useCallback(async (index: number, segs: string[], voice?: string): Promise<CacheEntry> => {
+    // 检查缓存
+    const cached = cacheRef.current.get(index)
+    if (cached) return cached
+
+    // 同步获取
+    const baseUrl = getBaseUrl()
+    const res = await fetch(`${baseUrl}/api/tts/speak`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: segs[index], ...(voice ? { voice } : {}) }),
+    })
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` }))
+      throw new Error(err.detail || err.error || `TTS 请求失败 (${res.status})`)
+    }
+
+    const blob = await res.blob()
+    const url = URL.createObjectURL(blob)
+    const entry: CacheEntry = { blob, url }
+    cacheRef.current.set(index, entry)
+    return entry
+  }, [])
+
+  /** 预取下一段音频（非阻塞，失败静默） */
+  const prefetchNext = useCallback((index: number, segs: string[], voice?: string) => {
+    const nextIndex = index + 1
+    if (nextIndex >= segs.length) return
+    if (cacheRef.current.has(nextIndex)) return // 已缓存
+
+    // 取消之前的预取
+    if (prefetchAbortRef.current) prefetchAbortRef.current.abort()
+    const ctrl = new AbortController()
+    prefetchAbortRef.current = ctrl
+
+    const baseUrl = getBaseUrl()
+    fetch(`${baseUrl}/api/tts/speak`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: segs[nextIndex], ...(voice ? { voice } : {}) }),
+      signal: ctrl.signal,
+    })
+      .then((res) => res.blob())
+      .then((blob) => {
+        if (cancelledRef.current || ctrl.signal.aborted) return
+        const url = URL.createObjectURL(blob)
+        cacheRef.current.set(nextIndex, { blob, url })
+      })
+      .catch(() => { /* 预取失败静默，播放时会重试 */ })
   }, [])
 
   const stop = useCallback(() => {
@@ -87,56 +167,42 @@ export function useTTS() {
     }
   }, [state])
 
-  const restart = useCallback(() => {
-    cleanup()
-    pausedRef.current = false
-    // 重新从第一段开始
-    const segs = segmentsRef.current
-    const voice = voiceRef.current
-    if (segs.length > 0) {
-      cancelledRef.current = false
-      playFromIndex(0, segs, voice)
-    }
-  }, [])
-
   /** 从指定索引开始播放 */
   const playFromIndex = useCallback(async (startIndex: number, segs: string[], voice?: string) => {
-    const baseUrl = getBaseUrl()
-
     for (let i = startIndex; i < segs.length; i++) {
       if (cancelledRef.current) return
-      // 如果暂停了，等待恢复
+
+      // 暂停等待
       while (pausedRef.current && !cancelledRef.current) {
         await new Promise((r) => setTimeout(r, 200))
       }
       if (cancelledRef.current) return
 
       setCurrentIndex(i)
-      setState('loading')
+
+      // 检查缓存：如果有缓存直接播放（无 loading 态）
+      const hasCache = cacheRef.current.has(i)
+      if (!hasCache) setState('loading')
 
       try {
-        const res = await fetch(`${baseUrl}/api/tts/speak`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text: segs[i], ...(voice ? { voice } : {}) }),
-        })
-
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` }))
-          throw new Error(err.detail || err.error || `TTS 请求失败 (${res.status})`)
-        }
+        // 获取音频（缓存命中则立即返回）
+        const entry = await fetchSegmentAudio(i, segs, voice)
         if (cancelledRef.current) return
 
-        const blob = await res.blob()
-        const url = URL.createObjectURL(blob)
-        const audio = new Audio(url)
+        // 立即预取下一段
+        prefetchNext(i, segs, voice)
+
+        // 清理旧缓存（只保留当前和下一段）
+        pruneCache(i)
+
+        // 播放
+        const audio = new Audio(entry.url)
         audioRef.current = audio
         setState('playing')
 
-        // 等待播放完毕或暂停
         await new Promise<void>((resolve) => {
-          audio.onended = () => { URL.revokeObjectURL(url); resolve() }
-          audio.onerror = () => { URL.revokeObjectURL(url); resolve() }
+          audio.onended = () => { resolve() }
+          audio.onerror = () => { resolve() }
           audio.play().catch(() => resolve())
         })
 
@@ -149,13 +215,26 @@ export function useTTS() {
       }
     }
 
+    // 全部播放完毕
     if (!cancelledRef.current) {
+      clearCache()
       setState('idle')
       setCurrentIndex(-1)
       setSegments([])
       segmentsRef.current = []
     }
-  }, [])
+  }, [fetchSegmentAudio, prefetchNext, pruneCache, clearCache])
+
+  const restart = useCallback(() => {
+    cleanup()
+    pausedRef.current = false
+    const segs = segmentsRef.current
+    const voice = voiceRef.current
+    if (segs.length > 0) {
+      cancelledRef.current = false
+      playFromIndex(0, segs, voice)
+    }
+  }, [cleanup, playFromIndex])
 
   const speak = useCallback(async (text: string, voice?: string) => {
     if (!text.trim()) return
