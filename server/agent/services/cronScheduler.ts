@@ -99,8 +99,6 @@ async function executeTask(task: CronTask): Promise<void> {
   runningTasks.set(task.id, ctrl)
 
   await cronService.updateLastFired(task.id, startedAt.toISOString())
-  await appendRun({ id: runId, taskId: task.id, taskName: task.name, status: 'running', startedAt: startedAt.toISOString() })
-
   console.log(`[CronScheduler] Execute: ${task.name || task.id}`)
 
   // 超时定时器
@@ -211,7 +209,6 @@ export async function abortTask(taskId: string): Promise<boolean> {
   if (!ctrl) return false
   ctrl.abort()
   runningTasks.delete(taskId)
-  await markRunningAsAborted(taskId)
   return true
 }
 
@@ -222,7 +219,6 @@ export async function abortAllRunningTasks(): Promise<number> {
     ctrl.abort()
     runningTasks.delete(id)
   }
-  await markAllRunningAsAborted()
   return count
 }
 
@@ -254,30 +250,6 @@ export async function clearTaskRuns(taskId: string): Promise<number> {
   const kept = runs.filter((r) => r.taskId !== taskId)
   await writeRuns(kept)
   return runs.length - kept.length
-}
-
-// ─── 辅助 ────────────────────────────────────────────────
-
-async function markRunningAsAborted(taskId: string): Promise<void> {
-  const runs = await readRuns()
-  for (const r of runs) {
-    if (r.taskId === taskId && r.status === 'running') {
-      r.status = 'aborted'
-      r.finishedAt = new Date().toISOString()
-    }
-  }
-  await writeRuns(runs)
-}
-
-async function markAllRunningAsAborted(): Promise<void> {
-  const runs = await readRuns()
-  for (const r of runs) {
-    if (r.status === 'running') {
-      r.status = 'aborted'
-      r.finishedAt = new Date().toISOString()
-    }
-  }
-  await writeRuns(runs)
 }
 
 // ─── 持久化 ──────────────────────────────────────────────
