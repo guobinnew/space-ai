@@ -4,6 +4,7 @@ import { useTranslation } from '../../i18n'
 import { useUIStore } from '../../stores/uiStore'
 import { usePendingRefStore } from '../../stores/pendingRefStore'
 import { useTTS } from '../../hooks/useTTS'
+import { ReadingPanel } from './ReadingPanel'
 import { MarkdownRenderer } from '../markdown/MarkdownRenderer'
 import { ImagePreview } from './ImagePreview'
 import { DocxPreview } from './DocxPreview'
@@ -250,6 +251,7 @@ export function CodeEditor() {
   }, [activeFile])
 
   const [mdViewMode, setMdViewMode] = useState<'edit' | 'preview' | 'split'>('split')
+  const [readingMode, setReadingMode] = useState(false)
 
   if (!activeFile) {
     return (
@@ -356,17 +358,25 @@ export function CodeEditor() {
             ))}
           </div>
           {/* AI 朗读 */}
-          <Tooltip content={tts.isPlaying ? t('editor.ttsStop') : t('editor.ttsRead')}>
+          <Tooltip content={tts.isPlaying || tts.isPaused ? t('editor.ttsStop') : t('editor.ttsRead')}>
             <button
-              onClick={() => tts.isPlaying ? tts.stop() : tts.speak(plainText)}
+              onClick={() => {
+                if (tts.isPlaying || tts.isPaused) {
+                  tts.stop()
+                  setReadingMode(false)
+                } else {
+                  setReadingMode(true)
+                  tts.speak(plainText)
+                }
+              }}
               disabled={!plainText || tts.isLoading}
               className={`flex items-center gap-1 px-2 py-0.5 rounded text-[11px] transition-colors ml-1
-                ${tts.isPlaying
+                ${tts.isPlaying || tts.isPaused || readingMode
                   ? 'bg-[var(--color-brand)]/10 text-[var(--color-brand)]'
                   : 'text-[var(--color-text-tertiary)] hover:bg-[var(--color-surface-container)] hover:text-[var(--color-text-secondary)]'
                 } disabled:opacity-30`}
             >
-              <span className="material-symbols-outlined text-[14px]">{tts.isPlaying ? 'stop' : 'record_voice_over'}</span>
+              <span className="material-symbols-outlined text-[14px]">{tts.isPlaying || tts.isPaused ? 'stop' : 'record_voice_over'}</span>
               {tts.isPlaying && tts.progress.total > 1 && (
                 <span className="text-[10px] tabular-nums">{tts.progress.current}/{tts.progress.total}</span>
               )}
@@ -433,9 +443,14 @@ export function CodeEditor() {
             </div>
           )}
 
-          {(mdViewMode === 'preview' || mdViewMode === 'split') && (
+          {(mdViewMode === 'preview' || mdViewMode === 'split') && !readingMode && (
             <div className={`${mdViewMode === 'split' ? 'w-1/2' : 'flex-1'} overflow-y-auto p-6 min-w-0`}>
               <MarkdownRenderer content={activeFile.content} />
+            </div>
+          )}
+          {readingMode && (
+            <div className="flex-1 flex flex-col min-w-0 bg-[var(--color-surface)]">
+              <ReadingPanel tts={tts} />
             </div>
           )}
         </div>
