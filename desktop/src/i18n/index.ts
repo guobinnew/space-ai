@@ -330,7 +330,17 @@ const translations: Record<Locale, Record<string, string>> = {
     'common.copy': '复制',
     'common.copied': '已复制',
     'common.delete': '删除',
+    'common.edit': '编辑',
+    'common.loading': '加载中...',
     'common.ok': '确定',
+
+    // Scheduled Tasks
+    'scheduledTasks.title': '定时任务',
+    'scheduledTasks.newTask': '新建任务',
+    'scheduledTasks.deleteConfirm': '确定删除此定时任务？',
+    'scheduledTasks.empty': '暂无定时任务',
+    'scheduledTasks.runNow': '立即执行',
+    'scheduledTasks.runHistory': '运行记录',
   },
 
   en: {
@@ -655,7 +665,17 @@ const translations: Record<Locale, Record<string, string>> = {
     'common.copy': 'Copy',
     'common.copied': 'Copied',
     'common.delete': 'Delete',
+    'common.edit': 'Edit',
+    'common.loading': 'Loading...',
     'common.ok': 'OK',
+
+    // Scheduled Tasks
+    'scheduledTasks.title': 'Scheduled Tasks',
+    'scheduledTasks.newTask': 'New Task',
+    'scheduledTasks.deleteConfirm': 'Delete this scheduled task?',
+    'scheduledTasks.empty': 'No scheduled tasks',
+    'scheduledTasks.runNow': 'Run Now',
+    'scheduledTasks.runHistory': 'Run History',
   },
 };
 
