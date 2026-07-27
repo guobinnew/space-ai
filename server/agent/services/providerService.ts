@@ -99,6 +99,8 @@ export class ProviderService {
       apiFormat: input.apiFormat ?? 'anthropic',
       models: input.models,
       ...(input.capabilities !== undefined && { capabilities: input.capabilities }),
+      ...(input.ttsBaseUrl !== undefined && { ttsBaseUrl: input.ttsBaseUrl }),
+      ...(input.ttsVoice !== undefined && { ttsVoice: input.ttsVoice }),
       ...(input.notes !== undefined && { notes: input.notes }),
     }
 
@@ -121,6 +123,8 @@ export class ProviderService {
       ...(input.apiFormat !== undefined && { apiFormat: input.apiFormat }),
       ...(input.models !== undefined && { models: input.models }),
       ...(input.capabilities !== undefined && { capabilities: input.capabilities }),
+      ...(input.ttsBaseUrl !== undefined && { ttsBaseUrl: input.ttsBaseUrl }),
+      ...(input.ttsVoice !== undefined && { ttsVoice: input.ttsVoice }),
       ...(input.notes !== undefined && { notes: input.notes }),
     }
 
