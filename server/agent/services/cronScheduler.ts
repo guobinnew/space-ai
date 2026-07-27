@@ -113,7 +113,7 @@ async function executeTask(task: CronTask): Promise<void> {
       workDir: task.folderPath,
     })
     // 2. 写入用户消息（streamChat 依赖历史最后一条为用户消息）
-    const msg = `[定时任务] ${task.name || task.id}\n\n${task.prompt}`
+    const msg = task.prompt
     await sessionService.addMessage(session.id, 'user', msg)
 
     // 3. 执行 LLM 并收集输出
@@ -127,7 +127,20 @@ async function executeTask(task: CronTask): Promise<void> {
         }
       },
       () => ctrl.signal.aborted,
-      async () => { throw new Error('定时任务无法交互式提问') },
+      async (request) => {
+        if (request.kind === 'plan') return 'approved'            // 自动进入/退出计划模式
+        if (request.kind === 'question') {                         // 自动回答第一个选项
+          const questions = request.questions as Array<{ question: string; options?: Array<{ label: string }> }> | undefined
+          if (!questions) return '{}'
+          return JSON.stringify({
+            answers: questions.map((q) => ({
+              question: q.question,
+              answer: (q.options && q.options[0]?.label) || 'yes',
+            })),
+          })
+        }
+        return '{}'
+      },
     )
 
     clearTimeout(timeout)
