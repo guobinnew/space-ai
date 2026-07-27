@@ -60,4 +60,8 @@ export const providersApi = {
   testConfig(input: TestProviderConfigInput) {
     return api.post<TestResultResponse>('/api/providers/test', input)
   },
+
+  testTts(id: string) {
+    return api.post<TestResultResponse>(`/api/providers/${encodeURIComponent(id)}/test-tts`)
+  },
 }

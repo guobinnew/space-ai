@@ -233,6 +233,72 @@ export class ProviderService {
     return { connectivity: step1 }
   }
 
+  /** 测试 TTS 连通性 */
+  async testTtsProvider(id: string): Promise<ProviderTestStepResult> {
+    const { providers } = await this.listProviders()
+    const provider = providers.find((p) => p.id === id)
+    if (!provider) throw new Error('Provider not found')
+
+    const modelId = provider.models.tts
+    if (!modelId) return { success: false, latencyMs: 0, error: 'No TTS model configured' }
+
+    const baseUrl = (provider.ttsBaseUrl || provider.baseUrl).replace(/\/+$/, '')
+    const voice = provider.ttsVoice || 'alloy'
+    const testText = '测试'
+
+    const start = Date.now()
+    try {
+      const isMimo = provider.name.toLowerCase().includes('mimo') || modelId.toLowerCase().includes('mimo')
+
+      if (isMimo) {
+        const url = `${baseUrl}/chat/completions`
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'api-key': provider.apiKey, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            model: modelId,
+            messages: [
+              { role: 'user', content: '用自然的语气朗读' },
+              { role: 'assistant', content: testText },
+            ],
+            audio: { format: 'wav', voice },
+            stream: false,
+          }),
+          signal: AbortSignal.timeout(15000),
+        })
+        const latencyMs = Date.now() - start
+        if (!res.ok) return { success: false, latencyMs, error: `HTTP ${res.status}`, modelUsed: modelId, httpStatus: res.status }
+        const json = await res.json() as Record<string, unknown>
+        const hasAudio = !!(json as { choices?: Array<{ message?: { audio?: Record<string, unknown> } }> })?.choices?.[0]?.message?.audio
+        if (!hasAudio) return { success: false, latencyMs, error: 'No audio in response', modelUsed: modelId }
+        return { success: true, latencyMs, modelUsed: modelId, httpStatus: res.status }
+      } else {
+        const url = `${baseUrl}/audio/speech`
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${provider.apiKey}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ model: modelId, input: testText, voice }),
+          signal: AbortSignal.timeout(15000),
+        })
+        const latencyMs = Date.now() - start
+        if (!res.ok) return { success: false, latencyMs, error: `HTTP ${res.status}`, modelUsed: modelId, httpStatus: res.status }
+        const ct = res.headers.get('Content-Type') || ''
+        if (!ct.includes('audio') && !ct.includes('mpeg') && !ct.includes('wav') && !ct.includes('octet')) {
+          return { success: false, latencyMs, error: `Unexpected content type: ${ct}`, modelUsed: modelId }
+        }
+        const size = parseInt(res.headers.get('Content-Length') || '0', 10) || (await res.arrayBuffer()).byteLength
+        if (size < 100) return { success: false, latencyMs, error: `Audio too small: ${size} bytes`, modelUsed: modelId }
+        return { success: true, latencyMs, modelUsed: modelId, httpStatus: res.status }
+      }
+    } catch (err: unknown) {
+      const latencyMs = Date.now() - start
+      if (err instanceof DOMException && err.name === 'TimeoutError') {
+        return { success: false, latencyMs, error: 'Request timed out (15s)', modelUsed: modelId }
+      }
+      return { success: false, latencyMs, error: err instanceof Error ? err.message : String(err), modelUsed: modelId }
+    }
+  }
+
   private async testConnectivity(
     base: string,
     apiKey: string,

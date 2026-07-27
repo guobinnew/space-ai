@@ -77,6 +77,7 @@ export type ProviderTestStepResult = {
 export type ProviderTestResult = {
   connectivity: ProviderTestStepResult
   proxy?: ProviderTestStepResult
+  tts?: ProviderTestStepResult
 }
 
 export type ProviderPreset = {

@@ -147,6 +147,13 @@ export async function handleProvidersApi(
       return Response.json({ result })
     }
 
+    // /api/providers/:id/test-tts
+    if (action === 'test-tts') {
+      if (req.method !== 'POST') throw methodNotAllowed(req.method)
+      const result = await providerService.testTtsProvider(id)
+      return Response.json({ result })
+    }
+
     // /api/providers/:id
     if (req.method === 'GET') {
       const provider = await providerService.getProvider(id)

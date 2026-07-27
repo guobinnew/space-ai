@@ -12,6 +12,7 @@ export function ProviderSettings() {
   const [editingProvider, setEditingProvider] = useState<SavedProvider | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [testResults, setTestResults] = useState<Record<string, { loading: boolean; result?: ProviderTestResult }>>({});
+const [ttsTestResults, setTtsTestResults] = useState<Record<string, { loading: boolean; result?: ProviderTestStepResult }>>({});
   const [error, setError] = useState<string | null>(null);
 
   const fetchProviders = async () => {
@@ -55,6 +56,19 @@ export function ProviderSettings() {
           loading: false,
           result: { connectivity: { success: false, latencyMs: 0, error: '请求失败' } },
         },
+      }));
+    }
+  };
+
+  const handleTtsTest = async (provider: SavedProvider) => {
+    setTtsTestResults((r) => ({ ...r, [provider.id]: { loading: true } }));
+    try {
+      const { result } = await providersApi.testTts(provider.id);
+      setTtsTestResults((r) => ({ ...r, [provider.id]: { loading: false, result } }));
+    } catch {
+      setTtsTestResults((r) => ({
+        ...r,
+        [provider.id]: { loading: false, result: { success: false, latencyMs: 0, error: '请求失败' } },
       }));
     }
   };
@@ -114,6 +128,7 @@ export function ProviderSettings() {
           {providers.map((provider) => {
             const isActive = activeId === provider.id;
             const test = testResults[provider.id];
+            const ttsTest = ttsTestResults[provider.id];
             const preset = PROVIDER_PRESETS.find((p) => p.id === provider.presetId);
             return (
               <div
@@ -152,6 +167,15 @@ export function ProviderSettings() {
                       </span>
                     </div>
                   )}
+                  {ttsTest && !ttsTest.loading && ttsTest.result && (
+                    <div className="text-xs mt-1">
+                      <span className={ttsTest.result.success ? 'text-[var(--color-success)]' : 'text-[var(--color-error)]'}>
+                        {ttsTest.result.success
+                          ? `TTS ${t('settings.providers.connectivityOk')} (${ttsTest.result.latencyMs}ms)`
+                          : `TTS ${t('settings.providers.connectivityFailed')}: ${ttsTest.result.error || ''}`}
+                      </span>
+                    </div>
+                  )}
                 </div>
                 <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
                   {!isActive && (
@@ -165,6 +189,13 @@ export function ProviderSettings() {
                     className="px-2.5 py-1 text-xs text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] rounded transition-colors disabled:opacity-50"
                   >
                     {test?.loading ? t('settings.providers.testing') : t('settings.providers.test')}
+                  </button>
+                  <button
+                    onClick={() => handleTtsTest(provider)}
+                    disabled={ttsTest?.loading || !provider.models.tts}
+                    className="px-2.5 py-1 text-xs text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] rounded transition-colors disabled:opacity-50"
+                  >
+                    {ttsTest?.loading ? t('settings.providers.testing') : 'TTS'}
                   </button>
                   <button onClick={() => setEditingProvider(provider)} className="px-2.5 py-1 text-xs text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] rounded transition-colors">
                     {t('settings.providers.edit')}
