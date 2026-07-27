@@ -17,6 +17,7 @@ import { cronService, type CronTask } from './cronService'
 import { sessionService } from './sessionService'
 import { streamChat } from './llmStreamService'
 import { parseCronExpression, computeNextCronRun } from './cron'
+import { settingService } from './settingService'
 
 // ─── 配置 ─────────────────────────────────────────────────
 
@@ -108,9 +109,10 @@ async function executeTask(task: CronTask): Promise<void> {
 
   try {
     // 1. 创建会话
+    const effectiveWorkDir = task.folderPath || (await settingService.getGeneralSettings()).defaultWorkDir || undefined
     const session = await sessionService.createSession({
       title: `定时: ${task.name || task.id}`,
-      workDir: task.folderPath,
+      workDir: effectiveWorkDir,
     })
     // 2. 写入用户消息（streamChat 依赖历史最后一条为用户消息）
     const msg = task.prompt
