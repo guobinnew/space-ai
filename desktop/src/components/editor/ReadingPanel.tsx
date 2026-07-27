@@ -32,7 +32,15 @@ export function ReadingPanel({ tts }: Props) {
     }
   }, [tts.currentIndex])
 
-  if (tts.segments.length === 0) return null
+  if (tts.segments.length === 0) {
+    return (
+      <div className="flex flex-col h-full">
+        <div className="flex-1 flex items-center justify-center text-sm text-[var(--color-text-tertiary)]">
+          朗读已停止
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="flex flex-col h-full">
