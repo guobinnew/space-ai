@@ -8,7 +8,7 @@ type ContextMenu = { sessionId: string; x: number; y: number; session: SessionLi
 
 export function Sidebar() {
   const t = useTranslation();
-  const { sidebarOpen, toggleSidebar, activeTabId, openTab, closeTab, defaultWorkDir } = useUIStore();
+  const { sidebarOpen, toggleSidebar, activeTabId, openTab, closeTab, updateTabTitle, defaultWorkDir } = useUIStore();
   const { sessions, fetchSessions, createSession, deleteSession, renameSession, isLoading } = useSessionStore();
   const [contextMenu, setContextMenu] = useState<ContextMenu | null>(null);
   const [renamingId, setRenamingId] = useState<string | null>(null);
@@ -49,6 +49,7 @@ export function Sidebar() {
   const handleFinishRename = async () => {
     if (renamingId && renameValue.trim()) {
       await renameSession(renamingId, renameValue.trim());
+      updateTabTitle(renamingId, renameValue.trim());
     }
     setRenamingId(null);
     setRenameValue('');
