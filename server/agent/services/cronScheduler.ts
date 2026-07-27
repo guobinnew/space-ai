@@ -111,7 +111,7 @@ async function executeTask(task: CronTask): Promise<void> {
     // 1. 创建会话
     const effectiveWorkDir = task.folderPath || (await settingService.getGeneralSettings()).defaultWorkDir || undefined
     const session = await sessionService.createSession({
-      title: `定时: ${task.name || task.id}`,
+      title: task.name || `定时任务 ${task.id.slice(0, 8)}`,
       workDir: effectiveWorkDir,
     })
     // 2. 写入用户消息（streamChat 依赖历史最后一条为用户消息）
