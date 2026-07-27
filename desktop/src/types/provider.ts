@@ -8,6 +8,7 @@ export type ApiFormat = 'anthropic' | 'openai'
 
 export type ModelMapping = {
   main: string
+  tts?: string
 }
 
 export type ModelCapabilities = {
@@ -20,6 +21,7 @@ export type SavedProvider = {
   name: string
   apiKey: string  // masked from server
   baseUrl: string
+  ttsBaseUrl?: string
   apiFormat: ApiFormat
   models: ModelMapping
   capabilities?: ModelCapabilities
@@ -31,6 +33,7 @@ export type CreateProviderInput = {
   name: string
   apiKey: string
   baseUrl: string
+  ttsBaseUrl?: string
   apiFormat?: ApiFormat
   models: ModelMapping
   capabilities?: ModelCapabilities
@@ -41,6 +44,7 @@ export type UpdateProviderInput = {
   name?: string
   apiKey?: string
   baseUrl?: string
+  ttsBaseUrl?: string
   apiFormat?: ApiFormat
   models?: ModelMapping
   capabilities?: ModelCapabilities

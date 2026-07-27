@@ -170,6 +170,8 @@ export class ProviderService {
       SPACEAI_BASE_URL: provider.baseUrl,
       SPACEAI_AUTH_TOKEN: provider.apiKey,
       SPACEAI_MODEL: provider.models.main,
+      SPACEAI_TTS_MODEL: provider.models.tts || '',
+      SPACEAI_TTS_BASE_URL: provider.ttsBaseUrl || '',
     }
 
     await this.writeSettings(settings)

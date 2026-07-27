@@ -223,6 +223,7 @@ function ProviderFormModal({ onClose, onSaved, mode, provider }: ProviderFormMod
   const [apiKey, setApiKey] = useState('');
   const [notes, setNotes] = useState(provider?.notes ?? '');
   const [models, setModels] = useState<ModelMapping>(provider?.models ?? { ...initialPreset.defaultModels });
+  const [ttsBaseUrl, setTtsBaseUrl] = useState(provider?.ttsBaseUrl ?? '');
   const [capabilities, setCapabilities] = useState<ModelCapabilities>(provider?.capabilities ?? { ...initialPreset.defaultCapabilities });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -233,6 +234,7 @@ function ProviderFormModal({ onClose, onSaved, mode, provider }: ProviderFormMod
     setBaseUrl(preset.baseUrl);
     setApiFormat(preset.apiFormat ?? 'anthropic');
     setModels({ ...preset.defaultModels });
+    setTtsBaseUrl('');
     setCapabilities({ ...preset.defaultCapabilities });
   };
 
@@ -242,9 +244,11 @@ function ProviderFormModal({ onClose, onSaved, mode, provider }: ProviderFormMod
     if (!canSubmit) return;
     setIsSubmitting(true);
     setError(null);
-    const normalizedModels: ModelMapping = {
+      const normalizedModels: ModelMapping = {
       main: models.main,
+      tts: models.tts?.trim() || undefined,
     };
+    const ttsBaseUrlTrimmed = ttsBaseUrl.trim() || undefined;
     try {
       if (mode === 'create') {
         await providersApi.create({
@@ -252,6 +256,7 @@ function ProviderFormModal({ onClose, onSaved, mode, provider }: ProviderFormMod
           name: name.trim(),
           apiKey: apiKey.trim(),
           baseUrl: baseUrl.trim(),
+          ttsBaseUrl: ttsBaseUrlTrimmed,
           apiFormat,
           models: normalizedModels,
           capabilities,
@@ -261,6 +266,7 @@ function ProviderFormModal({ onClose, onSaved, mode, provider }: ProviderFormMod
         const input: import('../../types/provider').UpdateProviderInput = {
           name: name.trim(),
           baseUrl: baseUrl.trim(),
+          ttsBaseUrl: ttsBaseUrlTrimmed,
           apiFormat,
           models: normalizedModels,
           capabilities,
@@ -386,6 +392,31 @@ function ProviderFormModal({ onClose, onSaved, mode, provider }: ProviderFormMod
               placeholder={t('provider.form.modelPlaceholder')}
             />
             <p className="text-[11px] text-[var(--color-text-tertiary)] mt-1">{t('provider.form.modelHint')}</p>
+          </div>
+
+          {/* TTS Model */}
+          <div>
+            <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1.5">{t('provider.form.ttsModel')}</label>
+            <input
+              type="text"
+              value={models.tts ?? ''}
+              onChange={(e) => setModels({ ...models, tts: e.target.value })}
+              className="w-full h-9 px-3 text-sm rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-primary)] outline-none focus:border-[var(--color-border-focus)]"
+              placeholder={t('provider.form.ttsModelPlaceholder')}
+            />
+          </div>
+
+          {/* TTS Base URL */}
+          <div>
+            <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1.5">{t('provider.form.ttsBaseUrl')}</label>
+            <input
+              type="text"
+              value={ttsBaseUrl}
+              onChange={(e) => setTtsBaseUrl(e.target.value)}
+              className="w-full h-9 px-3 text-sm rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-primary)] outline-none focus:border-[var(--color-border-focus)]"
+              placeholder={t('provider.form.ttsBaseUrlPlaceholder')}
+            />
+            <p className="text-[11px] text-[var(--color-text-tertiary)] mt-1">{t('provider.form.ttsBaseUrlHint')}</p>
           </div>
 
           {/* Image input capability */}
