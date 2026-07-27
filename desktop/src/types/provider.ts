@@ -22,6 +22,7 @@ export type SavedProvider = {
   apiKey: string  // masked from server
   baseUrl: string
   ttsBaseUrl?: string
+  ttsVoice?: string
   apiFormat: ApiFormat
   models: ModelMapping
   capabilities?: ModelCapabilities
@@ -34,6 +35,7 @@ export type CreateProviderInput = {
   apiKey: string
   baseUrl: string
   ttsBaseUrl?: string
+  ttsVoice?: string
   apiFormat?: ApiFormat
   models: ModelMapping
   capabilities?: ModelCapabilities
@@ -45,6 +47,7 @@ export type UpdateProviderInput = {
   apiKey?: string
   baseUrl?: string
   ttsBaseUrl?: string
+  ttsVoice?: string
   apiFormat?: ApiFormat
   models?: ModelMapping
   capabilities?: ModelCapabilities

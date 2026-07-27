@@ -172,6 +172,7 @@ export class ProviderService {
       SPACEAI_MODEL: provider.models.main,
       SPACEAI_TTS_MODEL: provider.models.tts || '',
       SPACEAI_TTS_BASE_URL: provider.ttsBaseUrl || '',
+      SPACEAI_TTS_VOICE: provider.ttsVoice || '',
     }
 
     await this.writeSettings(settings)

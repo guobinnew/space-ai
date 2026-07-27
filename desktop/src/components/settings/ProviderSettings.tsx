@@ -224,6 +224,7 @@ function ProviderFormModal({ onClose, onSaved, mode, provider }: ProviderFormMod
   const [notes, setNotes] = useState(provider?.notes ?? '');
   const [models, setModels] = useState<ModelMapping>(provider?.models ?? { ...initialPreset.defaultModels });
   const [ttsBaseUrl, setTtsBaseUrl] = useState(provider?.ttsBaseUrl ?? '');
+  const [ttsVoice, setTtsVoice] = useState(provider?.ttsVoice ?? '');
   const [capabilities, setCapabilities] = useState<ModelCapabilities>(provider?.capabilities ?? { ...initialPreset.defaultCapabilities });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -235,6 +236,7 @@ function ProviderFormModal({ onClose, onSaved, mode, provider }: ProviderFormMod
     setApiFormat(preset.apiFormat ?? 'anthropic');
     setModels({ ...preset.defaultModels });
     setTtsBaseUrl('');
+    setTtsVoice('');
     setCapabilities({ ...preset.defaultCapabilities });
   };
 
@@ -249,6 +251,7 @@ function ProviderFormModal({ onClose, onSaved, mode, provider }: ProviderFormMod
       tts: models.tts?.trim() || undefined,
     };
     const ttsBaseUrlTrimmed = ttsBaseUrl.trim() || undefined;
+    const ttsVoiceTrimmed = ttsVoice.trim() || undefined;
     try {
       if (mode === 'create') {
         await providersApi.create({
@@ -257,6 +260,7 @@ function ProviderFormModal({ onClose, onSaved, mode, provider }: ProviderFormMod
           apiKey: apiKey.trim(),
           baseUrl: baseUrl.trim(),
           ttsBaseUrl: ttsBaseUrlTrimmed,
+          ttsVoice: ttsVoiceTrimmed,
           apiFormat,
           models: normalizedModels,
           capabilities,
@@ -267,6 +271,7 @@ function ProviderFormModal({ onClose, onSaved, mode, provider }: ProviderFormMod
           name: name.trim(),
           baseUrl: baseUrl.trim(),
           ttsBaseUrl: ttsBaseUrlTrimmed,
+          ttsVoice: ttsVoiceTrimmed,
           apiFormat,
           models: normalizedModels,
           capabilities,
@@ -417,6 +422,26 @@ function ProviderFormModal({ onClose, onSaved, mode, provider }: ProviderFormMod
               placeholder={t('provider.form.ttsBaseUrlPlaceholder')}
             />
             <p className="text-[11px] text-[var(--color-text-tertiary)] mt-1">{t('provider.form.ttsBaseUrlHint')}</p>
+          </div>
+
+          {/* TTS Voice */}
+          <div>
+            <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1.5">{t('provider.form.ttsVoice')}</label>
+            <div className="relative">
+              <select value={ttsVoice} onChange={(e) => setTtsVoice(e.target.value)}
+                className="w-full h-9 px-3 pr-8 text-sm rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-primary)] outline-none focus:border-[var(--color-border-focus)] appearance-none cursor-pointer"
+              >
+                <option value="">{t('provider.form.ttsVoiceDefault')}</option>
+                <option value="alloy">Alloy</option>
+                <option value="echo">Echo</option>
+                <option value="fable">Fable</option>
+                <option value="onyx">Onyx</option>
+                <option value="nova">Nova</option>
+                <option value="shimmer">Shimmer</option>
+              </select>
+              <svg className="w-4 h-4 text-[var(--color-text-tertiary)] absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+            </div>
+            <p className="text-[11px] text-[var(--color-text-tertiary)] mt-1">{t('provider.form.ttsVoiceHint')}</p>
           </div>
 
           {/* Image input capability */}

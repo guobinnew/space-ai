@@ -38,7 +38,7 @@ export async function handleTtsApi(req: Request, url: URL): Promise<Response> {
 
     const baseUrl = (active.ttsBaseUrl || active.baseUrl).replace(/\/+$/, '')
     const apiKey = active.apiKey
-    const voice = body.voice || 'alloy'
+    const voice = body.voice || active.ttsVoice || 'alloy'
 
     // 调用 TTS API
     const ttsUrl = `${baseUrl}${TTS_ENDPOINT}`
