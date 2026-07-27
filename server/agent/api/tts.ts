@@ -103,8 +103,10 @@ export async function handleTtsApi(req: Request, url: URL): Promise<Response> {
 
     // 根据 Provider 特征选择 TTS 实现
     if (isMiMo(active.name) || isMiMo(modelId)) {
+      console.log(`[TTS] MiMo mode: model=${modelId}, voice=${voice}, baseUrl=${baseUrl}`)
       return await mimoTTS(baseUrl, active.apiKey, modelId, body.text, voice)
     }
+    console.log(`[TTS] OpenAI mode: model=${modelId}, voice=${voice}, baseUrl=${baseUrl}`)
     return await openaiTTS(baseUrl, active.apiKey, modelId, body.text, voice)
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)

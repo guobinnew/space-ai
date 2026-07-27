@@ -13,7 +13,7 @@ export function useTTS() {
   const [error, setError] = useState<string | null>(null)
   const audioRef = useRef<HTMLAudioElement | null>(null)
 
-  const speak = useCallback(async (text: string, voice = 'alloy') => {
+  const speak = useCallback(async (text: string, voice?: string) => {
     if (!text.trim()) return
 
     // 停止当前播放
@@ -23,16 +23,16 @@ export function useTTS() {
     setError(null)
 
     try {
-      const baseUrl = await getBaseUrl()
+      const baseUrl = getBaseUrl()
       const res = await fetch(`${baseUrl}/api/tts/speak`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text, voice }),
+        body: JSON.stringify({ text, ...(voice ? { voice } : {}) }),
       })
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` }))
-        throw new Error(err.error || err.message || 'TTS 请求失败')
+        throw new Error(err.detail || err.error || err.message || `TTS 请求失败 (${res.status})`)
       }
 
       const blob = await res.blob()
