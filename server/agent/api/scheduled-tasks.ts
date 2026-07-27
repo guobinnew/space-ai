@@ -100,6 +100,7 @@ export async function handleScheduledTasksApi(req: Request, url: URL): Promise<R
           description: body.description as string | undefined,
           cron: body.cron as string,
           prompt: body.prompt as string,
+          folderPath: body.folderPath as string | undefined,
         })
         return Response.json(task, { status: 201 })
       }

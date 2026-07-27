@@ -48,6 +48,7 @@ export function NewTaskModal({ open, onClose, editTask, initialPrompt }: Props) 
   const [name, setName] = useState(editTask?.name || '')
   const [description, setDescription] = useState(editTask?.description || '')
   const [prompt, setPrompt] = useState(editTask?.prompt || initialPrompt || '')
+  const [folderPath, setFolderPath] = useState(editTask?.folderPath || '')
   const [frequency, setFrequency] = useState<FrequencyKey>(parsed?.frequency || 'daily')
   const [time, setTime] = useState(parsed?.time || '09:00')
   const [minuteInterval, setMinuteInterval] = useState(parsed?.minuteInterval || 15)
@@ -66,11 +67,19 @@ export function NewTaskModal({ open, onClose, editTask, initialPrompt }: Props) 
     (frequency !== 'customCron' || isValidCron(customCron)) &&
     (frequency !== 'specificDays' || selectedDays.length > 0)
 
+  const handlePickFolder = async () => {
+    try {
+      const { open } = await import('@tauri-apps/plugin-dialog')
+      const dir = await open({ directory: true, multiple: false, title: '选择工作目录' })
+      if (dir) setFolderPath(dir)
+    } catch { /* 非 Tauri 环境忽略 */ }
+  }
+
   const handleSubmit = async () => {
     if (!canSubmit) return
     setSaving(true)
     try {
-      const fields = { name: name.trim(), description: description.trim(), cron: cronValue, prompt: prompt.trim() }
+      const fields = { name: name.trim(), description: description.trim(), cron: cronValue, prompt: prompt.trim(), folderPath: folderPath || undefined }
       if (isEdit) {
         await updateScheduledTask(editTask!.id, fields)
       } else {
@@ -132,6 +141,26 @@ export function NewTaskModal({ open, onClose, editTask, initialPrompt }: Props) 
               rows={4} style={{ minHeight: 100 }}
               className="w-full resize-y px-3 py-2.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] text-sm text-[var(--color-text-primary)] outline-none focus:border-[var(--color-brand)] transition-colors"
               placeholder="输入要执行的任务描述..." />
+          </div>
+
+          {/* Work directory */}
+          <div>
+            <label className="block text-sm font-medium text-[var(--color-text-primary)] mb-1">工作目录（可选）</label>
+            <div className="flex items-center gap-2">
+              <input value={folderPath} onChange={(e) => setFolderPath(e.target.value)}
+                className="flex-1 h-10 px-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] text-sm text-[var(--color-text-primary)] outline-none focus:border-[var(--color-brand)] transition-colors"
+                placeholder="留空使用默认工作目录" />
+              <button type="button" onClick={handlePickFolder}
+                className="h-10 px-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] text-sm text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-container)] transition-colors shrink-0">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 19a2 2 0 01-2-2V7a2 2 0 012-2h4l2 2h4a2 2 0 012 2v1M5 19h14a2 2 0 002-2v-5a2 2 0 00-2-2H9a2 2 0 00-2 2v5a2 2 0 01-2 2z" /></svg>
+              </button>
+              {folderPath && (
+                <button type="button" onClick={() => setFolderPath('')}
+                  className="h-10 w-10 flex items-center justify-center rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-tertiary)] hover:text-[var(--color-error)] transition-colors shrink-0">
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Frequency */}

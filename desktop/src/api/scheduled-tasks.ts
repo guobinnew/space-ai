@@ -11,6 +11,7 @@ export type ScheduledTask = {
   description?: string
   cron: string
   prompt: string
+  folderPath?: string
   createdAt: number
   lastFiredAt?: string
   enabled?: boolean
@@ -35,10 +36,11 @@ export async function fetchScheduledTasks(): Promise<ScheduledTask[]> {
 
 /** 创建任务 */
 export async function createScheduledTask(fields: {
-  name?: string
+  name: string
   description?: string
   cron: string
   prompt: string
+  folderPath?: string
 }): Promise<ScheduledTask> {
   return api.post<ScheduledTask>('/api/scheduled-tasks', fields)
 }

@@ -19,6 +19,7 @@ export type CronTask = {
   description?: string
   cron: string       // 5-field cron expression
   prompt: string
+  folderPath?: string  // 执行工作目录
   createdAt: number  // epoch ms
   lastFiredAt?: string  // ISO timestamp
   enabled?: boolean
@@ -48,6 +49,7 @@ export class CronService {
     description?: string
     cron: string
     prompt: string
+    folderPath?: string
   }): Promise<CronTask> {
     if (!fields.cron || !fields.prompt) {
       throw new Error('Fields "cron" and "prompt" are required')
@@ -66,6 +68,7 @@ export class CronService {
       description: fields.description,
       cron: fields.cron,
       prompt: fields.prompt,
+      folderPath: fields.folderPath,
       createdAt: Date.now(),
       enabled: true,
     }
