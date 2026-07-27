@@ -17,6 +17,7 @@ import { handleGitApi } from './api/git'
 import { handleTasksApi } from './api/tasks'
 import { handleUsageApi } from './api/usage'
 import { handleScheduledTasksApi } from './api/scheduled-tasks'
+import { handleTtsApi } from './api/tts'
 import { ApiError, errorResponse } from './middleware/errorHandler'
 
 export async function handleApiRequest(req: Request, url: URL): Promise<Response> {
@@ -62,6 +63,9 @@ export async function handleApiRequest(req: Request, url: URL): Promise<Response
 
       case 'scheduled-tasks':
         return await handleScheduledTasksApi(req, url)
+
+      case 'tts':
+        return await handleTtsApi(req, url)
 
       case 'health':
         return Response.json({ status: 'ok', timestamp: new Date().toISOString() })

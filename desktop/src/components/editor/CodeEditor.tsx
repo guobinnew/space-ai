@@ -3,6 +3,7 @@ import { useEditorStore, type GitDiffInfo } from '../../stores/editorStore'
 import { useTranslation } from '../../i18n'
 import { useUIStore } from '../../stores/uiStore'
 import { usePendingRefStore } from '../../stores/pendingRefStore'
+import { useTTS } from '../../hooks/useTTS'
 import { MarkdownRenderer } from '../markdown/MarkdownRenderer'
 import { ImagePreview } from './ImagePreview'
 import { DocxPreview } from './DocxPreview'
@@ -319,6 +320,19 @@ export function CodeEditor() {
       { mode: 'split', icon: 'vertical_split', label: t('editor.mdSplit') },
     ]
 
+    const tts = useTTS()
+
+    // 提取纯文本（去除 markdown 语法）
+    const plainText = activeFile.content
+      .replace(/```[\s\S]*?```/g, '')             // 移除代码块
+      .replace(/^#+\s*/gm, '')                     // 移除标题标记
+      .replace(/[*_~`]/g, '')                      // 移除强调/删除线/行内代码
+      .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')     // 链接只保留文字
+      .replace(/!\[([^\]]*)\]\([^)]*\)/g, '$1')    // 图片保留 alt 文字
+      .replace(/[>\-|]/gm, '')                     // 移除引用/列表/表格符号
+      .replace(/\n{3,}/g, '\n\n')                  // 合并多余空行
+      .trim()
+
     return (
       <div className="flex flex-col h-full bg-[var(--color-surface)]">
         {/* Toolbar */}
@@ -342,6 +356,20 @@ export function CodeEditor() {
               </Tooltip>
             ))}
           </div>
+          {/* AI 朗读 */}
+          <Tooltip content={tts.isPlaying ? t('editor.ttsStop') : t('editor.ttsRead')}>
+            <button
+              onClick={() => tts.isPlaying ? tts.stop() : tts.speak(plainText)}
+              disabled={!plainText || tts.isLoading}
+              className={`flex items-center gap-1 px-2 py-0.5 rounded text-[11px] transition-colors ml-1
+                ${tts.isPlaying
+                  ? 'bg-[var(--color-brand)]/10 text-[var(--color-brand)]'
+                  : 'text-[var(--color-text-tertiary)] hover:bg-[var(--color-surface-container)] hover:text-[var(--color-text-secondary)]'
+                } disabled:opacity-30`}
+            >
+              <span className="material-symbols-outlined text-[14px]">{tts.isPlaying ? 'stop' : 'record_voice_over'}</span>
+            </button>
+          </Tooltip>
           {activeFile.isDirty && (
             <button
               onClick={() => void saveActiveFile()}
