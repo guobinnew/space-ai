@@ -10,6 +10,7 @@ import { corsHeaders } from './middleware/cors'
 import { requireAuth } from './middleware/auth'
 import { conversationService } from './services/conversationService'
 import { cleanupEmptyProvider } from './services/usageService'
+import { startScheduler } from './services/cronScheduler'
 import type { StreamChunk } from './services/llmStreamService'
 import type { WebSocketData } from './types'
 import path from 'node:path'
@@ -149,6 +150,9 @@ export async function startServer(port = PORT, host = HOST) {
   cleanupEmptyProvider().then((removed) => {
     if (removed > 0) console.log(`[Usage] 已清理 ${removed} 条服务商为空的用量记录`)
   }).catch(() => {})
+
+  // 启动定时任务调度器
+  startScheduler()
 
   const localConnectHost =
     host === '0.0.0.0' || host === '127.0.0.1' || host === 'localhost'

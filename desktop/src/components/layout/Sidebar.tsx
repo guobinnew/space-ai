@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { useUIStore, HOME_TAB_ID, SETTINGS_TAB_ID, STATS_TAB_ID } from '../../stores/uiStore';
+import { useUIStore, HOME_TAB_ID, SETTINGS_TAB_ID, STATS_TAB_ID, AUTOMATION_TAB_ID } from '../../stores/uiStore';
 import { useSessionStore } from '../../stores/sessionStore';
 import { useTranslation } from '../../i18n';
 import type { SessionListItem } from '../../types/session';
@@ -215,6 +215,15 @@ export function Sidebar() {
           {t('sidebar.stats')}
         </NavItem>
         <NavItem
+          active={activeTabId === AUTOMATION_TAB_ID}
+          collapsed={!sidebarOpen}
+          label={t('sidebar.automation')}
+          onClick={() => openTab(AUTOMATION_TAB_ID, t('sidebar.automation'), 'automation')}
+          icon={<ClockIcon />}
+        >
+          {t('sidebar.automation')}
+        </NavItem>
+        <NavItem
           active={activeTabId === SETTINGS_TAB_ID}
           collapsed={!sidebarOpen}
           label={t('sidebar.settings')}
@@ -303,6 +312,14 @@ function PlusIcon() {
       <line x1="5" y1="12" x2="19" y2="12" />
     </svg>
   );
+}
+
+function ClockIcon() {
+  return (
+    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6l4 2m5-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+  )
 }
 
 function ChartIcon() {

@@ -2,6 +2,7 @@ import { useUIStore } from '../../stores/uiStore';
 import { HomePage } from '../../pages/HomePage';
 import { SettingsPage } from '../../pages/SettingsPage';
 import { UsageStatsPage } from '../../pages/UsageStatsPage';
+import { ScheduledTasksPage } from '../../pages/ScheduledTasks';
 import { ActiveSession } from '../../pages/ActiveSession';
 import { EmptySession } from '../../pages/EmptySession';
 import { TaskProvider } from '../../stores/cliTaskStore';
@@ -34,6 +35,7 @@ export function ContentRouter() {
       {/* 非 session 激活页（home/settings/empty）仅在非 session 激活时渲染 */}
       {!isSessionActive && activeTab?.type === 'settings' && <SettingsPage />}
       {!isSessionActive && activeTab?.type === 'stats' && <UsageStatsPage />}
+      {!isSessionActive && activeTab?.type === 'automation' && <ScheduledTasksPage />}
       {!isSessionActive && activeTab?.type === 'home' && <HomePage />}
       {!isSessionActive && !activeTab && <EmptySession />}
     </div>

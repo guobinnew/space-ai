@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 import { settingsApi, type GeneralSettings } from '../api/settings';
 
-export type TabType = 'home' | 'settings' | 'session' | 'stats';
+export type TabType = 'home' | 'settings' | 'session' | 'stats' | 'automation';
 export type Theme = 'dark' | 'light';
 export type Locale = 'zh' | 'en';
 
@@ -37,6 +37,7 @@ const UIContext = createContext<UIState | null>(null);
 export const HOME_TAB_ID = 'home';
 export const SETTINGS_TAB_ID = 'settings';
 export const STATS_TAB_ID = 'stats';
+export const AUTOMATION_TAB_ID = 'automation';
 
 /** 默认值（服务端未启动或加载失败时使用） */
 const DEFAULT_THEME: Theme = 'dark';
