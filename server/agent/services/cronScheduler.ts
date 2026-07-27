@@ -1,8 +1,13 @@
 /**
- * CronScheduler — 定时任务调度执行引擎
+ * CronScheduler — 定时任务调度器
  *
- * 每 60 秒 tick 一次，检查所有已启用的任务，匹配 cron 表达式后触发。
- * 执行记录持久化到 ~/.spaceai/scheduled_runs.jsonl
+ * 架构（参考 smart-code）：
+ *   60s tick → cron 匹配 → executeTask()
+ *     ├─ 防重入 (runningTasks Map)
+ *     ├─ AbortController 超时 (10min)
+ *     ├─ streamChat 执行 → onChunk 收集输出
+ *     ├─ 结果日志 → scheduled_runs.jsonl
+ *     └─ 飞书通知（预留）
  */
 
 import fs from 'node:fs/promises'
@@ -10,14 +15,15 @@ import path from 'node:path'
 import os from 'node:os'
 import { cronService, type CronTask } from './cronService'
 import { sessionService } from './sessionService'
-import { parseCronExpression, computeNextCronRun } from './cron'
 import { streamChat } from './llmStreamService'
+import { parseCronExpression, computeNextCronRun } from './cron'
 
 // ─── 配置 ─────────────────────────────────────────────────
 
 const CONFIG_DIR = process.env.SPACEAI_CONFIG_DIR || path.join(os.homedir(), '.spaceai')
 const RUNS_FILE = path.join(CONFIG_DIR, 'scheduled_runs.jsonl')
-const TICK_INTERVAL_MS = 60_000
+const TICK_INTERVAL_MS = 60_000  // 60s
+const EXEC_TIMEOUT_MS = 600_000  // 10min
 
 // ─── 类型 ─────────────────────────────────────────────────
 
@@ -25,10 +31,12 @@ export type RunRecord = {
   id: string
   taskId: string
   taskName?: string
-  status: 'running' | 'completed' | 'failed' | 'aborted'
+  status: 'running' | 'completed' | 'failed' | 'timeout' | 'aborted'
   startedAt: string
   finishedAt?: string
+  durationMs?: number
   sessionId?: string
+  output?: string
   error?: string
 }
 
@@ -50,6 +58,7 @@ export function stopScheduler(): void {
   if (tickTimer) { clearInterval(tickTimer); tickTimer = null }
   for (const [, ctrl] of runningTasks) ctrl.abort()
   runningTasks.clear()
+  console.log('[CronScheduler] Stopped.')
 }
 
 // ─── 主循环 ─────────────────────────────────────────────
@@ -58,60 +67,119 @@ async function tick(): Promise<void> {
   try {
     const tasks = await cronService.listTasks()
     const now = new Date()
+
     for (const task of tasks) {
       if (!task.enabled) continue
-      if (task.lastFiredAt) {
-        const parsed = parseCronExpression(task.cron)
-        if (!parsed) continue
-        const last = new Date(task.lastFiredAt)
-        const next = computeNextCronRun(parsed, last)
-        if (!next || next.getTime() > now.getTime()) continue
-      }
-      await fireTask(task, now)
+
+      // 防重入
+      if (runningTasks.has(task.id)) continue
+
+      // cron 匹配
+      const parsed = parseCronExpression(task.cron)
+      if (!parsed) continue
+
+      const last = task.lastFiredAt ? new Date(task.lastFiredAt) : new Date(0)
+      const next = computeNextCronRun(parsed, last)
+      if (!next || next.getTime() > now.getTime()) continue
+
+      // 异步执行（不阻塞 tick）
+      executeTask(task).catch((err) => console.error(`[CronScheduler] Task ${task.id} error:`, err))
     }
   } catch (err) {
     console.error('[CronScheduler] Tick error:', err)
   }
 }
 
-// ─── 执行任务 ────────────────────────────────────────────
+// ─── 核心执行 ────────────────────────────────────────────
 
-async function fireTask(task: CronTask, now: Date): Promise<void> {
-  if (runningTasks.has(task.id)) return
-
-  const startedAt = now.toISOString()
+async function executeTask(task: CronTask): Promise<void> {
+  const startedAt = new Date()
   const runId = `${task.id}-${Date.now()}`
+  const ctrl = new AbortController()
+  runningTasks.set(task.id, ctrl)
 
-  await cronService.updateLastFired(task.id, startedAt)
-  await appendRun({ id: runId, taskId: task.id, taskName: task.name, status: 'running', startedAt })
+  await cronService.updateLastFired(task.id, startedAt.toISOString())
+  await appendRun({ id: runId, taskId: task.id, taskName: task.name, status: 'running', startedAt: startedAt.toISOString() })
 
-  console.log(`[CronScheduler] Fire: ${task.name || task.id}`)
-  runningTasks.set(task.id, new AbortController())
+  console.log(`[CronScheduler] Execute: ${task.name || task.id}`)
+
+  // 超时定时器
+  const timeout = setTimeout(() => ctrl.abort(), EXEC_TIMEOUT_MS)
 
   try {
-    // 创建会话并添加用户消息（streamChat 依赖历史中的最后一条为用户消息）
+    // 1. 创建会话
     const session = await sessionService.createSession({
       title: `定时: ${task.name || task.id}`,
       workDir: task.folderPath,
     })
+    // 2. 写入用户消息（streamChat 依赖历史最后一条为用户消息）
     const msg = `[定时任务] ${task.name || task.id}\n\n${task.prompt}`
     await sessionService.addMessage(session.id, 'user', msg)
 
-    // 实际触发 LLM 执行（无输出回调，无交互）
-    const ctrl = runningTasks.get(task.id)!
+    // 3. 执行 LLM 并收集输出
+    const outputChunks: string[] = []
     await streamChat(
       session.id,
       msg,
-      () => {}, // onChunk — 丢弃输出
-      () => ctrl.signal.aborted, // isCancelled
-      async () => { throw new Error('定时任务无法交互式提问') }, // askUser
+      (chunk) => {
+        if (chunk.type === 'content_delta' && chunk.text) {
+          outputChunks.push(chunk.text)
+        }
+      },
+      () => ctrl.signal.aborted,
+      async () => { throw new Error('定时任务无法交互式提问') },
     )
 
-    await appendRun({ id: runId, taskId: task.id, taskName: task.name, status: 'completed', startedAt, finishedAt: new Date().toISOString(), sessionId: session.id })
+    clearTimeout(timeout)
+    const finishedAt = new Date()
+    const output = outputChunks.join('').trim()
+
+    // 检测是否因超时中止
+    if (ctrl.signal.aborted) {
+      await appendRun({
+        id: runId,
+        taskId: task.id,
+        taskName: task.name,
+        status: 'timeout',
+        startedAt: startedAt.toISOString(),
+        finishedAt: finishedAt.toISOString(),
+        durationMs: finishedAt.getTime() - startedAt.getTime(),
+        sessionId: session.id,
+        output: output.slice(0, 5000),
+        error: `执行超时（${EXEC_TIMEOUT_MS / 1000}s）`,
+      })
+      console.log(`[CronScheduler] TIMEOUT: ${task.name || task.id} (${EXEC_TIMEOUT_MS / 1000}s)`)
+    } else {
+      await appendRun({
+        id: runId,
+        taskId: task.id,
+        taskName: task.name,
+        status: 'completed',
+        startedAt: startedAt.toISOString(),
+        finishedAt: finishedAt.toISOString(),
+        durationMs: finishedAt.getTime() - startedAt.getTime(),
+        sessionId: session.id,
+        output: output.slice(0, 5000),
+      })
+      console.log(`[CronScheduler] Completed: ${task.name || task.id} (${finishedAt.getTime() - startedAt.getTime()}ms)`)
+    }
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err)
-    await appendRun({ id: runId, taskId: task.id, taskName: task.name, status: 'failed', startedAt, finishedAt: new Date().toISOString(), error: msg })
-    console.error(`[CronScheduler] Task ${task.id} failed:`, msg)
+    clearTimeout(timeout)
+    const finishedAt = new Date()
+    const error = err instanceof Error ? err.message : String(err)
+
+    await appendRun({
+      id: runId,
+      taskId: task.id,
+      taskName: task.name,
+      status: 'failed',
+      startedAt: startedAt.toISOString(),
+      finishedAt: finishedAt.toISOString(),
+      durationMs: finishedAt.getTime() - startedAt.getTime(),
+      error,
+    })
+
+    console.error(`[CronScheduler] FAILED: ${task.name || task.id} (${error})`)
   } finally {
     runningTasks.delete(task.id)
   }
@@ -119,58 +187,45 @@ async function fireTask(task: CronTask, now: Date): Promise<void> {
 
 // ─── 公共接口（API 调用） ────────────────────────────────
 
-export async function executeTask(task: CronTask): Promise<void> {
-  await fireTask(task, new Date())
+/** 立即执行任务（API POST /exec） */
+export async function executeTaskById(task: CronTask): Promise<void> {
+  return executeTask(task)
 }
 
+/** 中止任务 */
 export async function abortTask(taskId: string): Promise<boolean> {
   const ctrl = runningTasks.get(taskId)
   if (!ctrl) return false
   ctrl.abort()
   runningTasks.delete(taskId)
-  const runs = await readRuns()
-  for (const r of runs) {
-    if (r.taskId === taskId && r.status === 'running') {
-      r.status = 'aborted'
-      r.finishedAt = new Date().toISOString()
-    }
-  }
-  await writeRuns(runs)
+  await markRunningAsAborted(taskId)
   return true
 }
 
+/** 中止全部运行中任务 */
 export async function abortAllRunningTasks(): Promise<number> {
   const count = runningTasks.size
-  for (const [, ctrl] of runningTasks) ctrl.abort()
-  runningTasks.clear()
-  const runs = await readRuns()
-  for (const r of runs) {
-    if (r.status === 'running') {
-      r.status = 'aborted'
-      r.finishedAt = new Date().toISOString()
-    }
+  for (const [id, ctrl] of runningTasks) {
+    ctrl.abort()
+    runningTasks.delete(id)
   }
-  await writeRuns(runs)
+  await markAllRunningAsAborted()
   return count
 }
 
+/** 获取最近运行记录 */
 export async function getRecentRuns(limit = 50): Promise<RunRecord[]> {
   const runs = await readRuns()
   return runs.reverse().slice(0, limit)
 }
 
+/** 获取某任务运行记录 */
 export async function getTaskRuns(taskId: string): Promise<RunRecord[]> {
   const runs = await readRuns()
   return runs.filter((r) => r.taskId === taskId).reverse()
 }
 
-export async function clearTaskRuns(taskId: string): Promise<number> {
-  const runs = await readRuns()
-  const kept = runs.filter((r) => r.taskId !== taskId)
-  await writeRuns(kept)
-  return runs.length - kept.length
-}
-
+/** 删除某条运行记录 */
 export async function deleteRun(runId: string): Promise<boolean> {
   const runs = await readRuns()
   const idx = runs.findIndex((r) => r.id === runId)
@@ -180,7 +235,39 @@ export async function deleteRun(runId: string): Promise<boolean> {
   return true
 }
 
-// ─── 运行记录持久化 ─────────────────────────────────────
+/** 清空某任务运行记录 */
+export async function clearTaskRuns(taskId: string): Promise<number> {
+  const runs = await readRuns()
+  const kept = runs.filter((r) => r.taskId !== taskId)
+  await writeRuns(kept)
+  return runs.length - kept.length
+}
+
+// ─── 辅助 ────────────────────────────────────────────────
+
+async function markRunningAsAborted(taskId: string): Promise<void> {
+  const runs = await readRuns()
+  for (const r of runs) {
+    if (r.taskId === taskId && r.status === 'running') {
+      r.status = 'aborted'
+      r.finishedAt = new Date().toISOString()
+    }
+  }
+  await writeRuns(runs)
+}
+
+async function markAllRunningAsAborted(): Promise<void> {
+  const runs = await readRuns()
+  for (const r of runs) {
+    if (r.status === 'running') {
+      r.status = 'aborted'
+      r.finishedAt = new Date().toISOString()
+    }
+  }
+  await writeRuns(runs)
+}
+
+// ─── 持久化 ──────────────────────────────────────────────
 
 async function readRuns(): Promise<RunRecord[]> {
   try {

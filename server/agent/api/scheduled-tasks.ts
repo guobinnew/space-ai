@@ -12,7 +12,7 @@
  * DELETE /api/scheduled-tasks/runs/:runId — 删除某条运行记录
  */
 import { cronService } from '../services/cronService'
-import { executeTask, abortTask, getRecentRuns, getTaskRuns, deleteRun, clearTaskRuns } from '../services/cronScheduler'
+import { executeTaskById, abortTask, getRecentRuns, getTaskRuns, deleteRun, clearTaskRuns } from '../services/cronScheduler'
 
 export async function handleScheduledTasksApi(req: Request, url: URL): Promise<Response> {
   try {
@@ -56,7 +56,7 @@ export async function handleScheduledTasksApi(req: Request, url: URL): Promise<R
         const task = tasks.find((t) => t.id === taskId)
         if (!task) return Response.json({ error: 'NOT_FOUND' }, { status: 404 })
         // 异步执行，不等待完成
-        executeTask(task).catch((err) => console.error('[ScheduledTasks] exec error:', err))
+        executeTaskById(task).catch((err) => console.error('[ScheduledTasks] exec error:', err))
         return Response.json({ success: true, message: 'Task execution started' })
       }
 
