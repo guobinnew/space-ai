@@ -147,6 +147,7 @@ export function CodeEditor() {
   const updateFileContent = useEditorStore((s) => s.updateFileContent)
   const saveActiveFile = useEditorStore((s) => s.saveActiveFile)
   const computeLocalDiff = useEditorStore((s) => s.computeLocalDiff)
+  const pinFile = useEditorStore((s) => s.pinFile)
   const editorRef = useRef<any>(null)
   const t = useTranslation()
   const { locale } = useUIStore()
@@ -366,6 +367,7 @@ export function CodeEditor() {
                   setReadingMode(false)
                 } else {
                   setReadingMode(true)
+                  pinFile(activeFilePath)
                   tts.speak(plainText)
                 }
               }}
