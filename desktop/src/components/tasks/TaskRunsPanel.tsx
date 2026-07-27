@@ -7,6 +7,7 @@ const STATUS_MAP: Record<string, { label: string; color: string }> = {
   running:   { label: '执行中', color: 'var(--color-warning)' },
   completed: { label: '成功',   color: 'var(--color-success)' },
   failed:    { label: '失败',   color: 'var(--color-error)' },
+  timeout:   { label: '超时',   color: 'var(--color-error)' },
   aborted:   { label: '已中止', color: 'var(--color-text-tertiary)' },
 }
 

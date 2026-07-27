@@ -55,8 +55,9 @@ export async function handleScheduledTasksApi(req: Request, url: URL): Promise<R
         const tasks = await cronService.listTasks()
         const task = tasks.find((t) => t.id === taskId)
         if (!task) return Response.json({ error: 'NOT_FOUND' }, { status: 404 })
-        // 异步执行，不等待完成
         executeTaskById(task).catch((err) => console.error('[ScheduledTasks] exec error:', err))
+        // 等待 running 记录写入磁盘后返回，前端可见执行中状态
+        await new Promise((r) => setTimeout(r, 300))
         return Response.json({ success: true, message: 'Task execution started' })
       }
 
