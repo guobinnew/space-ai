@@ -150,6 +150,7 @@ export function CodeEditor() {
   const t = useTranslation()
   const { locale } = useUIStore()
   const setPendingCodeRef = usePendingRefStore((s) => s.setPendingCodeRef)
+  const tts = useTTS()
 
   const activeFilePathRef = useRef(activeFilePath)
   activeFilePathRef.current = activeFilePath
@@ -319,8 +320,6 @@ export function CodeEditor() {
       { mode: 'preview', icon: 'visibility', label: t('editor.mdPreview') },
       { mode: 'split', icon: 'vertical_split', label: t('editor.mdSplit') },
     ]
-
-    const tts = useTTS()
 
     // 提取纯文本（去除 markdown 语法）
     const plainText = activeFile.content
