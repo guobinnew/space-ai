@@ -358,10 +358,10 @@ export function CodeEditor() {
             ))}
           </div>
           {/* AI 朗读 */}
-          <Tooltip content={tts.isPlaying || tts.isPaused ? t('editor.ttsStop') : t('editor.ttsRead')}>
+          <Tooltip content={readingMode ? t('editor.ttsStop') : t('editor.ttsRead')}>
             <button
               onClick={() => {
-                if (tts.isPlaying || tts.isPaused) {
+                if (readingMode) {
                   tts.stop()
                   setReadingMode(false)
                 } else {
@@ -369,14 +369,14 @@ export function CodeEditor() {
                   tts.speak(plainText)
                 }
               }}
-              disabled={!plainText || tts.isLoading}
+              disabled={!plainText}
               className={`flex items-center gap-1 px-2 py-0.5 rounded text-[11px] transition-colors ml-1
-                ${tts.isPlaying || tts.isPaused || readingMode
+                ${readingMode
                   ? 'bg-[var(--color-brand)]/10 text-[var(--color-brand)]'
                   : 'text-[var(--color-text-tertiary)] hover:bg-[var(--color-surface-container)] hover:text-[var(--color-text-secondary)]'
                 } disabled:opacity-30`}
             >
-              <span className="material-symbols-outlined text-[14px]">{tts.isPlaying || tts.isPaused ? 'stop' : 'record_voice_over'}</span>
+              <span className="material-symbols-outlined text-[14px]">{readingMode ? 'stop' : 'record_voice_over'}</span>
               {tts.isPlaying && tts.progress.total > 1 && (
                 <span className="text-[10px] tabular-nums">{tts.progress.current}/{tts.progress.total}</span>
               )}
