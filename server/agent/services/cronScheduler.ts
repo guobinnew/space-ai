@@ -11,6 +11,7 @@ import os from 'node:os'
 import { cronService, type CronTask } from './cronService'
 import { sessionService } from './sessionService'
 import { parseCronExpression, computeNextCronRun } from './cron'
+import { streamChat } from './llmStreamService'
 
 // ─── 配置 ─────────────────────────────────────────────────
 
@@ -88,10 +89,23 @@ async function fireTask(task: CronTask, now: Date): Promise<void> {
   runningTasks.set(task.id, new AbortController())
 
   try {
-    // 创建会话记录
-    const session = await sessionService.createSession({ title: `定时: ${task.name || task.id}` })
+    // 创建会话并添加用户消息（streamChat 依赖历史中的最后一条为用户消息）
+    const session = await sessionService.createSession({
+      title: `定时: ${task.name || task.id}`,
+      workDir: task.folderPath,
+    })
     const msg = `[定时任务] ${task.name || task.id}\n\n${task.prompt}`
     await sessionService.addMessage(session.id, 'user', msg)
+
+    // 实际触发 LLM 执行（无输出回调，无交互）
+    const ctrl = runningTasks.get(task.id)!
+    await streamChat(
+      session.id,
+      msg,
+      () => {}, // onChunk — 丢弃输出
+      () => ctrl.signal.aborted, // isCancelled
+      async () => { throw new Error('定时任务无法交互式提问') }, // askUser
+    )
 
     await appendRun({ id: runId, taskId: task.id, taskName: task.name, status: 'completed', startedAt, finishedAt: new Date().toISOString(), sessionId: session.id })
   } catch (err) {
