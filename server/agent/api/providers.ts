@@ -36,6 +36,8 @@ function validateCreateInput(body: Record<string, unknown>): CreateProviderInput
     name: body.name,
     apiKey: body.apiKey,
     baseUrl: body.baseUrl,
+    ttsBaseUrl: body.ttsBaseUrl as string | undefined,
+    ttsVoice: body.ttsVoice as string | undefined,
     apiFormat: body.apiFormat as CreateProviderInput['apiFormat'],
     models: body.models as CreateProviderInput['models'],
     capabilities: body.capabilities as CreateProviderInput['capabilities'],
@@ -52,6 +54,8 @@ function validateUpdateInput(body: Record<string, unknown>): UpdateProviderInput
   if (body.models !== undefined) input.models = body.models as UpdateProviderInput['models']
   if (body.capabilities !== undefined) input.capabilities = body.capabilities as UpdateProviderInput['capabilities']
   if (body.notes !== undefined) input.notes = body.notes as string
+  if (body.ttsBaseUrl !== undefined) input.ttsBaseUrl = body.ttsBaseUrl as string
+  if (body.ttsVoice !== undefined) input.ttsVoice = body.ttsVoice as string
   return input
 }
 
