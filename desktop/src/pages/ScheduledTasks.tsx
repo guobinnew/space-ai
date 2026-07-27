@@ -16,16 +16,55 @@ import {
 } from '../api/scheduled-tasks'
 import { useTranslation } from '../i18n'
 
-// ─── 常用 cron 预设 ─────────────────────────────────────
+// ─── 频率选项 ────────────────────────────────────────────
 
-const PRESETS = [
-  { label: '每小时', cron: '0 * * * *' },
-  { label: '每 6 小时', cron: '0 */6 * * *' },
-  { label: '每天 9:00', cron: '0 9 * * *' },
-  { label: '每天 18:00', cron: '0 18 * * *' },
-  { label: '工作日 9:00', cron: '0 9 * * 1-5' },
-  { label: '每周一 9:00', cron: '0 9 * * 1' },
+type Frequency = { label: string; cron(minute: number, hour: number): string }
+
+const FREQUENCIES: Frequency[] = [
+  { label: '每天', cron: (_m: number, h: number) => `${_m} ${h} * * *` },
+  { label: '工作日', cron: (m: number, h: number) => `${m} ${h} * * 1-5` },
+  { label: '每周一', cron: (m: number, h: number) => `${m} ${h} * * 1` },
+  { label: '每周二', cron: (m: number, h: number) => `${m} ${h} * * 2` },
+  { label: '每周三', cron: (m: number, h: number) => `${m} ${h} * * 3` },
+  { label: '每周四', cron: (m: number, h: number) => `${m} ${h} * * 4` },
+  { label: '每周五', cron: (m: number, h: number) => `${m} ${h} * * 5` },
+  { label: '每周六', cron: (m: number, h: number) => `${m} ${h} * * 6` },
+  { label: '每周日', cron: (m: number, h: number) => `${m} ${h} * * 0` },
+  { label: '每小时', cron: () => `0 * * * *` },
+  { label: '每2小时', cron: () => `0 */2 * * *` },
+  { label: '每6小时', cron: () => `0 */6 * * *` },
+  { label: '每12小时', cron: () => `0 */12 * * *` },
 ]
+
+// 从 cron 反推频率索引和时间
+// 每小时/每N小时 无时间选择
+const HOMELESS_FREQ = new Set(['每小时', '每2小时', '每6小时', '每12小时'])
+
+function parseCronToFreq(cron: string): { freqLabel: string; hourText: string } {
+  const parts = cron.trim().split(/\s+/)
+  if (parts.length !== 5) return { freqLabel: '每天', hourText: '09:00' }
+  const [minute, hour, , , dow] = parts as string[]
+  const m = parseInt(minute, 10)
+  const h = parseInt(hour, 10)
+  const hourText = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`
+
+  const dowMatch = dow.match(/^\d$/)
+
+  if (hour === '*' && minute === '0') return { freqLabel: '每小时', hourText: '' }
+  const stepMatch = hour.match(/^\*\/(\d+)$/)
+  if (stepMatch) {
+    const n = parseInt(stepMatch[1]!, 10)
+    return { freqLabel: `每${n}小时`, hourText: '' }
+  }
+
+  if (dow === '1-5') return { freqLabel: '工作日', hourText }
+  if (dowMatch) {
+    const dayNames = ['每周日', '每周一', '每周二', '每周三', '每周四', '每周五', '每周六']
+    return { freqLabel: dayNames[parseInt(dow, 10) % 7], hourText }
+  }
+
+  return { freqLabel: '每天', hourText }
+}
 
 // ─── 主组件 ──────────────────────────────────────────────
 
@@ -56,7 +95,7 @@ export function ScheduledTasksPage() {
   useEffect(() => { load() }, [])
 
   // 创建/编辑
-  const handleSave = async (fields: { name?: string; description?: string; cron: string; prompt: string }) => {
+  const handleSave = async (fields: { name: string; description?: string; cron: string; prompt: string }) => {
     if (editing) {
       await updateScheduledTask(editing.id, fields)
     } else {
@@ -124,7 +163,6 @@ export function ScheduledTasksPage() {
       {showForm && (
         <TaskForm
           task={editing}
-          presets={PRESETS}
           onSave={handleSave}
           onCancel={() => { setShowForm(false); setEditing(null) }}
         />
@@ -175,12 +213,15 @@ export function ScheduledTasksPage() {
                         )}
                       </div>
                       <div className="flex items-center gap-2 mt-0.5">
-                        <code className="text-[11px] px-1.5 py-0.5 rounded bg-[var(--color-surface-container)] text-[var(--color-text-secondary)] font-mono">
+                        <span className="text-xs text-[var(--color-text-secondary)]">
+                          {(() => {
+                            const { freqLabel, hourText } = parseCronToFreq(task.cron)
+                            return hourText ? `${freqLabel} ${hourText}` : freqLabel
+                          })()}
+                        </span>
+                        <code className="text-[10px] px-1 py-0.5 rounded bg-[var(--color-surface-container)] text-[var(--color-text-tertiary)] font-mono opacity-60">
                           {task.cron}
                         </code>
-                        <span className="text-xs text-[var(--color-text-tertiary)]">
-                          {describeCron(task.cron)}
-                        </span>
                       </div>
                     </div>
 
@@ -259,27 +300,48 @@ export function ScheduledTasksPage() {
 
 // ─── 表单 ────────────────────────────────────────────────
 
-function TaskForm({ task, presets, onSave, onCancel }: {
+function TaskForm({ task, onSave, onCancel }: {
   task: ScheduledTask | null
-  presets: { label: string; cron: string }[]
-  onSave: (fields: { name?: string; description?: string; cron: string; prompt: string }) => Promise<void>
+  onSave: (fields: { name: string; description?: string; cron: string; prompt: string }) => Promise<void>
   onCancel: () => void
 }) {
   const [name, setName] = useState(task?.name || '')
   const [description, setDescription] = useState(task?.description || '')
-  const [cron, setCron] = useState(task?.cron || '0 9 * * *')
   const [prompt, setPrompt] = useState(task?.prompt || '')
   const [saving, setSaving] = useState(false)
 
+  // 从 cron 反推初始值
+  const init = task ? parseCronToFreq(task.cron) : { freqLabel: '每天', hourText: '09:00' }
+  const [freqLabel, setFreqLabel] = useState(init.freqLabel)
+  const [hourText, setHourText] = useState(init.hourText || '09:00')
+
+  // cron 生成
+  const buildCron = (): string => {
+    const freq = FREQUENCIES.find((f) => f.label === freqLabel)
+    if (!freq) return '0 9 * * *'
+    if (HOMELESS_FREQ.has(freqLabel)) {
+      return freq.cron(0, 0)
+    }
+    const [h, m] = hourText.split(':').map(Number)
+    return freq.cron(m, h)
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!cron.trim() || !prompt.trim()) return
+    if (!name.trim() || !prompt.trim()) return
     setSaving(true)
     try {
-      await onSave({ name: name.trim() || undefined, description: description.trim() || undefined, cron: cron.trim(), prompt: prompt.trim() })
+      await onSave({
+        name: name.trim(),
+        description: description.trim() || undefined,
+        cron: buildCron(),
+        prompt: prompt.trim(),
+      })
     } catch { /* handled */ }
     setSaving(false)
   }
+
+  const noTime = HOMELESS_FREQ.has(freqLabel)
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onCancel}>
@@ -289,12 +351,15 @@ function TaskForm({ task, presets, onSave, onCancel }: {
             {task ? '编辑任务' : '新建定时任务'}
           </h2>
 
-          {/* 名称 */}
+          {/* 名称（必填） */}
           <div>
-            <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1">名称（可选）</label>
+            <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1">
+              名称 <span className="text-[var(--color-error)]">*</span>
+            </label>
             <input value={name} onChange={(e) => setName(e.target.value)}
               className="w-full px-3 py-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-container)] text-sm text-[var(--color-text-primary)] outline-none focus:border-[var(--color-brand)] transition-colors"
               placeholder="任务名称"
+              autoFocus
             />
           </div>
 
@@ -307,32 +372,44 @@ function TaskForm({ task, presets, onSave, onCancel }: {
             />
           </div>
 
-          {/* Cron 表达式 */}
+          {/* 时间 + 重复间隔 */}
           <div>
-            <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1">
-              Cron 表达式 <code className="ml-1 text-[10px] px-1 py-0.5 rounded bg-[var(--color-surface-container)] text-[var(--color-text-tertiary)]">分 时 日 月 周</code>
-            </label>
-            <input value={cron} onChange={(e) => setCron(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-container)] text-sm font-mono text-[var(--color-text-primary)] outline-none focus:border-[var(--color-brand)] transition-colors"
-              placeholder="0 9 * * *"
-            />
-            <div className="flex flex-wrap gap-1.5 mt-1.5">
-              {presets.map((p) => (
-                <button key={p.cron} type="button" onClick={() => setCron(p.cron)}
-                  className={`px-2 py-0.5 rounded text-[11px] border transition-colors ${cron === p.cron ? 'border-[var(--color-brand)] text-[var(--color-brand)] bg-[var(--color-brand)]/10' : 'border-[var(--color-border)] text-[var(--color-text-tertiary)] hover:border-[var(--color-text-secondary)]'}`}
-                >
-                  {p.label}
-                </button>
-              ))}
+            <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1">执行时间</label>
+            <div className="flex gap-3">
+              {/* 时间选择 */}
+              <div className="shrink-0">
+                {noTime ? (
+                  <div className="h-[38px] flex items-center px-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-container)] text-sm text-[var(--color-text-tertiary)]">
+                    无需时间
+                  </div>
+                ) : (
+                  <input type="time" value={hourText}
+                    onChange={(e) => setHourText(e.target.value)}
+                    className="h-[38px] px-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-container)] text-sm text-[var(--color-text-primary)] outline-none focus:border-[var(--color-brand)] transition-colors"
+                  />
+                )}
+              </div>
+
+              {/* 频率选择 */}
+              <select value={freqLabel} onChange={(e) => setFreqLabel(e.target.value)}
+                className="flex-1 px-3 py-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-container)] text-sm text-[var(--color-text-primary)] outline-none focus:border-[var(--color-brand)] transition-colors"
+              >
+                {FREQUENCIES.map((f) => (
+                  <option key={f.label} value={f.label}>{f.label}</option>
+                ))}
+              </select>
             </div>
-            <div className="text-[11px] text-[var(--color-text-tertiary)] mt-1">
-              {describeCron(cron)}
-            </div>
+            {/* 生成的 cron 预览 */}
+            <code className="block mt-1 text-[10px] px-1.5 py-0.5 rounded bg-[var(--color-surface-container)] text-[var(--color-text-tertiary)] font-mono inline-block">
+              cron: {buildCron()}
+            </code>
           </div>
 
           {/* Prompt */}
           <div>
-            <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1">任务内容（prompt）</label>
+            <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1">
+              任务内容 <span className="text-[var(--color-error)]">*</span>
+            </label>
             <textarea value={prompt} onChange={(e) => setPrompt(e.target.value)}
               rows={4}
               className="w-full px-3 py-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-container)] text-sm text-[var(--color-text-primary)] outline-none focus:border-[var(--color-brand)] transition-colors resize-none"
@@ -347,7 +424,7 @@ function TaskForm({ task, presets, onSave, onCancel }: {
             >
               取消
             </button>
-            <button type="submit" disabled={!cron.trim() || !prompt.trim() || saving}
+            <button type="submit" disabled={!name.trim() || !prompt.trim() || saving}
               className="px-4 py-1.5 rounded-lg text-sm bg-[var(--color-brand)] text-white hover:opacity-90 disabled:opacity-40 transition-all"
             >
               {saving ? '保存中...' : task ? '保存' : '创建'}
@@ -357,31 +434,4 @@ function TaskForm({ task, presets, onSave, onCancel }: {
       </div>
     </div>
   )
-}
-
-// ─── 工具 ────────────────────────────────────────────────
-
-const DAY_NAMES = ['日', '一', '二', '三', '四', '五', '六']
-
-function describeCron(cron: string): string {
-  const parts = cron.trim().split(/\s+/)
-  if (parts.length !== 5) return cron
-
-  const [minute, hour, dayOfMonth, month, dayOfWeek] = parts as [string, string, string, string, string]
-
-  if (minute.match(/^\*\/\d+$/) && hour === '*' && dayOfMonth === '*' && month === '*' && dayOfWeek === '*') {
-    const n = parseInt(minute.match(/\d+/)?.[0] || '1', 10)
-    return n === 1 ? '每分钟执行' : `每 ${n} 分钟执行`
-  }
-  if (minute === '0' && hour === '*' && dayOfMonth === '*' && month === '*' && dayOfWeek === '*') return '每小时执行'
-  if (minute.match(/^\d+$/) && hour.match(/^\d+$/) && dayOfMonth === '*' && month === '*' && dayOfWeek === '*') {
-    return `每天 ${hour.padStart(2, '0')}:${minute.padStart(2, '0')} 执行`
-  }
-  if (minute.match(/^\d+$/) && hour.match(/^\d+$/) && dayOfMonth === '*' && month === '*' && dayOfWeek.match(/^\d$/)) {
-    return `每${DAY_NAMES[parseInt(dayOfWeek, 10)]} ${hour.padStart(2, '0')}:${minute.padStart(2, '0')} 执行`
-  }
-  if (minute.match(/^\d+$/) && hour.match(/^\d+$/) && dayOfMonth === '*' && month === '*' && dayOfWeek === '1-5') {
-    return `工作日 ${hour.padStart(2, '0')}:${minute.padStart(2, '0')} 执行`
-  }
-  return cron
 }
