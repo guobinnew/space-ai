@@ -367,6 +367,9 @@ export function CodeEditor() {
                 } disabled:opacity-30`}
             >
               <span className="material-symbols-outlined text-[14px]">{tts.isPlaying ? 'stop' : 'record_voice_over'}</span>
+              {tts.isPlaying && tts.progress.total > 1 && (
+                <span className="text-[10px] tabular-nums">{tts.progress.current}/{tts.progress.total}</span>
+              )}
             </button>
           </Tooltip>
           {activeFile.isDirty && (
