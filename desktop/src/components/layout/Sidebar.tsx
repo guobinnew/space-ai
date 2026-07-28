@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useUIStore, HOME_TAB_ID, SETTINGS_TAB_ID, STATS_TAB_ID, AUTOMATION_TAB_ID } from '../../stores/uiStore';
 import { useSessionStore } from '../../stores/sessionStore';
 import { useTranslation } from '../../i18n';
@@ -31,6 +31,34 @@ export function Sidebar() {
     e.preventDefault();
     setContextMenu({ sessionId: session.id, x: e.clientX, y: e.clientY, session });
   }, []);
+
+  // 按时间分组会话
+  const groupedSessions = useMemo(() => {
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const yesterdayStart = new Date(todayStart.getTime() - 86400000);
+    const sevenDaysAgo = new Date(todayStart.getTime() - 7 * 86400000);
+    const thirtyDaysAgo = new Date(todayStart.getTime() - 30 * 86400000);
+
+    const groups: { key: string; label: string; sessions: SessionListItem[] }[] = [
+      { key: 'today', label: t('sidebar.groupToday'), sessions: [] },
+      { key: 'yesterday', label: t('sidebar.groupYesterday'), sessions: [] },
+      { key: 'week', label: t('sidebar.groupWeek'), sessions: [] },
+      { key: 'month', label: t('sidebar.groupMonth'), sessions: [] },
+      { key: 'earlier', label: t('sidebar.groupEarlier'), sessions: [] },
+    ];
+
+    for (const session of sessions) {
+      const date = new Date(session.modifiedAt);
+      if (date >= todayStart) groups[0]!.sessions.push(session);
+      else if (date >= yesterdayStart) groups[1]!.sessions.push(session);
+      else if (date >= sevenDaysAgo) groups[2]!.sessions.push(session);
+      else if (date >= thirtyDaysAgo) groups[3]!.sessions.push(session);
+      else groups[4]!.sessions.push(session);
+    }
+
+    return groups.filter((g) => g.sessions.length > 0);
+  }, [sessions, t]);
 
   // Close context menu on outside click
   useEffect(() => {
@@ -134,7 +162,12 @@ export function Sidebar() {
                 {t('sidebar.noSessions')}
               </div>
             )}
-            {sessions.map((session) => (
+            {groupedSessions.map((group) => (
+              <div key={group.key} className="mb-1">
+                <div className="px-3 pt-2 pb-0.5 text-[10px] font-medium text-[var(--color-text-tertiary)]/70">
+                  {group.label}
+                </div>
+                {group.sessions.map((session) => (
               <div key={session.id} className="relative">
                 {renamingId === session.id ? (
                   <input
@@ -173,6 +206,8 @@ export function Sidebar() {
                     </span>
                   </button>
                 )}
+              </div>
+                ))}
               </div>
             ))}
           </div>

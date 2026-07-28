@@ -22,6 +22,11 @@ const translations: Record<Locale, Record<string, string>> = {
     'sidebar.collapse': '折叠侧边栏',
     'sidebar.expand': '展开侧边栏',
     'sidebar.sessions': '会话',
+    'sidebar.groupToday': '今天',
+    'sidebar.groupYesterday': '昨天',
+    'sidebar.groupWeek': '7 天之内',
+    'sidebar.groupMonth': '30 天之内',
+    'sidebar.groupEarlier': '更早',
     'sidebar.noSessions': '暂无会话',
     'sidebar.loading': '加载中...',
 
@@ -368,6 +373,11 @@ const translations: Record<Locale, Record<string, string>> = {
     'sidebar.collapse': 'Collapse sidebar',
     'sidebar.expand': 'Expand sidebar',
     'sidebar.sessions': 'Sessions',
+    'sidebar.groupToday': 'Today',
+    'sidebar.groupYesterday': 'Yesterday',
+    'sidebar.groupWeek': 'Within 7 days',
+    'sidebar.groupMonth': 'Within 30 days',
+    'sidebar.groupEarlier': 'Earlier',
     'sidebar.noSessions': 'No sessions',
     'sidebar.loading': 'Loading...',
 
