@@ -5,7 +5,7 @@
  * 显示工具名称、输入摘要、运行状态、结果（可折叠）。
  */
 
-import { useState } from 'react';
+import { memo, useState } from 'react';
 import { useTranslation } from '../../i18n';
 import type { ToolCallInfo } from '../../types/chat';
 import { useEditorStore } from '../../stores/editorStore';
@@ -158,7 +158,7 @@ type Props = {
   toolCall: ToolCallInfo;
 };
 
-export function ToolCallBlock({ toolCall }: Props) {
+export const ToolCallBlock = memo(function ToolCallBlock({ toolCall }: Props) {
   const t = useTranslation();
   const [expanded, setExpanded] = useState(false);
 
@@ -294,4 +294,4 @@ export function ToolCallBlock({ toolCall }: Props) {
       )}
     </div>
   );
-}
+});

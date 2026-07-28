@@ -6,7 +6,7 @@
  * 自动解析并渲染文件/代码引用标签。
  */
 
-import { useRef, useCallback, useMemo } from 'react';
+import { memo, useRef, useCallback, useMemo } from 'react';
 import { toBlob } from 'html-to-image';
 import { MarkdownRenderer } from '../markdown/MarkdownRenderer';
 import { MessageActionBar } from './MessageActionBar';
@@ -34,7 +34,7 @@ function AgentAvatar() {
   );
 }
 
-export function AssistantMessage({
+export const AssistantMessage = memo(function AssistantMessage({
   content,
   createdAt,
   streaming,
@@ -117,4 +117,4 @@ export function AssistantMessage({
       </div>
     </div>
   );
-}
+});

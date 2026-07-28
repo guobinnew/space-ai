@@ -5,12 +5,12 @@
  * 自动解析并渲染文件/代码引用标签。
  */
 
-import { useMemo } from 'react';
+import { memo, useMemo } from 'react';
 import { useTranslation, localeTag } from '../../i18n';
 import { MessageActionBar } from './MessageActionBar';
 import { parseRefsFromContent, RefTagList } from './refParser';
 
-export function UserMessage({ content, createdAt }: { content: string; createdAt: string }) {
+export const UserMessage = memo(function UserMessage({ content, createdAt }: { content: string; createdAt: string }) {
   const t = useTranslation();
   const { refs, cleanContent } = useMemo(() => parseRefsFromContent(content), [content]);
 
@@ -39,4 +39,4 @@ export function UserMessage({ content, createdAt }: { content: string; createdAt
       </div>
     </div>
   );
-}
+});

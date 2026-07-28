@@ -73,8 +73,8 @@ if (typeof document !== 'undefined' && !document.querySelector('#ml-scroll-style
   const style = document.createElement('style');
   style.id = 'ml-scroll-styles';
   style.textContent = `
-    .msg-item { content-visibility: auto; contain-intrinsic-size: 80px; }
-    .msg-list-container { overscroll-behavior: contain; scroll-behavior: smooth; contain: layout style paint; }
+    .msg-item { contain: layout paint; }
+    .msg-list-container { overscroll-behavior: contain; contain: layout style paint; will-change: transform; }
   `;
   document.head.appendChild(style);
 }
