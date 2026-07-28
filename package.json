@@ -1,5 +1,6 @@
 {
   "name": "smart-space",
+  "version": "0.1.0",
   "private": true,
   "workspaces": [
     "desktop",
@@ -13,7 +14,8 @@
     "build:server": "npm run build -w server",
     "build:agent": "npm run build -w server/agent",
     "build:desktop": "npm run build -w desktop",
-    "build:all": "npm run build:agent && npm run build:desktop"
+    "build:all": "npm run build:agent && npm run build:desktop",
+    "version": "node scripts/set-version.mjs"
   },
   "devDependencies": {
     "sharp": "^0.35.2"
