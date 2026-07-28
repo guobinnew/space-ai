@@ -20,6 +20,7 @@ export type CronTask = {
   cron: string       // 5-field cron expression
   prompt: string
   folderPath?: string  // 执行工作目录
+  sessionId?: string   // 持久会话 ID（复用同一会话）
   createdAt: number  // epoch ms
   lastFiredAt?: string  // ISO timestamp
   enabled?: boolean

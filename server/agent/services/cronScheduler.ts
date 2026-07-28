@@ -108,20 +108,31 @@ async function executeTask(task: CronTask): Promise<void> {
   const timeout = setTimeout(() => ctrl.abort(), EXEC_TIMEOUT_MS)
 
   try {
-    // 1. 创建会话
+    // 1. 复用已有会话或创建新会话
     const effectiveWorkDir = task.folderPath || (await settingService.getGeneralSettings()).defaultWorkDir || undefined
-    const session = await sessionService.createSession({
-      title: task.name || `定时任务 ${task.id.slice(0, 8)}`,
-      workDir: effectiveWorkDir,
-    })
+    let sessionId: string
+    if (task.sessionId) {
+      // 复用已有会话
+      sessionId = task.sessionId
+      console.log(`[CronScheduler] Reusing session: ${sessionId}`)
+    } else {
+      // 创建新会话并保存 ID 到任务
+      const session = await sessionService.createSession({
+        title: task.name || `定时任务 ${task.id.slice(0, 8)}`,
+        workDir: effectiveWorkDir,
+      })
+      sessionId = session.id
+      await cronService.updateTask(task.id, { sessionId })
+      console.log(`[CronScheduler] Created session: ${sessionId}`)
+    }
     // 2. 写入用户消息（streamChat 依赖历史最后一条为用户消息）
     const msg = task.prompt
-    await sessionService.addMessage(session.id, 'user', msg)
+    await sessionService.addMessage(sessionId, 'user', msg)
 
     // 3. 执行 LLM 并收集输出
     const outputChunks: string[] = []
     await streamChat(
-      session.id,
+      sessionId,
       msg,
       (chunk) => {
         if (chunk.type === 'content_delta' && chunk.text) {
@@ -153,14 +164,14 @@ async function executeTask(task: CronTask): Promise<void> {
     if (ctrl.signal.aborted) {
       await updateRunInPlace(runId, {
         status: 'timeout', finishedAt: finishedAt.toISOString(), durationMs,
-        sessionId: session.id, output: output.slice(0, 5000),
+        sessionId, output: output.slice(0, 5000),
         error: `执行超时（${EXEC_TIMEOUT_MS / 1000}s）`,
       })
       console.log(`[CronScheduler] TIMEOUT: ${task.name || task.id} (${durationMs}ms)`)
     } else {
       await updateRunInPlace(runId, {
         status: 'completed', finishedAt: finishedAt.toISOString(), durationMs,
-        sessionId: session.id, output: output.slice(0, 5000),
+        sessionId, output: output.slice(0, 5000),
       })
       console.log(`[CronScheduler] Completed: ${task.name || task.id} (${durationMs}ms)`)
     }

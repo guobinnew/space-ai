@@ -12,6 +12,7 @@ export type ScheduledTask = {
   cron: string
   prompt: string
   folderPath?: string
+  sessionId?: string
   createdAt: number
   lastFiredAt?: string
   enabled?: boolean
