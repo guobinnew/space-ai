@@ -247,7 +247,7 @@ export function HomePage() {
                       {session.title || t('session.title')}
                     </div>
                     <div className="text-[11px] text-[var(--color-text-tertiary)] mt-0.5">
-                      {session.messageCount > 0 && `${t('session.messageCount', { n: session.messageCount })} · `}
+                      {session.messageCount > 0 && `${t('session.messageCount', { count: session.messageCount })} · `}
                       {formatRelativeTime(session.modifiedAt || session.createdAt, t)}
                     </div>
                   </div>

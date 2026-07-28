@@ -431,14 +431,12 @@ const translations: Record<Locale, Record<string, string>> = {
     'scheduledTasks.runHistory': '运行记录',
 
     // Home / Session
-    'session.messageCount': '{n} 条消息',
     'session.setWorkDir': '设置工作目录',
     'session.workDirLocked': '已有消息，不可更改工作目录',
     'session.continuePrompt': '检测到未完成的任务清单，是否继续执行？',
     'session.notNow': '暂不执行',
     'common.continue': '继续',
     'common.retry': '重试',
-    'session.newTitle': '新会话',
     'session.loadListError': '加载会话列表失败',
     'session.loadMessagesError': '加载消息失败',
     'session.sendError': '发送消息失败',
@@ -1049,14 +1047,12 @@ const translations: Record<Locale, Record<string, string>> = {
     'scheduledTasks.runHistory': 'Run History',
 
     // Home / Session
-    'session.messageCount': '{n} messages',
     'session.setWorkDir': 'Set working directory',
     'session.workDirLocked': 'Work directory is locked once messages exist',
     'session.continuePrompt': 'Unfinished task list detected. Continue executing?',
     'session.notNow': 'Not now',
     'common.continue': 'Continue',
     'common.retry': 'Retry',
-    'session.newTitle': 'New Session',
     'session.loadListError': 'Failed to load sessions',
     'session.loadMessagesError': 'Failed to load messages',
     'session.sendError': 'Failed to send message',
