@@ -8,9 +8,8 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import os from 'node:os'
-import { spawn, execFile } from 'node:child_process'
+import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
-import crypto from 'node:crypto'
 
 const execFileAsync = promisify(execFile)
 
@@ -81,9 +80,9 @@ export type SetupResult = {
 }
 
 /** 运行命令 */
-async function runCommand(cmd: string, args: string[]): Promise<{ ok: boolean; stdout: string; stderr: string }> {
+async function runCommand(cmd: string, args: string[], timeoutMs = 30000): Promise<{ ok: boolean; stdout: string; stderr: string }> {
   try {
-    const { stdout, stderr } = await execFileAsync(cmd, args, { timeout: 30000, encoding: 'utf-8' })
+    const { stdout, stderr } = await execFileAsync(cmd, args, { timeout: timeoutMs, encoding: 'utf-8', maxBuffer: 10 * 1024 * 1024 })
     return { ok: true, stdout: stdout || '', stderr: stderr || '' }
   } catch (err: unknown) {
     const e = err as { stdout?: string; stderr?: string; message: string }
@@ -191,7 +190,7 @@ export async function runSetup(): Promise<SetupResult> {
     await fs.mkdir(CONFIG_DIR, { recursive: true })
     // 如果 venv 已存在，先删除
     try { await fs.rm(VENV_DIR, { recursive: true, force: true }) } catch {}
-    const venvResult = await runCommand(pythonCmd, [...pythonArgs, '-m', 'venv', VENV_DIR])
+    const venvResult = await runCommand(pythonCmd, [...pythonArgs, '-m', 'venv', VENV_DIR], 120000) // 2 分钟超时
     if (!venvResult.ok) {
       return { success: false, message: '创建虚拟环境失败', details: venvResult.stderr }
     }
@@ -214,7 +213,7 @@ export async function runSetup(): Promise<SetupResult> {
     '-i', 'https://pypi.tuna.tsinghua.edu.cn/simple',
     '--trusted-host', 'pypi.tuna.tsinghua.edu.cn',
     ...requirements,
-  ])
+  ], 300000) // 5 分钟超时
 
   if (!pipInstallResult.ok) {
     return { success: false, message: '安装 Python 依赖失败', details: pipInstallResult.stderr.slice(0, 1000) }
