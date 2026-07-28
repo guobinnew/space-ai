@@ -48,6 +48,16 @@ export const PROVIDER_PRESETS: ProviderPreset[] = [
     websiteUrl: 'https://mimo.mi.com/',
   },
   {
+    id: 'kimi',
+    name: 'Kimi',
+    baseUrl: 'https://api.moonshot.cn/v1',
+    apiFormat: 'openai',
+    defaultModels: { main: 'kimi-k3' },
+    defaultCapabilities: { imageInput: true },
+    needsApiKey: true,
+    websiteUrl: 'https://platform.kimi.com',
+  },
+  {
     id: 'custom',
     name: 'Custom',
     baseUrl: '',

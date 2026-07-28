@@ -30,12 +30,12 @@ export const PROVIDER_PRESETS: ProviderPreset[] = [
   {
     id: 'kimi',
     name: 'Kimi',
-    baseUrl: 'https://api.moonshot.cn/anthropic',
-    apiFormat: 'anthropic',
-    defaultModels: { main: 'moonshot-v1-8k' },
-    defaultCapabilities: { imageInput: false },
+    baseUrl: 'https://api.moonshot.cn/v1',
+    apiFormat: 'openai',
+    defaultModels: { main: 'kimi-k3' },
+    defaultCapabilities: { imageInput: true },
     needsApiKey: true,
-    websiteUrl: 'https://platform.moonshot.cn',
+    websiteUrl: 'https://platform.kimi.com',
   },
   {
     id: 'qwen',
