@@ -1,9 +1,11 @@
 /**
  * Skills API
  *
- * GET  /api/skills          — list skills (扫描 ~/.spaceai/skills/)
- * GET  /api/skills/:name    — get skill detail (含正文)
- * POST /api/skills/import   — import skill pack (.zip)  [TODO]
+ * GET  /api/skills                — list skills (扫描 ~/.spaceai/skills/)
+ * GET  /api/skills/:name          — get skill detail (含正文)
+ * GET  /api/skills/:name/detail   — get skill full detail (含文件树)
+ * GET  /api/skills/:name/file     — get skill file content
+ * POST /api/skills/import         — import skill pack (.zip)  [TODO]
  */
 
 import { skillService } from '../services/skillService'
@@ -11,11 +13,12 @@ import { ApiError, errorResponse } from '../middleware/errorHandler'
 
 export async function handleSkillsApi(
   req: Request,
-  _url: URL,
+  url: URL,
   segments: string[],
 ): Promise<Response> {
   try {
     const skillName = segments[2]
+    const subAction = segments[3] // 'detail' | 'file'
 
     // POST /api/skills/import
     if (skillName === 'import' && req.method === 'POST') {
@@ -27,6 +30,22 @@ export async function handleSkillsApi(
     if (!skillName && req.method === 'GET') {
       const skills = await skillService.listSkills()
       return Response.json({ skills })
+    }
+
+    // GET /api/skills/:name/detail — 完整详情（含文件树）
+    if (skillName && subAction === 'detail' && req.method === 'GET') {
+      const detail = await skillService.getSkillDetail(skillName)
+      return Response.json(detail)
+    }
+
+    // GET /api/skills/:name/file?path=xxx — 读取技能目录内文件
+    if (skillName && subAction === 'file' && req.method === 'GET') {
+      const filePath = url.searchParams.get('path')
+      if (!filePath) {
+        throw new ApiError(400, 'Missing file path', 'BAD_REQUEST')
+      }
+      const file = await skillService.getSkillFile(skillName, filePath)
+      return Response.json(file)
     }
 
     // GET /api/skills/:name

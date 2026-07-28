@@ -1,99 +1,233 @@
 /**
  * SkillsSettings — 技能设置
  *
- * 参照 smart-code SkillSettings 复刻。
- * - 顶部统计卡片（总数、来源数、Token）
- * - 技能列表（可点击查看详情）
- * - 技能详情页（返回按钮 + 元信息 + 内容）
+ * 严格复刻 smart-code SkillDetail：
+ * - 列表视图：顶部统计卡片 + 技能列表
+ * - 详情视图：返回按钮 + 元信息 + 文件树 + 文件预览
  */
 
-import { useState, useEffect, useMemo } from 'react';
-import { skillsApi, type SkillMeta } from '../../api/features';
-import { useTranslation } from '../../i18n';
+import { useState, useEffect, useMemo, useCallback } from 'react'
+import { skillsApi, type SkillMeta, type SkillFileNode, type SkillFileEntry, type SkillFullDetail } from '../../api/features'
+import { useTranslation } from '../../i18n'
+import { MarkdownRenderer } from '../markdown/MarkdownRenderer'
+import { CodeViewer } from '../shared/CodeViewer'
 
-type SkillDetail = SkillMeta & { content: string };
+// ─── 文件树节点组件 ──────────────────────────────────────────
+
+function FileTreeNode({
+  node,
+  depth,
+  selectedPath,
+  expandedDirs,
+  onSelect,
+  onToggle,
+}: {
+  node: SkillFileNode
+  depth: number
+  selectedPath: string | null
+  expandedDirs: Set<string>
+  onSelect: (path: string) => void
+  onToggle: (path: string) => void
+}) {
+  const isDir = node.type === 'directory'
+  const isExpanded = expandedDirs.has(node.path)
+  const isSelected = selectedPath === node.path
+
+  if (isDir) {
+    return (
+      <div>
+        <button
+          onClick={() => onToggle(node.path)}
+          className="flex items-center gap-1.5 w-full px-2 py-1 text-left text-xs hover:bg-[var(--color-surface-hover)] rounded transition-colors"
+          style={{ paddingLeft: `${depth * 12 + 8}px` }}
+        >
+          <svg
+            width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+            className={`text-[var(--color-text-tertiary)] transition-transform ${isExpanded ? 'rotate-90' : ''}`}
+          >
+            <polyline points="9 18 15 12 9 6" />
+          </svg>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--color-warning)] flex-shrink-0">
+            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+          </svg>
+          <span className="text-[var(--color-text-secondary)] truncate">{node.name}</span>
+        </button>
+        {isExpanded && node.children && (
+          <div>
+            {node.children.map((child) => (
+              <FileTreeNode
+                key={child.path}
+                node={child}
+                depth={depth + 1}
+                selectedPath={selectedPath}
+                expandedDirs={expandedDirs}
+                onSelect={onSelect}
+                onToggle={onToggle}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  return (
+    <button
+      onClick={() => onSelect(node.path)}
+      className={`flex items-center gap-1.5 w-full px-2 py-1 text-left text-xs rounded transition-colors ${
+        isSelected
+          ? 'bg-[var(--color-brand)]/10 text-[var(--color-brand)]'
+          : 'hover:bg-[var(--color-surface-hover)] text-[var(--color-text-secondary)]'
+      }`}
+      style={{ paddingLeft: `${depth * 12 + 8}px` }}
+    >
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--color-text-tertiary)] flex-shrink-0">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+        <polyline points="14 2 14 8 20 8" />
+      </svg>
+      <span className="truncate">{node.name}</span>
+    </button>
+  )
+}
+
+// ─── 主组件 ──────────────────────────────────────────────────
 
 export function SkillsSettings() {
-  const t = useTranslation();
-  const [skills, setSkills] = useState<SkillMeta[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [importing, setImporting] = useState(false);
-  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-  const [selectedSkill, setSelectedSkill] = useState<SkillDetail | null>(null);
-  const [isDetailLoading, setIsDetailLoading] = useState(false);
+  const t = useTranslation()
+  const [skills, setSkills] = useState<SkillMeta[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [importing, setImporting] = useState(false)
+  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+
+  // Detail state
+  const [detail, setDetail] = useState<SkillFullDetail | null>(null)
+  const [isDetailLoading, setIsDetailLoading] = useState(false)
+  const [selectedFile, setSelectedFile] = useState<SkillFileEntry | null>(null)
+  const [fileContent, setFileContent] = useState<string>('')
+  const [fileLanguage, setFileLanguage] = useState<string>('text')
+  const [isFileLoading, setIsFileLoading] = useState(false)
+  const [expandedDirs, setExpandedDirs] = useState<Set<string>>(new Set())
 
   const fetchSkills = async () => {
-    setIsLoading(true);
+    setIsLoading(true)
     try {
-      const data = await skillsApi.list();
-      setSkills(data.skills);
+      const data = await skillsApi.list()
+      setSkills(data.skills)
     } catch {
-      setSkills([]);
+      setSkills([])
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
-  };
+  }
 
   useEffect(() => {
-    void fetchSkills();
-  }, []);
+    void fetchSkills()
+  }, [])
 
   const handleImport = async () => {
     try {
-      const { open } = await import('@tauri-apps/plugin-dialog');
+      const { open } = await import('@tauri-apps/plugin-dialog')
       const selected = await open({
         multiple: false,
         filters: [{ name: 'Zip', extensions: ['zip'] }],
         title: t('settings.skills.import'),
-      });
-      if (typeof selected !== 'string') return;
+      })
+      if (typeof selected !== 'string') return
 
-      setImporting(true);
-      const result = await skillsApi.import(selected);
-      setMessage({ type: 'success', text: result.message || t('settings.skills.importSuccess') });
-      await fetchSkills();
+      setImporting(true)
+      const result = await skillsApi.import(selected)
+      setMessage({ type: 'success', text: result.message || t('settings.skills.importSuccess') })
+      await fetchSkills()
     } catch (err) {
-      setMessage({ type: 'error', text: err instanceof Error ? err.message : t('settings.skills.importFailed') });
+      setMessage({ type: 'error', text: err instanceof Error ? err.message : t('settings.skills.importFailed') })
     } finally {
-      setImporting(false);
+      setImporting(false)
     }
-  };
+  }
 
   const handleSkillClick = async (skill: SkillMeta) => {
-    setIsDetailLoading(true);
+    setIsDetailLoading(true)
     try {
-      const data = await skillsApi.get(skill.name);
-      setSelectedSkill(data.skill);
+      const data = await skillsApi.detail(skill.name)
+      setDetail(data)
+      // 默认选中 SKILL.md
+      const skillMd = data.files.find(f => f.name === 'SKILL.md')
+      if (skillMd) {
+        setSelectedFile(skillMd)
+        await loadFileContent(skill.name, skillMd.path)
+      }
     } catch (err) {
-      setMessage({ type: 'error', text: err instanceof Error ? err.message : 'Failed to load skill detail' });
+      setMessage({ type: 'error', text: err instanceof Error ? err.message : 'Failed to load skill detail' })
     } finally {
-      setIsDetailLoading(false);
+      setIsDetailLoading(false)
     }
-  };
+  }
+
+  const loadFileContent = async (skillName: string, filePath: string) => {
+    setIsFileLoading(true)
+    try {
+      const data = await skillsApi.file(skillName, filePath)
+      setFileContent(data.content)
+      setFileLanguage(data.language)
+    } catch {
+      setFileContent('')
+      setFileLanguage('text')
+    } finally {
+      setIsFileLoading(false)
+    }
+  }
 
   const handleBack = () => {
-    setSelectedSkill(null);
-  };
+    setDetail(null)
+    setSelectedFile(null)
+    setFileContent('')
+    setExpandedDirs(new Set())
+  }
+
+  const handleFileSelect = useCallback((filePath: string) => {
+    if (!detail) return
+    const file = detail.files.find(f => f.path === filePath)
+    if (file) {
+      setSelectedFile(file)
+      loadFileContent(detail.meta.name, filePath)
+    }
+  }, [detail])
+
+  const handleDirToggle = useCallback((dirPath: string) => {
+    setExpandedDirs(prev => {
+      const next = new Set(prev)
+      if (next.has(dirPath)) {
+        next.delete(dirPath)
+      } else {
+        next.add(dirPath)
+      }
+      return next
+    })
+  }, [])
 
   // Statistics
   const stats = useMemo(() => {
-    const sources = new Set(skills.map(s => s.source));
-    const totalTokens = skills.reduce((sum, s) => sum + (s.tokenEstimate || 0), 0);
+    const sources = new Set(skills.map(s => s.source))
+    const totalTokens = skills.reduce((sum, s) => sum + (s.tokenEstimate || 0), 0)
     return {
       total: skills.length,
       sources: sources.size,
       tokens: totalTokens,
-    };
-  }, [skills]);
+    }
+  }, [skills])
 
   const sourceLabels: Record<SkillMeta['source'], string> = {
     builtin: t('settings.skills.sourceBuiltin'),
     user: t('settings.skills.sourceUser'),
     project: t('settings.skills.sourceProject'),
-  };
+  }
 
-  // Detail view
-  if (selectedSkill) {
+  // ─── Detail view ───────────────────────────────────────────
+
+  if (detail) {
+    const isMarkdown = selectedFile?.language === 'markdown'
+
     return (
       <div className="w-full">
         {/* Back button */}
@@ -117,12 +251,12 @@ export function SkillsSettings() {
             </span>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-1">
-                <h2 className="text-lg font-semibold text-[var(--color-text-primary)]">{selectedSkill.name}</h2>
+                <h2 className="text-lg font-semibold text-[var(--color-text-primary)]">{detail.meta.name}</h2>
                 <span className="px-2 py-0.5 text-[10px] font-medium rounded bg-[var(--color-surface-container-high)] text-[var(--color-text-tertiary)] leading-none">
-                  {sourceLabels[selectedSkill.source]}
+                  {sourceLabels[detail.meta.source]}
                 </span>
               </div>
-              <p className="text-sm text-[var(--color-text-secondary)]">{selectedSkill.description}</p>
+              <p className="text-sm text-[var(--color-text-secondary)]">{detail.meta.description}</p>
             </div>
           </div>
         </div>
@@ -137,7 +271,7 @@ export function SkillsSettings() {
               <span className="text-[11px] text-[var(--color-text-tertiary)] uppercase tracking-wider">{t('settings.skills.tokens')}</span>
             </div>
             <div className="text-lg font-bold text-[var(--color-text-primary)]">
-              ~{selectedSkill.tokenEstimate?.toLocaleString() || '—'}
+              ~{detail.meta.tokenEstimate?.toLocaleString() || '—'}
             </div>
           </div>
           <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-container-low)] p-4">
@@ -149,7 +283,7 @@ export function SkillsSettings() {
               <span className="text-[11px] text-[var(--color-text-tertiary)] uppercase tracking-wider">{t('settings.skills.source')}</span>
             </div>
             <div className="text-lg font-bold text-[var(--color-text-primary)]">
-              {sourceLabels[selectedSkill.source]}
+              {sourceLabels[detail.meta.source]}
             </div>
           </div>
           <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-container-low)] p-4">
@@ -160,31 +294,80 @@ export function SkillsSettings() {
               <span className="text-[11px] text-[var(--color-text-tertiary)] uppercase tracking-wider">{t('settings.skills.invocable')}</span>
             </div>
             <div className="text-lg font-bold text-[var(--color-text-primary)]">
-              {selectedSkill.userInvocable ? t('settings.skills.yes') : t('settings.skills.no')}
+              {detail.meta.userInvocable ? t('settings.skills.yes') : t('settings.skills.no')}
             </div>
           </div>
         </div>
 
-        {/* Content */}
-        <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-container-low)] overflow-hidden">
-          <div className="px-4 py-3 border-b border-[var(--color-border)] bg-[var(--color-surface-container)]">
-            <h3 className="text-sm font-medium text-[var(--color-text-primary)]">{t('settings.skills.content')}</h3>
+        {/* File tree + File preview */}
+        <div className="flex gap-4 min-h-[400px]">
+          {/* File tree */}
+          <div className="w-[240px] flex-shrink-0 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-container-low)] overflow-hidden">
+            <div className="px-3 py-2 border-b border-[var(--color-border)] bg-[var(--color-surface-container)]">
+              <h3 className="text-xs font-medium text-[var(--color-text-primary)]">
+                {t('settings.skills.fileList')} ({detail.files.length})
+              </h3>
+            </div>
+            <div className="p-2 max-h-[500px] overflow-y-auto">
+              {detail.tree.map((node) => (
+                <FileTreeNode
+                  key={node.path}
+                  node={node}
+                  depth={0}
+                  selectedPath={selectedFile?.path ?? null}
+                  expandedDirs={expandedDirs}
+                  onSelect={handleFileSelect}
+                  onToggle={handleDirToggle}
+                />
+              ))}
+            </div>
           </div>
-          <div className="p-4 max-h-[500px] overflow-y-auto">
-            {selectedSkill.content ? (
-              <pre className="text-xs text-[var(--color-text-secondary)] whitespace-pre-wrap font-mono leading-relaxed">
-                {selectedSkill.content}
-              </pre>
+
+          {/* File preview */}
+          <div className="flex-1 min-w-0 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-container-low)] overflow-hidden">
+            {selectedFile ? (
+              <>
+                <div className="px-4 py-2 border-b border-[var(--color-border)] bg-[var(--color-surface-container)] flex items-center gap-2">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--color-text-tertiary)]">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                    <polyline points="14 2 14 8 20 8" />
+                  </svg>
+                  <span className="text-xs text-[var(--color-text-secondary)] font-mono">{selectedFile.path}</span>
+                  <span className="ml-auto text-[10px] text-[var(--color-text-tertiary)]">
+                    {selectedFile.size > 1024
+                      ? `${(selectedFile.size / 1024).toFixed(1)} KB`
+                      : `${selectedFile.size} B`}
+                  </span>
+                </div>
+                <div className="p-4 max-h-[500px] overflow-y-auto">
+                  {isFileLoading ? (
+                    <div className="flex justify-center py-8">
+                      <div className="animate-spin w-5 h-5 border-2 border-[var(--color-brand)] border-t-transparent rounded-full" />
+                    </div>
+                  ) : isMarkdown ? (
+                    <MarkdownRenderer content={fileContent} />
+                  ) : (
+                    <CodeViewer
+                      code={fileContent}
+                      language={fileLanguage}
+                      filename={selectedFile.name}
+                    />
+                  )}
+                </div>
+              </>
             ) : (
-              <p className="text-sm text-[var(--color-text-tertiary)] italic">No content available</p>
+              <div className="flex items-center justify-center h-full text-sm text-[var(--color-text-tertiary)]">
+                {t('settings.skills.selectFile')}
+              </div>
             )}
           </div>
         </div>
       </div>
-    );
+    )
   }
 
-  // List view
+  // ─── List view ─────────────────────────────────────────────
+
   return (
     <div className="w-full">
       <div className="flex items-center justify-between mb-4">
@@ -274,7 +457,7 @@ export function SkillsSettings() {
               </div>
               <div className="flex items-center gap-2 flex-shrink-0">
                 {skill.tokenEstimate && (
-                  <span className="text-[10px] text-[var(--color-text-tertiary)]">{t('skills.tokenEstimate', { n: skill.tokenEstimate })}</span>
+                  <span className="text-[10px] text-[var(--color-text-tertiary)]">~{skill.tokenEstimate} tokens</span>
                 )}
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--color-text-tertiary)]">
                   <polyline points="9 18 15 12 9 6" />
@@ -285,5 +468,5 @@ export function SkillsSettings() {
         </div>
       )}
     </div>
-  );
+  )
 }

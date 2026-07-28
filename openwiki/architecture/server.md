@@ -1,13 +1,13 @@
 ---
 type: Architecture
 title: 服务端架构
-description: Smart Space 服务端（Express + Bun）的详细架构设计，包括 REST API、WebSocket 和服务层
+description: Smart Lab 服务端（Express + Bun）的详细架构设计，包括 REST API、WebSocket 和服务层
 tags: [服务端, Express, Bun, API]
 ---
 
 # 服务端架构
 
-本文档详细描述 Smart Space 服务端的架构设计，包括 Express HTTP 服务、WebSocket 通信和服务层设计。
+本文档详细描述 Smart Lab 服务端的架构设计，包括 Express HTTP 服务、WebSocket 通信和服务层设计。
 
 ## 技术栈
 
@@ -41,7 +41,10 @@ server/
 │   │   ├── filesystem.ts
 │   │   ├── git.ts
 │   │   ├── tasks.ts
-│   │   └── usage.ts
+│   │   ├── usage.ts
+│   │   ├── scheduled-tasks.ts # 定时任务 API
+│   │   ├── tts.ts             # TTS 语音合成 API
+│   │   └── agents.ts          # 智能体管理 API
 │   ├── services/              # 业务逻辑服务
 │   │   ├── conversationService.ts
 │   │   ├── llmStreamService.ts
@@ -51,18 +54,35 @@ server/
 │   │   ├── skillsService.ts
 │   │   ├── taskService.ts
 │   │   ├── usageService.ts
-│   │   └── compactService.ts
-│   ├── tools/                 # AI 工具实现
+│   │   ├── compactService.ts
+│   │   ├── agentService.ts    # 智能体管理
+│   │   ├── cronService.ts     # 定时任务 CRUD
+│   │   ├── cronScheduler.ts   # 定时任务调度执行
+│   │   ├── computerUseService.ts # 计算机操作服务
+│   │   └── subAgentRunner.ts  # 子代理执行器
+│   ├── tools/                 # AI 工具实现 (18+ 种)
 │   │   ├── registry.ts
-│   │   ├── bashTool.ts
-│   │   ├── powershellTool.ts
-│   │   ├── fileReadTool.ts
-│   │   ├── fileWriteTool.ts
-│   │   ├── listDirTool.ts
-│   │   ├── taskTool.ts
-│   │   ├── webSearchTool.ts
-│   │   ├── webFetchTool.ts
-│   │   └── askUserTool.ts
+│   │   ├── BashTool.ts
+│   │   ├── PowerShellTool.ts
+│   │   ├── FileReadTool.ts
+│   │   ├── FileWriteTool.ts
+│   │   ├── FileEditTool.ts
+│   │   ├── GlobTool.ts
+│   │   ├── GrepTool.ts
+│   │   ├── WebSearchTool.ts
+│   │   ├── WebFetchTool.ts
+│   │   ├── AskUserQuestionTool.ts
+│   │   ├── EnterPlanModeTool.ts
+│   │   ├── ExitPlanModeTool.ts
+│   │   ├── SkillTool.ts
+│   │   ├── TaskCreateTool.ts
+│   │   ├── TaskUpdateTool.ts
+│   │   ├── TaskListTool.ts
+│   │   ├── NotebookEditTool.ts
+│   │   ├── ComputerUseTool.ts # 计算机操作工具
+│   │   └── AgentTool.ts       # 智能体调用工具
+│   ├── runtime/               # 运行时脚本
+│   │   └── win_helper.py      # Windows Python 桥接 (pyautogui)
 │   ├── ws/                    # WebSocket 处理
 │   │   ├── uiChannel.ts
 │   │   ├── sdkChannel.ts
@@ -146,6 +166,11 @@ graph TB
     A --> J[/git]
     A --> K[/tasks]
     A --> L[/usage]
+    A --> M[/scheduled-tasks]
+    A --> N[/tts]
+    A --> O[/agents]
+    A --> P[/health]
+    A --> Q[/info]
     
     C --> C1[/:id]
     C --> C1a[/:id/messages]
@@ -160,6 +185,19 @@ graph TB
     I --> I4[/delete]
     I --> I5[/mkdir]
     I --> I6[/move]
+    
+    M --> M1[POST /]
+    M --> M2[GET /]
+    M --> M3[PUT /:id]
+    M --> M4[DELETE /:id]
+    M --> M5[POST /:id/runs]
+    
+    N --> N1[POST /speak]
+    
+    O --> O1[GET /]
+    O --> O2[POST /]
+    O --> O3[PUT /:id]
+    O --> O4[DELETE /:id]
 ```
 
 ### API 端点列表
@@ -425,23 +463,35 @@ graph TB
     A --> D[设置服务]
     A --> E[文件系统服务]
     A --> F[用量服务]
+    A --> G[定时任务服务]
+    A --> H[智能体服务]
+    A --> I[TTS 服务]
+    A --> J[计算机操作服务]
     
-    B --> G[对话服务]
-    G --> H[LLM 流服务]
-    H --> I[工具注册表]
+    B --> K[对话服务]
+    K --> L[LLM 流服务]
+    L --> M[工具注册表]
     
-    B --> J[会话存储]
-    C --> K[服务商配置]
-    D --> L[设置存储]
-    E --> M[文件系统]
-    F --> N[用量存储]
+    B --> N[会话存储]
+    C --> O[服务商配置]
+    D --> P[设置存储]
+    E --> Q[文件系统]
+    F --> R[用量存储]
+    G --> S[Cron 调度器]
+    G --> T[Cron 服务]
+    H --> U[智能体定义]
+    H --> V[子代理执行器]
+    I --> W[TTS API]
+    J --> X[Python 桥接]
     
-    I --> O[工具实现]
-    O --> P[Bash 工具]
-    O --> Q[PowerShell 工具]
-    O --> R[文件工具]
-    O --> S[任务工具]
-    O --> T[Web 工具]
+    M --> Y[工具实现]
+    Y --> Z[Bash 工具]
+    Y --> AA[PowerShell 工具]
+    Y --> AB[文件工具]
+    Y --> AC[任务工具]
+    Y --> AD[Web 工具]
+    Y --> AE[计算机操作工具]
+    Y --> AF[智能体工具]
 ```
 
 ### 核心服务

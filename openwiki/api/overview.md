@@ -1,13 +1,13 @@
 ---
 type: Reference
 title: API 文档概览
-description: Smart Space 项目的 API 接口文档，包括 REST API 和 WebSocket 通信协议
+description: Smart Lab 项目的 API 接口文档，包括 REST API 和 WebSocket 通信协议
 tags: [API, REST, WebSocket, 接口]
 ---
 
 # API 文档概览
 
-本文档描述 Smart Space 项目的 API 接口，包括 REST API 和 WebSocket 通信协议。
+本文档描述 Smart Lab 项目的 API 接口，包括 REST API 和 WebSocket 通信协议。
 
 ## API 架构
 
@@ -21,16 +21,24 @@ graph TB
     B --> F[设置 API]
     B --> G[文件系统 API]
     B --> H[用量统计 API]
+    B --> I[定时任务 API]
+    B --> J[TTS API]
+    B --> K[智能体 API]
+    B --> L[计算机操作 API]
     
-    C --> I[聊天消息]
-    C --> J[工具执行]
-    C --> K[状态更新]
+    C --> M[聊天消息]
+    C --> N[工具执行]
+    C --> O[状态更新]
     
-    D --> L[会话管理]
-    E --> M[服务商配置]
-    F --> N[应用设置]
-    G --> O[文件操作]
-    H --> P[用量统计]
+    D --> P[会话管理]
+    E --> Q[服务商配置]
+    F --> R[应用设置]
+    G --> S[文件操作]
+    H --> T[用量统计]
+    I --> U[定时任务 CRUD]
+    J --> V[语音合成]
+    K --> W[智能体管理]
+    L --> X[计算机操作]
 ```
 
 ## REST API
@@ -309,6 +317,122 @@ interface ModelStats {
   provider: string              // 服务商
   totalTokens: number           // 总 Token
   requestCount: number          // 请求次数
+}
+```
+
+#### 定时任务 API
+
+```typescript
+// 获取定时任务列表
+GET /api/scheduled-tasks
+
+// 创建定时任务
+POST /api/scheduled-tasks
+// 请求体
+{
+  "name": "每日备份",
+  "cron": "0 2 * * *",
+  "prompt": "执行数据库备份",
+  "folderPath": "/home/user/project"
+}
+
+// 更新定时任务
+PUT /api/scheduled-tasks/:id
+
+// 删除定时任务
+DELETE /api/scheduled-tasks/:id
+
+// 获取任务执行记录
+GET /api/scheduled-tasks/:id/runs
+
+// 手动触发执行
+POST /api/scheduled-tasks/:id/runs
+```
+
+**定时任务对象**:
+```typescript
+interface ScheduledTask {
+  id: string                    // 任务 ID
+  name?: string                 // 任务名称
+  cron: string                  // Cron 表达式
+  prompt: string                // 执行提示
+  folderPath?: string           // 工作目录
+  sessionId?: string            // 复用会话 ID
+  createdAt: number             // 创建时间
+  lastFiredAt?: string          // 最后执行时间
+  enabled?: boolean             // 是否启用
+}
+```
+
+#### TTS 语音合成 API
+
+```typescript
+// 文本转语音
+POST /api/tts/speak
+// 请求体
+{
+  "text": "要朗读的文本",
+  "voice": "alloy"  // 可选，音色
+}
+// 响应: 音频流 (audio/mpeg 或 audio/wav)
+```
+
+**支持的 TTS 格式**:
+- OpenAI 兼容: POST `{baseUrl}/audio/speech` → audio/mpeg
+- MiMo: POST `{baseUrl}/chat/completions` → JSON base64 音频
+
+#### 智能体管理 API
+
+```typescript
+// 获取智能体列表
+GET /api/agents
+
+// 创建自定义智能体
+POST /api/agents
+// 请求体
+{
+  "agentType": "my-agent",
+  "whenToUse": "当需要执行自定义任务时",
+  "systemPrompt": "你是一个专业的...",
+  "tools": ["bash", "file_read"],
+  "disallowedTools": ["file_write"]
+}
+
+// 更新智能体
+PUT /api/agents/:id
+
+// 删除智能体
+DELETE /api/agents/:id
+```
+
+**智能体对象**:
+```typescript
+interface AgentDefinition {
+  agentType: string             // 智能体类型
+  whenToUse: string             // 使用场景描述
+  tools?: string[]              // 允许的工具
+  disallowedTools?: string[]    // 禁用的工具
+  systemPrompt: string          // 系统提示词
+  source: 'built-in' | 'custom' // 来源
+  model?: string                // 指定模型
+}
+```
+
+#### 计算机操作 API
+
+```typescript
+// 安装计算机操作环境
+POST /api/computer-use/setup
+
+// 获取已授权应用列表
+GET /api/computer-use/apps
+
+// 授权应用
+POST /api/computer-use/apps
+// 请求体
+{
+  "appName": "notepad",
+  "path": "C:\\Windows\\notepad.exe"
 }
 ```
 

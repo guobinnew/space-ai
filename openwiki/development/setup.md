@@ -1,13 +1,13 @@
 ---
 type: Guide
 title: 开发环境搭建
-description: Smart Space 项目的开发环境搭建指南，包括依赖安装、配置和开发流程
+description: Smart Lab 项目的开发环境搭建指南，包括依赖安装、配置和开发流程
 tags: [开发, 环境, 搭建]
 ---
 
 # 开发环境搭建
 
-本文档指导您搭建 Smart Space 项目的开发环境，包括依赖安装、配置和开发流程。
+本文档指导您搭建 Smart Lab 项目的开发环境，包括依赖安装、配置和开发流程。
 
 ## 系统要求
 

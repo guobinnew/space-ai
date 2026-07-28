@@ -1,13 +1,13 @@
 ---
 type: Architecture
 title: AI 代理架构
-description: Smart Space AI 代理系统的详细架构设计，包括 LLM 集成、工具执行和会话管理
+description: Smart Lab AI 代理系统的详细架构设计，包括 LLM 集成、工具执行和会话管理
 tags: [AI, 代理, LLM, 工具系统]
 ---
 
 # AI 代理架构
 
-本文档详细描述 Smart Space AI 代理系统的架构设计，包括 LLM 集成、工具执行、会话管理和安全机制。
+本文档详细描述 Smart Lab AI 代理系统的架构设计，包括 LLM 集成、工具执行、会话管理和安全机制。
 
 ## 架构概览
 
@@ -178,23 +178,36 @@ graph TB
     C --> F[任务管理工具]
     C --> G[Web 工具]
     C --> H[用户交互工具]
+    C --> I[计算机操作工具]
+    C --> J[智能体工具]
     
     D --> D1[FileReadTool]
     D --> D2[FileWriteTool]
-    D --> D3[ListDirTool]
+    D --> D3[FileEditTool]
+    D --> D4[GlobTool]
+    D --> D5[GrepTool]
     
     E --> E1[BashTool]
     E --> E2[PowerShellTool]
     
     F --> F1[TaskCreateTool]
     F --> F2[TaskUpdateTool]
-    F --> F3[TaskQueryTool]
+    F --> F3[TaskListTool]
     
     G --> G1[WebSearchTool]
     G --> G2[WebFetchTool]
+    G --> G3[NotebookEditTool]
     
-    H --> H1[AskUserTool]
-    H --> H2[SendMessageTool]
+    H --> H1[AskUserQuestionTool]
+    H --> H2[EnterPlanModeTool]
+    H --> H3[ExitPlanModeTool]
+    H --> H4[SkillTool]
+    
+    I --> I1[ComputerUseTool]
+    I --> I2[截图/点击/输入/按键]
+    
+    J --> J1[AgentTool]
+    J --> J2[子代理执行]
 ```
 
 ### 工具接口
@@ -843,6 +856,89 @@ class TaskService {
   // 查询任务
   async getTasks(sessionId: string): Promise<Task[]> {
     return this.tasks.get(sessionId) || []
+  }
+}
+```
+
+## 智能体管理
+
+### 智能体系统
+
+智能体系统支持内置智能体和自定义智能体，允许 LLM 调用子代理执行复杂任务。
+
+```mermaid
+graph TB
+    A[AI 代理] --> B[智能体工具]
+    B --> C[智能体服务]
+    C --> D[内置智能体]
+    C --> E[自定义智能体]
+    
+    D --> D1[Explore - 代码探索]
+    D --> D2[Plan - 架构设计]
+    D --> D3[General - 通用任务]
+    
+    E --> E1[用户自定义]
+    E --> E2[配置存储]
+    
+    B --> F[子代理执行器]
+    F --> G[独立会话]
+    F --> H[工具隔离]
+    F --> I[结果返回]
+```
+
+### 内置智能体
+
+| 智能体 | 用途 | 工具限制 |
+|--------|------|----------|
+| **Explore** | 代码库探索，查找文件和搜索代码 | 只读工具 |
+| **Plan** | 软件架构设计，制定实现计划 | 只读工具 |
+| **General** | 通用任务，研究复杂问题和执行多步骤任务 | 所有工具 |
+
+### 智能体服务
+
+```typescript
+class AgentService {
+  // 获取智能体定义
+  async getAgent(agentType: string): Promise<AgentDefinition | null>
+  
+  // 列出所有智能体
+  async listAllAgents(): Promise<AgentDefinition[]>
+  
+  // 创建自定义智能体
+  async createCustomAgent(input: CustomAgentInput): Promise<AgentDefinition>
+  
+  // 更新自定义智能体
+  async updateCustomAgent(agentType: string, updates: Partial<CustomAgentInput>): Promise<AgentDefinition>
+  
+  // 删除自定义智能体
+  async deleteCustomAgent(agentType: string): Promise<void>
+}
+```
+
+### 子代理执行
+
+```typescript
+class SubAgentRunner {
+  // 执行子代理
+  async runSubAgent(
+    agent: AgentDefinition,
+    prompt: string,
+    context: ToolContext
+  ): Promise<string> {
+    // 1. 创建独立会话
+    const session = await this.createSession(agent.agentType)
+    
+    // 2. 设置系统提示
+    await this.setSystemPrompt(session.id, agent.systemPrompt)
+    
+    // 3. 过滤工具
+    const tools = this.filterTools(agent.tools, agent.disallowedTools)
+    
+    // 4. 执行对话
+    const result = await this.executeConversation(session.id, prompt, tools)
+    
+    // 5. 返回结果
+    return result
   }
 }
 ```

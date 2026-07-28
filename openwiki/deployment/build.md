@@ -1,13 +1,13 @@
 ---
 type: Guide
 title: 构建与部署
-description: Smart Space 项目的构建、打包和部署指南，包括各平台的构建流程和发布策略
+description: Smart Lab 项目的构建、打包和部署指南，包括各平台的构建流程和发布策略
 tags: [构建, 部署, 打包, 发布]
 ---
 
 # 构建与部署
 
-本文档描述 Smart Space 项目的构建、打包和部署流程，包括各平台的构建命令和发布策略。
+本文档描述 Smart Lab 项目的构建、打包和部署流程，包括各平台的构建命令和发布策略。
 
 ## 构建架构
 
@@ -138,10 +138,10 @@ npx tauri build --target appimage # Linux
     "frontendDist": "../dist"
   },
   "app": {
-    "title": "Smart Space",
+    "title": "Smart Lab",
     "windows": [
       {
-        "title": "Smart Space",
+        "title": "Smart Lab",
         "width": 1200,
         "height": 800,
         "resizable": true,
@@ -207,9 +207,9 @@ npx tauri build --target nsis
 ```
 desktop/src-tauri/target/release/bundle/
 ├── nsis/
-│   └── Smart Space_0.1.0_x64-setup.exe
+│   └── Smart Lab_1.1.0_x64-setup.exe
 └── msi/
-    └── Smart Space_0.1.0_x64_en-US.msi
+    └── Smart Lab_1.1.0_x64_en-US.msi
 ```
 
 ### macOS 构建
@@ -233,9 +233,9 @@ npx tauri build --target dmg
 ```
 desktop/src-tauri/target/release/bundle/
 ├── dmg/
-│   └── Smart Space_0.1.0_x64.dmg
+│   └── Smart Lab_1.1.0_x64.dmg
 └── macos/
-    └── Smart Space.app
+    └── Smart Lab.app
 ```
 
 ### Linux 构建
@@ -259,9 +259,9 @@ npx tauri build --target appimage
 ```
 desktop/src-tauri/target/release/bundle/
 ├── appimage/
-│   └── Smart Space_0.1.0_amd64.AppImage
+│   └── Smart Lab_1.1.0_amd64.AppImage
 └── deb/
-    └── smart-space_0.1.0_amd64.deb
+    └── smart-lab_1.1.0_amd64.deb
 ```
 
 ## 构建优化
@@ -414,7 +414,7 @@ git push origin main --tags
 ```bash
 # 创建 Release
 gh release create v0.1.0 \
-  --title "Smart Space v0.1.0" \
+  --title "Smart Lab v1.1.0" \
   --notes "Initial release" \
   desktop/src-tauri/target/release/bundle/nsis/*.exe \
   desktop/src-tauri/target/release/bundle/dmg/*.dmg \

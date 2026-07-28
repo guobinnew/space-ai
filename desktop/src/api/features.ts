@@ -14,12 +14,52 @@ type SkillMeta = {
   tokenEstimate?: number
 }
 
+/** 技能文件树节点 */
+type SkillFileNode = {
+  name: string
+  path: string
+  type: 'file' | 'directory'
+  size?: number
+  language?: string
+  children?: SkillFileNode[]
+}
+
+/** 技能文件条目（扁平化） */
+type SkillFileEntry = {
+  path: string
+  name: string
+  size: number
+  language: string
+}
+
+/** 技能完整详情（含文件树） */
+type SkillFullDetail = {
+  meta: SkillMeta & { basePath: string }
+  tree: SkillFileNode[]
+  files: SkillFileEntry[]
+  skillRoot: string
+}
+
+/** 技能文件内容 */
+type SkillFileContent = {
+  content: string
+  language: string
+}
+
 export const skillsApi = {
   list() {
     return api.get<{ skills: SkillMeta[] }>('/api/skills')
   },
   get(name: string) {
     return api.get<{ skill: SkillMeta & { content: string } }>(`/api/skills/${encodeURIComponent(name)}`)
+  },
+  detail(name: string) {
+    return api.get<SkillFullDetail>(`/api/skills/${encodeURIComponent(name)}/detail`)
+  },
+  file(name: string, filePath: string) {
+    return api.get<SkillFileContent>(
+      `/api/skills/${encodeURIComponent(name)}/file?path=${encodeURIComponent(filePath)}`
+    )
   },
   import(filePath: string, force?: boolean) {
     return api.post<{ success: boolean; message: string }>('/api/skills/import', { filePath, force })
@@ -135,4 +175,4 @@ export const memoryApi = {
   },
 }
 
-export type { SkillMeta, ComputerUseStatus, SetupStep, SetupResult, InstalledApp, AuthorizedApp, ComputerUseConfig, MemoryEntry, MemoryStats }
+export type { SkillMeta, SkillFileNode, SkillFileEntry, SkillFullDetail, SkillFileContent, ComputerUseStatus, SetupStep, SetupResult, InstalledApp, AuthorizedApp, ComputerUseConfig, MemoryEntry, MemoryStats }

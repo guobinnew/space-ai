@@ -1,13 +1,13 @@
 ---
 type: Reference
 title: 技术栈概览
-description: Smart Space 项目使用的完整技术栈列表，包括前端、后端、桌面壳和开发工具
+description: Smart Lab 项目使用的完整技术栈列表，包括前端、后端、桌面壳和开发工具
 tags: [技术栈, 依赖, 工具]
 ---
 
 # 技术栈概览
 
-本文档列出 Smart Space 项目使用的完整技术栈，包括前端、后端、桌面壳和开发工具。
+本文档列出 Smart Lab 项目使用的完整技术栈，包括前端、后端、桌面壳和开发工具。
 
 ## 架构分层
 

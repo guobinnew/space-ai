@@ -19,6 +19,7 @@ import * as fs from 'fs/promises'
 import * as path from 'path'
 import * as os from 'os'
 import { ApiError } from '../middleware/errorHandler'
+import type { SkillFileNode, SkillFileEntry, SkillFullDetail } from '../types/skill'
 
 export interface SkillMeta {
   name: string
@@ -141,6 +142,138 @@ export class SkillService {
     const detail = await this.loadSkill(dirPath, name)
     if (!detail) throw ApiError.notFound(`Skill not found: ${name}`)
     return detail
+  }
+
+  // ─── 文件树构建（复刻 smart-code）────────────────────────────
+
+  private static readonly EXT_TO_LANG: Record<string, string> = {
+    '.md': 'markdown', '.mdx': 'markdown',
+    '.ts': 'typescript', '.tsx': 'typescript',
+    '.js': 'javascript', '.jsx': 'javascript',
+    '.mjs': 'javascript', '.cjs': 'javascript',
+    '.py': 'python', '.rb': 'ruby',
+    '.sh': 'bash', '.bash': 'bash', '.zsh': 'bash',
+    '.json': 'json', '.yaml': 'yaml', '.yml': 'yaml',
+    '.toml': 'toml', '.xml': 'xml', '.html': 'html',
+    '.css': 'css', '.scss': 'scss',
+    '.sql': 'sql', '.graphql': 'graphql',
+    '.dockerfile': 'dockerfile',
+    '.txt': 'text', '.csv': 'text', '.log': 'text',
+    '.env': 'text', '.gitignore': 'text',
+  }
+
+  private static readonly SKIP_DIRS = new Set([
+    'node_modules', '.git', '__pycache__', 'dist', '.next', '.cache',
+  ])
+
+  private static readonly SKIP_FILES = new Set([
+    '.DS_Store', 'Thumbs.db', 'package-lock.json',
+  ])
+
+  private async scanDir(dirPath: string, rootPath: string): Promise<SkillFileNode[]> {
+    const nodes: SkillFileNode[] = []
+    let entries
+    try {
+      entries = await fs.readdir(dirPath, { withFileTypes: true })
+    } catch {
+      return nodes
+    }
+
+    for (const entry of entries) {
+      if (SkillService.SKIP_FILES.has(entry.name)) continue
+      const fullPath = path.join(dirPath, entry.name)
+      const relPath = path.relative(rootPath, fullPath).split(path.sep).join('/')
+
+      if (entry.isDirectory()) {
+        if (SkillService.SKIP_DIRS.has(entry.name)) continue
+        const children = await this.scanDir(fullPath, rootPath)
+        nodes.push({
+          name: entry.name,
+          path: relPath,
+          type: 'directory',
+          children: children.sort((a, b) => {
+            if (a.type !== b.type) return a.type === 'directory' ? -1 : 1
+            return a.name.localeCompare(b.name)
+          }),
+        })
+      } else if (entry.isFile()) {
+        const ext = path.extname(entry.name).toLowerCase()
+        const size = await fs.stat(fullPath).then(s => s.size).catch(() => 0)
+        nodes.push({
+          name: entry.name,
+          path: relPath,
+          type: 'file',
+          size,
+          language: SkillService.EXT_TO_LANG[ext] || 'text',
+        })
+      }
+    }
+
+    return nodes.sort((a, b) => {
+      if (a.type !== b.type) return a.type === 'directory' ? -1 : 1
+      return a.name.localeCompare(b.name)
+    })
+  }
+
+  private flattenTree(nodes: SkillFileNode[]): SkillFileEntry[] {
+    const files: SkillFileEntry[] = []
+    for (const node of nodes) {
+      if (node.type === 'file') {
+        files.push({
+          path: node.path,
+          name: node.name,
+          size: node.size ?? 0,
+          language: node.language ?? 'text',
+        })
+      }
+      if (node.type === 'directory' && node.children) {
+        files.push(...this.flattenTree(node.children))
+      }
+    }
+    return files
+  }
+
+  async getSkillDetail(name: string): Promise<SkillFullDetail> {
+    const dirPath = path.join(this.getSkillsDir(), name)
+    const detail = await this.loadSkill(dirPath, name)
+    if (!detail) throw ApiError.notFound(`Skill not found: ${name}`)
+
+    const tree = await this.scanDir(dirPath, dirPath)
+    const files = this.flattenTree(tree)
+
+    return {
+      meta: {
+        name: detail.name,
+        description: detail.description,
+        source: detail.source,
+        userInvocable: detail.userInvocable,
+        tokenEstimate: detail.tokenEstimate,
+        basePath: detail.basePath,
+      },
+      tree,
+      files,
+      skillRoot: dirPath,
+    }
+  }
+
+  async getSkillFile(name: string, filePath: string): Promise<{ content: string; language: string }> {
+    const dirPath = path.join(this.getSkillsDir(), name)
+
+    // 安全检查：确保文件在技能目录内
+    const fullPath = path.resolve(dirPath, filePath)
+    if (!fullPath.startsWith(path.resolve(dirPath))) {
+      throw ApiError.badRequest('Invalid file path')
+    }
+
+    const ext = path.extname(fullPath).toLowerCase()
+    const language = SkillService.EXT_TO_LANG[ext] || 'text'
+
+    try {
+      const content = await fs.readFile(fullPath, 'utf-8')
+      return { content, language }
+    } catch {
+      throw ApiError.notFound(`File not found: ${filePath}`)
+    }
   }
 }
 

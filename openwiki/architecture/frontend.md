@@ -1,13 +1,13 @@
 ---
 type: Architecture
 title: 前端架构
-description: Smart Space 前端 React 应用的详细架构设计，包括组件结构、状态管理和构建配置
+description: Smart Lab 前端 React 应用的详细架构设计，包括组件结构、状态管理和构建配置
 tags: [前端, React, 组件, 状态管理]
 ---
 
 # 前端架构
 
-本文档详细描述 Smart Space 前端 React 应用的架构设计，包括组件组织、状态管理、路由系统和构建配置。
+本文档详细描述 Smart Lab 前端 React 应用的架构设计，包括组件组织、状态管理、路由系统和构建配置。
 
 ## 技术栈
 
@@ -35,55 +35,68 @@ desktop/src/
 │   ├── tasks.ts           # 任务 API
 │   ├── filesystem.ts      # 文件系统 API
 │   ├── git.ts             # Git API
-│   └── usage.ts           # 用量统计 API
+│   ├── usage.ts           # 用量统计 API
+│   ├── scheduled-tasks.ts # 定时任务 API
+│   ├── features.ts        # 功能 API (计算机操作等)
+│   └── agents.ts          # 智能体管理 API
 ├── components/            # UI 组件
 │   ├── chat/             # 聊天相关组件
-│   │   ├── MessageList.tsx
-│   │   ├── ChatInput.tsx
 │   │   ├── AssistantMessage.tsx
+│   │   ├── ChatInput.tsx
+│   │   ├── ContextUsage.tsx
+│   │   ├── QueryQueue.tsx
+│   │   ├── SessionTaskBar.tsx
+│   │   ├── ThinkingBlock.tsx
 │   │   ├── ToolCallBlock.tsx
-│   │   └── MermaidRenderer.tsx
+│   │   └── UserMessage.tsx
 │   ├── editor/           # 编辑器组件
 │   │   ├── CodeEditor.tsx
-│   │   ├── FileExplorer.tsx
-│   │   └── EditorPanel.tsx
+│   │   └── ReadingPanel.tsx # TTS 朗读面板
 │   ├── layout/           # 布局组件
 │   │   ├── Sidebar.tsx
-│   │   ├── TabBar.tsx
 │   │   ├── ContentRouter.tsx
 │   │   └── WindowControls.tsx
 │   ├── settings/         # 设置组件
 │   │   ├── ProviderSettings.tsx
 │   │   ├── SkillsSettings.tsx
-│   │   └── GeneralSettings.tsx
+│   │   ├── AgentSettings.tsx   # 智能体管理
+│   │   └── ComputerUseSettings.tsx # 计算机操作设置
+│   ├── tasks/            # 定时任务组件
+│   │   ├── TaskList.tsx
+│   │   ├── TaskRow.tsx
+│   │   ├── NewTaskModal.tsx
+│   │   ├── TaskEmptyState.tsx
+│   │   ├── TaskRunsPanel.tsx
+│   │   └── DayOfWeekPicker.tsx
 │   ├── markdown/         # Markdown 渲染
 │   └── shared/           # 共享组件
 │       ├── Modal.tsx
 │       ├── Tooltip.tsx
 │       └── CopyButton.tsx
+├── hooks/                # 自定义 Hooks
+│   └── useTTS.ts        # TTS 朗读 Hook
+├── lib/                  # 工具库
+│   └── cronDescribe.ts  # Cron 表达式描述
 ├── pages/                # 页面组件
-│   ├── HomePage.tsx      # 首页
+│   ├── HomePage.tsx      # 首页 (含定时任务摘要、今日用量)
 │   ├── ActiveSession.tsx # 活跃会话
 │   ├── EmptySession.tsx  # 空会话
+│   ├── ScheduledTasks.tsx # 定时任务管理页
 │   ├── SettingsPage.tsx  # 设置页
 │   └── UsageStatsPage.tsx # 用量统计
 ├── stores/               # 状态管理
 │   ├── uiStore.tsx       # UI 状态
 │   ├── sessionStore.tsx  # 会话状态
-│   ├── chatStore.tsx     # 聊天状态
-│   ├── cliTaskStore.tsx  # CLI 任务状态
-│   ├── editorStore.ts    # 编辑器状态
-│   └── pendingRefStore.ts # 引用状态
+│   └── chatStore.tsx     # 聊天状态
 ├── i18n/                 # 国际化
-│   ├── index.ts          # i18n 配置
-│   ├── zh-CN.ts          # 中文翻译
-│   └── en-US.ts          # 英文翻译
-├── theme/                # 主题配置
-│   ├── index.ts          # 主题配置
-│   └── colors.ts         # 颜色定义
+│   └── index.ts          # i18n 配置 (中英文翻译)
+├── config/               # 配置
+│   └── providerPresets.ts # 服务商预设 (含 Kimi)
 ├── types/                # 类型定义
 │   ├── index.ts          # 类型导出
-│   └── api.ts            # API 类型
+│   ├── api.ts            # API 类型
+│   ├── provider.ts       # 服务商类型 (含 TTS 字段)
+│   └── session.ts        # 会话类型
 ├── App.tsx               # 应用根组件
 ├── main.tsx              # 应用入口
 └── vite-env.d.ts         # Vite 环境类型
@@ -109,6 +122,7 @@ graph TB
     I --> K[ActiveSession]
     I --> L[SettingsPage]
     I --> M[UsageStatsPage]
+    I --> N[ScheduledTasksPage]
     
     K --> N[ChatPanel]
     K --> O[EditorPanel]

@@ -1,17 +1,17 @@
 ---
 type: Architecture
-title: Smart Space 架构概述
-description: Smart Space 桌面应用的整体架构设计，包括前端、桌面壳、服务端和 AI 代理的详细设计
+title: Smart Lab 架构概述
+description: Smart Lab 桌面应用的整体架构设计，包括前端、桌面壳、服务端和 AI 代理的详细设计
 tags: [架构, 设计, 系统设计]
 ---
 
-# Smart Space 架构概述
+# Smart Lab 架构概述
 
-本文档详细描述 Smart Space 桌面 AI 助手的整体架构设计，包括各层组件、通信模式和数据流。
+本文档详细描述 Smart Lab 桌面 AI 助手的整体架构设计，包括各层组件、通信模式和数据流。
 
 ## 架构概览
 
-Smart Space 采用分层架构，由四个主要层组成：
+Smart Lab 采用分层架构，由四个主要层组成：
 
 ```mermaid
 graph TB
@@ -64,16 +64,25 @@ desktop/src/
 │   ├── client.ts          # 基础 HTTP 客户端
 │   ├── sessions.ts        # 会话 API
 │   ├── providers.ts       # 服务商 API
+│   ├── scheduled-tasks.ts # 定时任务 API
+│   ├── agents.ts          # 智能体 API
+│   ├── features.ts        # 功能 API (计算机操作等)
 │   └── usage.ts           # 用量统计 API
 ├── components/            # UI 组件
 │   ├── chat/             # 聊天相关组件
-│   ├── editor/           # 编辑器组件
+│   ├── editor/           # 编辑器组件 (含 ReadingPanel)
 │   ├── layout/           # 布局组件
-│   ├── settings/         # 设置组件
+│   ├── settings/         # 设置组件 (含 AgentSettings, ComputerUseSettings)
+│   ├── tasks/            # 定时任务组件 (TaskList, TaskRow, NewTaskModal 等)
 │   └── shared/           # 共享组件
+├── hooks/                # 自定义 Hooks
+│   └── useTTS.ts         # TTS 朗读 Hook
+├── lib/                  # 工具库
+│   └── cronDescribe.ts   # Cron 表达式描述
 ├── pages/                # 页面组件
-│   ├── HomePage.tsx      # 首页
+│   ├── HomePage.tsx      # 首页 (含定时任务摘要、今日用量)
 │   ├── ActiveSession.tsx # 活跃会话
+│   ├── ScheduledTasks.tsx # 定时任务管理
 │   ├── SettingsPage.tsx  # 设置页
 │   └── UsageStatsPage.tsx # 用量统计
 ├── stores/               # 状态管理
@@ -113,8 +122,10 @@ stateDiagram-v2
     Session --> Session: 切换会话
     Session --> Settings: 点击设置
     Session --> Stats: 点击统计
+    Session --> ScheduledTasks: 点击定时任务
     Settings --> Session: 返回
     Stats --> Session: 返回
+    ScheduledTasks --> Session: 返回
 ```
 
 ## 桌面层架构
@@ -234,10 +245,15 @@ graph TB
     B --> E[任务管理工具]
     B --> F[Web 工具]
     B --> G[用户交互工具]
+    B --> H[计算机操作工具]
+    B --> I[智能体工具]
     
     C --> C1[读取文件]
     C --> C2[写入文件]
-    C --> C3[列出目录]
+    C --> C3[编辑文件]
+    C --> C4[列出目录]
+    C --> C5[搜索文件]
+    C --> C6[搜索内容]
     
     D --> D1[Bash 命令]
     D --> D2[PowerShell]
@@ -251,6 +267,16 @@ graph TB
     
     G --> G1[询问用户]
     G --> G2[显示消息]
+    
+    H --> H1[屏幕截图]
+    H --> H2[鼠标点击]
+    H --> H3[键盘输入]
+    H --> H4[剪贴板操作]
+    
+    I --> I1[Explore 智能体]
+    I --> I2[Plan 智能体]
+    I --> I3[General 智能体]
+    I --> I4[自定义智能体]
 ```
 
 ### LLM 集成

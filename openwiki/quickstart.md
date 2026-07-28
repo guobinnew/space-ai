@@ -1,24 +1,28 @@
 ---
 type: Guide
-title: Smart Space 快速入门
-description: Smart Space 桌面 AI 助手项目的快速入门指南，帮助开发者理解项目结构和开发流程
+title: Smart Lab 快速入门
+description: Smart Lab 桌面 AI 助手项目的快速入门指南，帮助开发者理解项目结构和开发流程
 tags: [入门, 概述, 快速开始]
 ---
 
-# Smart Space 快速入门
+# Smart Lab 快速入门
 
-欢迎来到 Smart Space 项目！这是一个基于 Tauri + React + Bun 的桌面 AI 助手应用，支持多会话聊天、代码编辑、用量统计等功能。
+欢迎来到 Smart Lab 项目！这是一个基于 Tauri + React + Bun 的桌面 AI 助手应用，支持多会话聊天、代码编辑、用量统计、智能体管理、定时任务、TTS 朗读等功能。
 
 ## 项目概述
 
-Smart Space 是一个功能丰富的桌面 AI 助手，具有以下核心特性：
+Smart Lab 是一个功能丰富的桌面 AI 助手，具有以下核心特性：
 
 - **多会话管理**: 支持同时运行多个独立的 AI 聊天会话
 - **实时流式通信**: 通过 WebSocket 实现实时 AI 响应流
 - **代码编辑集成**: 内置 Monaco 编辑器，支持代码高亮和编辑
-- **工具执行系统**: AI 可以调用 16+ 种工具执行文件操作、命令执行等任务
+- **工具执行系统**: AI 可以调用 18+ 种工具执行文件操作、命令执行、计算机操作等任务
+- **智能体管理**: 内置 Explore/Plan/General 三种智能体，支持自定义智能体 CRUD
+- **定时任务**: Cron 调度的定时任务，支持会话复用和执行日志
+- **TTS 朗读**: 文档朗读模式，分段高亮、暂停/继续、音频预加载缓存
+- **计算机操作**: 通过 Python 桥接实现屏幕截图、鼠标点击、键盘输入等操作
 - **用量统计**: 详细的 Token 使用量统计和图表展示
-- **多服务商支持**: 支持 DeepSeek、智谱 GLM、通义千问、Moonshot 等多种 AI 服务商
+- **多服务商支持**: 支持 DeepSeek、智谱 GLM、通义千问、Moonshot、Kimi 等多种 AI 服务商
 - **国际化**: 支持中文和英文界面
 
 ## 技术架构
@@ -54,14 +58,16 @@ graph TB
 ## 项目结构
 
 ```
-smart-space/
+smart-lab/
 ├── desktop/                    # 客户端 (Vite + React + Tauri v2)
 │   ├── src/                    # React 前端源码
 │   │   ├── api/               # API 客户端
 │   │   ├── components/        # UI 组件
 │   │   ├── pages/             # 页面组件
 │   │   ├── stores/            # 状态管理
+│   │   ├── hooks/             # 自定义 Hooks (useTTS 等)
 │   │   ├── i18n/              # 国际化
+│   │   ├── lib/               # 工具库 (cronDescribe 等)
 │   │   └── theme/             # 主题配置
 │   ├── src-tauri/             # Tauri Rust 后端
 │   └── package.json
@@ -70,9 +76,13 @@ smart-space/
 │   └── agent/                 # AI 代理服务
 │       ├── api/               # API 路由处理器
 │       ├── services/          # 业务逻辑服务
-│       ├── tools/             # AI 工具实现
+│       ├── tools/             # AI 工具实现 (18+ 种)
+│       ├── runtime/           # 运行时脚本 (Python helper)
 │       ├── ws/                # WebSocket 处理
 │       └── middleware/        # 中间件
+├── scripts/                   # 构建脚本
+│   ├── package.mjs            # 安装包打包 (Windows NSIS / macOS DMG)
+│   └── set-version.mjs        # 版本号管理
 └── package.json               # Monorepo 配置
 ```
 
@@ -90,7 +100,7 @@ smart-space/
 ```bash
 # 克隆项目
 git clone <repository-url>
-cd smart-space
+cd smart-lab
 
 # 安装所有依赖
 npm install
@@ -125,10 +135,16 @@ npm run build:all
 每个聊天会话都是独立的，包含完整的对话历史。会话数据以 JSONL 格式存储在 `~/.spaceai/sessions/` 目录下。
 
 ### 服务商 (Provider)
-AI 服务商配置，包括 API 密钥、模型选择、端点 URL 等。支持预设服务商（DeepSeek、GLM 等）和自定义服务商。
+AI 服务商配置，包括 API 密钥、模型选择、端点 URL、TTS 模型等。支持预设服务商（DeepSeek、GLM、Kimi 等）和自定义服务商。
 
 ### 工具 (Tool)
-AI 可以调用的工具，包括文件操作、命令执行、任务管理等。工具在 `server/agent/tools/` 目录下定义。
+AI 可以调用的工具，包括文件操作、命令执行、计算机操作、智能体调度等。工具在 `server/agent/tools/` 目录下定义，共 18+ 种。
+
+### 智能体 (Agent)
+智能体系统支持内置智能体（Explore/Plan/General）和自定义智能体。智能体可以调用子代理执行复杂任务，配置存储在 `~/.spaceai/agents/` 目录下。
+
+### 定时任务 (Scheduled Task)
+基于 Cron 表达式的定时任务调度，支持会话复用（每次执行追加消息而非新建会话）。执行日志存储在 `~/.spaceai/scheduled_runs.jsonl`。
 
 ### 技能 (Skill)
 技能系统扩展 AI 能力，如 Mermaid 图表生成、OpenWiki 连接器等。技能在 `skills/` 目录下定义。
@@ -137,9 +153,10 @@ AI 可以调用的工具，包括文件操作、命令执行、任务管理等�
 
 | 页面 | 功能 |
 |------|------|
-| **首页** | 服务器状态、最近会话、快速操作 |
+| **首页** | 服务器状态、定时任务摘要、今日用量、最近会话、快速操作 |
 | **会话页** | 聊天界面、代码编辑器、文件浏览器 |
-| **设置页** | 服务商配置、技能管理、通用设置 |
+| **定时任务页** | Cron 任务管理、执行日志、ECharts 图表 |
+| **设置页** | 服务商配置、智能体管理、计算机操作设置、技能管理、通用设置 |
 | **统计页** | Token 用量统计、图表展示 |
 
 ## 开发指南
@@ -175,18 +192,29 @@ graph LR
     C -->|实时通信| G
     E --> H[本地存储 ~/.spaceai/]
     E --> I[外部 AI API]
+    E --> J[Python 计算机操作]
+    E --> K[Cron 调度器]
 ```
 
 ## 常见问题
 
 ### Q: 如何添加新的 AI 服务商？
-A: 在 `server/agent/services/providerService.ts` 中添加服务商预设，或在设置页面手动配置。
+A: 在 `server/agent/services/providerService.ts` 中添加服务商预设，或在设置页面手动配置。支持 TTS 模型配置。
 
 ### Q: 如何添加新的工具？
 A: 在 `server/agent/tools/` 目录下创建新的工具文件，并在 `registry.ts` 中注册。
 
-### Q: 如何添加新的技能？
-A: 在 `skills/` 目录下创建技能文件夹，包含 `SKILL.md` 和相关脚本。
+### Q: 如何创建自定义智能体？
+A: 在设置页面的智能体管理中创建，或在 `~/.spaceai/agents/` 目录下手动添加 JSON 配置文件。
+
+### Q: 如何使用定时任务？
+A: 在定时任务页面创建任务，设置 Cron 表达式和执行 prompt。任务支持会话复用，每次执行追加消息而非新建会话。
+
+### Q: 如何使用 TTS 朗读功能？
+A: 在 Markdown 预览模式下点击朗读按钮，进入朗读模式。支持暂停/继续、重新开始、停止等控制。
+
+### Q: 如何使用计算机操作功能？
+A: 需要先在设置页面安装 Python 依赖（pyautogui、mss 等）。安装完成后，AI 可以通过 ComputerUseTool 执行屏幕截图、鼠标点击、键盘输入等操作。
 
 ## 相关文档
 
@@ -213,7 +241,6 @@ A: 在 `skills/` 目录下创建技能文件夹，包含 `SKILL.md` 和相关脚
 | 区域 | 源码锚点 | 延迟原因 |
 |------|----------|----------|
 | **数据模型文档** | `server/agent/types.ts`, `desktop/src/types/` | 需要详细分析所有数据结构 |
-| **工具系统文档** | `server/agent/tools/` | 需要文档化 16+ 种工具的实现细节 |
 | **技能系统文档** | `skills/` | 需要分析现有技能并创建扩展指南 |
 | **国际化文档** | `desktop/src/i18n/` | 需要完整的翻译键值和本地化流程 |
 | **测试文档** | 测试相关文件 | 需要分析测试策略和覆盖率 |

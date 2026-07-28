@@ -362,6 +362,8 @@ const translations: Record<Locale, Record<string, string>> = {
     'settings.skills.no': '否',
     'settings.skills.content': '技能内容',
     'settings.skills.clickToView': '点击查看详情',
+    'settings.skills.fileList': '文件清单',
+    'settings.skills.selectFile': '选择文件以预览',
 
     // Computer Use
     'settings.computerUse.title': '计算机操作',
@@ -1033,6 +1035,8 @@ const translations: Record<Locale, Record<string, string>> = {
     'settings.skills.no': 'No',
     'settings.skills.content': 'Skill Content',
     'settings.skills.clickToView': 'Click to view details',
+    'settings.skills.fileList': 'Files',
+    'settings.skills.selectFile': 'Select a file to preview',
 
     // Computer Use
     'settings.computerUse.title': 'Computer Use',
