@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import type { ScheduledTask } from '../../api/scheduled-tasks'
-import { executeScheduledTask, deleteScheduledTask, updateScheduledTask } from '../../api/scheduled-tasks'
+import { executeScheduledTask, deleteScheduledTask, updateScheduledTask, fetchTaskRuns } from '../../api/scheduled-tasks'
 import { describeCron } from '../../lib/cronDescribe'
 import { TaskRunsPanel } from './TaskRunsPanel'
 import { NewTaskModal } from './NewTaskModal'
@@ -22,6 +22,7 @@ export function TaskRow({ task, showLogs, onToggleLogs, onRefresh }: Props) {
   const [logsRefreshKey, setLogsRefreshKey] = useState(0)
   const menuRef = useRef<HTMLDivElement>(null)
   const confirmRef = useRef<HTMLDivElement>(null)
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   useEffect(() => {
     if (!showMenu && !confirmAction) return
@@ -34,6 +35,11 @@ export function TaskRow({ task, showLogs, onToggleLogs, onRefresh }: Props) {
     return () => document.removeEventListener('mousedown', handler)
   }, [showMenu, confirmAction])
 
+  // 组件卸载时清理轮询
+  useEffect(() => {
+    return () => { if (pollRef.current) clearInterval(pollRef.current) }
+  }, [])
+
   const handleRunNow = async () => {
     setConfirmAction(null)
     setIsRunning(true)
@@ -41,8 +47,21 @@ export function TaskRow({ task, showLogs, onToggleLogs, onRefresh }: Props) {
     try {
       await executeScheduledTask(task.id)
       setLogsRefreshKey((k) => k + 1)
-    } catch {}
-    setIsRunning(false)
+      // 轮询检测任务是否完成
+      pollRef.current = setInterval(async () => {
+        try {
+          const runs = await fetchTaskRuns(task.id)
+          const latest = runs[0]
+          if (!latest || latest.status !== 'running') {
+            setIsRunning(false)
+            setLogsRefreshKey((k) => k + 1)
+            if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null }
+          }
+        } catch {}
+      }, 3000)
+    } catch {
+      setIsRunning(false)
+    }
   }
 
   const handleToggle = () => {

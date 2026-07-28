@@ -70,6 +70,7 @@ export class CronService {
       prompt: fields.prompt,
       folderPath: fields.folderPath,
       createdAt: Date.now(),
+      lastFiredAt: new Date().toISOString(), // 防止创建后立即执行
       enabled: true,
     }
     data.tasks.push(task)
