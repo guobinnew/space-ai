@@ -237,7 +237,7 @@ const translations: Record<Locale, Record<string, string>> = {
 
     // About
     'settings.about.title': '关于',
-    'settings.about.desc': '应用信息',
+    'settings.about.desc': '应用基本信息',
     'settings.about.version': '版本',
     'settings.about.body': '智能工作台 是一个桌面客户端 + 内嵌服务端的应用，基于 Tauri + React + Bun 构建。',
 

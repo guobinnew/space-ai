@@ -15,6 +15,7 @@
     "build:agent": "npm run build -w server/agent",
     "build:desktop": "npm run build -w desktop",
     "build:all": "npm run build:agent && npm run build:desktop",
+    "package": "node scripts/package.mjs",
     "version": "node scripts/set-version.mjs"
   },
   "devDependencies": {
