@@ -17,7 +17,7 @@ export async function handleSkillsApi(
   segments: string[],
 ): Promise<Response> {
   try {
-    const skillName = segments[2]
+    const skillName = segments[2] ? decodeURIComponent(segments[2]) : undefined
     const subAction = segments[3] // 'detail' | 'file'
 
     // POST /api/skills/import
