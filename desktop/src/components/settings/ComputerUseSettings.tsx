@@ -273,7 +273,7 @@ export function ComputerUseSettings() {
   }, [filteredApps, authorizedBundleIds]);
 
   return (
-    <div className="max-w-2xl space-y-6">
+    <div className="w-full space-y-6">
       {/* Title */}
       <div>
         <h2 className="text-lg font-semibold text-[var(--color-text-primary)]">

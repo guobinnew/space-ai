@@ -153,7 +153,7 @@ function GeneralSettings() {
   };
 
   return (
-    <div className="max-w-xl">
+    <div className="w-full">
       {/* Appearance */}
       <h2 className="text-base font-semibold text-[var(--color-text-primary)] mb-1">{t('settings.general.appearance')}</h2>
       <p className="text-sm text-[var(--color-text-tertiary)] mb-3">{t('settings.general.appearanceDesc')}</p>
@@ -310,7 +310,7 @@ function AboutSettings() {
   ];
 
   return (
-    <div className="max-w-2xl space-y-8">
+    <div className="w-full space-y-8">
       {/* Header */}
       <div>
         <h2 className="text-base font-semibold text-[var(--color-text-primary)] mb-1">{t('settings.about.title')}</h2>

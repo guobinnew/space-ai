@@ -416,7 +416,7 @@ export function AgentSettings() {
   const allTools = Array.from(new Set(agents.flatMap((a) => a.availableTools ?? []))).sort()
 
   return (
-    <div className="max-w-2xl space-y-6">
+    <div className="w-full space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-lg font-semibold text-[var(--color-text-primary)]">

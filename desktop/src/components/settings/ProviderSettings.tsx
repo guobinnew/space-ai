@@ -92,7 +92,7 @@ const [ttsTestResults, setTtsTestResults] = useState<Record<string, { loading: b
   };
 
   return (
-    <div className="max-w-2xl">
+    <div className="w-full">
       <div className="flex items-center justify-between mb-4">
         <div>
           <h2 className="text-base font-semibold text-[var(--color-text-primary)]">{t('settings.providers.title')}</h2>
