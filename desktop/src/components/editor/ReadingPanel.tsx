@@ -5,7 +5,7 @@
  * 控制按钮：暂停/继续、重新开始、停止。
  */
 import { useRef, useEffect } from 'react'
-import type { useTTS } from '../hooks/useTTS'
+import type { useTTS } from '../../hooks/useTTS'
 
 type Props = {
   tts: ReturnType<typeof useTTS>

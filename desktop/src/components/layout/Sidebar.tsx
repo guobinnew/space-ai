@@ -16,6 +16,9 @@ export function Sidebar() {
 
   useEffect(() => {
     void fetchSessions();
+    // 定时轮询会话列表，确保定时任务新建的会话能同步显示
+    const timer = setInterval(() => void fetchSessions(), 15000);
+    return () => clearInterval(timer);
   }, [fetchSessions]);
 
   const handleNewSession = async () => {

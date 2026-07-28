@@ -4,6 +4,7 @@ import { useTranslation } from '../../i18n'
 import { useUIStore } from '../../stores/uiStore'
 import { usePendingRefStore } from '../../stores/pendingRefStore'
 import { useTTS } from '../../hooks/useTTS'
+import { providersApi } from '../../api/providers'
 import { ReadingPanel } from './ReadingPanel'
 import { MarkdownRenderer } from '../markdown/MarkdownRenderer'
 import { ImagePreview } from './ImagePreview'
@@ -253,6 +254,15 @@ export function CodeEditor() {
 
   const [mdViewMode, setMdViewMode] = useState<'edit' | 'preview' | 'split'>('split')
   const [readingMode, setReadingMode] = useState(false)
+  const [ttsAvailable, setTtsAvailable] = useState(true)
+
+  // 检查激活服务商是否配置了 TTS 模型
+  useEffect(() => {
+    void providersApi.list().then(({ providers, activeId }) => {
+      const active = activeId ? providers.find((p) => p.id === activeId) : undefined
+      setTtsAvailable(!!active?.models?.tts)
+    }).catch(() => setTtsAvailable(true))
+  }, [])
 
   // 朗读完毕自动退出朗读模式
   useEffect(() => {
@@ -366,7 +376,7 @@ export function CodeEditor() {
             ))}
           </div>
           {/* AI 朗读 */}
-          <Tooltip content={readingMode ? t('editor.ttsStop') : t('editor.ttsRead')}>
+          <Tooltip content={!ttsAvailable ? t('editor.ttsNoModel') : readingMode ? t('editor.ttsStop') : t('editor.ttsRead')}>
             <button
               onClick={() => {
                 if (readingMode) {
@@ -378,7 +388,7 @@ export function CodeEditor() {
                   tts.speak(plainText)
                 }
               }}
-              disabled={!plainText}
+              disabled={!plainText || !ttsAvailable}
               className={`flex items-center gap-1 px-2 py-0.5 rounded text-[11px] transition-colors ml-1
                 ${readingMode
                   ? 'bg-[var(--color-brand)]/10 text-[var(--color-brand)]'
