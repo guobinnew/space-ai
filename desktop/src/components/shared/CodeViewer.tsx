@@ -5,8 +5,7 @@
  * 复刻 smart-code CodeViewer 的布局和交互。
  */
 
-import { useState, useEffect, useCallback } from 'react'
-import { CopyButton } from './CopyButton'
+import { useState, useCallback } from 'react'
 
 type Props = {
   code: string
