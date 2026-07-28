@@ -150,83 +150,20 @@ export function SkillsSettings() {
     setIsDetailLoading(true)
     try {
       // 优先使用 dirName（磁盘目录名），避免 name 含特殊字符导致查找失败
-      // 如果 dirName 不存在（服务端未重启），从 basePath 中提取目录名
-      let skillId = skill.dirName || skill.name
-      if (!skill.dirName && skill.basePath) {
-        // 从 basePath 提取最后一段作为目录名
-        const parts = skill.basePath.replace(/[\\/]+$/, '').split(/[\\/]/)
-        skillId = parts[parts.length - 1] || skill.name
-      }
-      console.log('[SkillsSettings] handleSkillClick: skillId =', skillId, 'skill =', skill)
+      const skillId = skill.dirName || skill.name
       const data = await skillsApi.detail(skillId)
-      console.log('[SkillsSettings] detail response:', data)
-      // 兼容两种响应格式：
-      // 新格式: { meta, tree, files, skillRoot }
-      // 旧格式: { skill: { name, description, content, ... } }
-      const detailData = data as any
-      if (detailData?.meta) {
-        // 新格式（服务端已重启）
-        setDetail(detailData)
-        const skillMd = detailData.files?.find((f: any) => f.name === 'SKILL.md')
-        if (skillMd) {
-          setSelectedFile(skillMd)
-          await loadFileContent(detailData.meta.dirName || detailData.meta.name, skillMd.path)
-        }
-      } else if (detailData?.skill) {
-        // 旧格式（服务端未重启，/detail 端点不存在，回退到 /:name）
-        const s = detailData.skill
-        const fallbackDetail = {
-          meta: {
-            name: s.name,
-            description: s.description,
-            source: s.source,
-            userInvocable: s.userInvocable,
-            tokenEstimate: s.tokenEstimate,
-            basePath: s.basePath || '',
-            dirName: s.dirName,
-          },
-          tree: [],
-          files: [{ path: 'SKILL.md', name: 'SKILL.md', size: s.content?.length || 0, language: 'markdown' }],
-          skillRoot: '',
-        }
-        setDetail(fallbackDetail)
-        setSelectedFile(fallbackDetail.files[0])
-        setFileContent(s.content || '')
-        setFileLanguage('markdown')
-      } else {
+      if (!data || !data.meta) {
         throw new Error('Invalid skill detail response')
       }
-    } catch (err) {
-      console.log('[SkillsSettings] detail failed, trying fallback:', err)
-      // 如果 detail 端点失败（如服务端未重启），尝试回退到旧的 get 端点
-      try {
-        // 使用与 try 块相同的 skillId 计算逻辑
-        const fallback = await skillsApi.get(skillId)
-        if (fallback?.skill) {
-          const s = fallback.skill
-          setDetail({
-            meta: {
-              name: s.name,
-              description: s.description,
-              source: s.source,
-              userInvocable: s.userInvocable,
-              tokenEstimate: s.tokenEstimate,
-              basePath: '',
-              dirName: s.dirName,
-            },
-            tree: [],
-            files: [{ path: 'SKILL.md', name: 'SKILL.md', size: s.content?.length || 0, language: 'markdown' }],
-            skillRoot: '',
-          })
-          setSelectedFile({ path: 'SKILL.md', name: 'SKILL.md', size: s.content?.length || 0, language: 'markdown' })
-          setFileContent(s.content || '')
-          setFileLanguage('markdown')
-        } else {
-          throw err
-        }
-      } catch {
-        setMessage({ type: 'error', text: err instanceof Error ? err.message : 'Failed to load skill detail' })
+      setDetail(data)
+      // 默认选中 SKILL.md
+      const skillMd = data.files?.find(f => f.name === 'SKILL.md')
+      if (skillMd) {
+        setSelectedFile(skillMd)
+        await loadFileContent(skillId, skillMd.path)
       }
+    } catch (err) {
+      setMessage({ type: 'error', text: err instanceof Error ? err.message : 'Failed to load skill detail' })
     } finally {
       setIsDetailLoading(false)
     }
