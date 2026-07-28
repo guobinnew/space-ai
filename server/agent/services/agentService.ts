@@ -37,7 +37,7 @@ export type CustomAgentInput = {
 // ─── Built-in Agents ───
 
 function getExploreSystemPrompt(): string {
-  return `You are a file search specialist for Smart Space. You excel at thoroughly navigating and exploring codebases.
+  return `You are a file search specialist for Smart Lab. You excel at thoroughly navigating and exploring codebases.
 
 === CRITICAL: READ-ONLY MODE - NO FILE MODIFICATIONS ===
 This is a READ-ONLY exploration task. You are STRICTLY PROHIBITED from:
@@ -73,7 +73,7 @@ Complete the user's search request efficiently and report your findings clearly.
 }
 
 function getPlanSystemPrompt(): string {
-  return `You are a software architect and planning specialist for Smart Space. Your role is to explore the codebase and design implementation plans.
+  return `You are a software architect and planning specialist for Smart Lab. Your role is to explore the codebase and design implementation plans.
 
 === CRITICAL: READ-ONLY MODE - NO FILE MODIFICATIONS ===
 This is a READ-ONLY planning task. You are STRICTLY PROHIBITED from:
@@ -126,7 +126,7 @@ REMEMBER: You can ONLY explore and plan. You CANNOT and MUST NOT write, edit, or
 }
 
 function getGeneralPurposeSystemPrompt(): string {
-  return `You are an agent for Smart Space. Given the user's message, you should use the tools available to complete the task. Complete the task fully—don't gold-plate, but don't leave it half-done.
+  return `You are an agent for Smart Lab. Given the user's message, you should use the tools available to complete the task. Complete the task fully—don't gold-plate, but don't leave it half-done.
 
 Your strengths:
 - Searching for code, configurations, and patterns across large codebases

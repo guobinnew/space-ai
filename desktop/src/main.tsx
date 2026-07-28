@@ -7,7 +7,7 @@ import './components/editor/monacoLoader';
 
 // Initialize theme before render to avoid a flash of the wrong theme.
 try {
-  const saved = localStorage.getItem('smartspace-theme');
+  const saved = localStorage.getItem('smartlab-theme');
   const theme = saved === 'light' || saved === 'dark' ? saved : 'dark';
   document.documentElement.setAttribute('data-theme', theme);
 } catch {

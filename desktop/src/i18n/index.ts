@@ -10,7 +10,7 @@ import { useUIStore, type Locale } from '../stores/uiStore';
 const translations: Record<Locale, Record<string, string>> = {
   zh: {
     // App
-    'app.name': 'Smart Space',
+    'app.name': '智能工作台',
     'app.subtitle': '桌面客户端 + 内嵌服务端',
 
     // Sidebar
@@ -40,7 +40,7 @@ const translations: Record<Locale, Record<string, string>> = {
     'window.close': '关闭',
 
     // HomePage
-    'home.welcome': '欢迎使用 Smart Space',
+    'home.welcome': '欢迎使用智能工作台',
     'home.subtitle': '已准备好帮助你构建、调试和规划你的项目。',
     'home.serverStatus': '服务状态',
     'home.backend': '后端服务',
@@ -74,8 +74,9 @@ const translations: Record<Locale, Record<string, string>> = {
 
     // EmptySession
     'empty.title': '开始新对话',
-    'empty.subtitle': '输入消息开始与 Smart Space 对话',
+    'empty.subtitle': '输入消息开始与智能工作台对话',
     'empty.placeholder': '输入消息，Enter 发送，Shift+Enter 换行',
+    'empty.readyMessage': '智能工作台 已准备好帮你完成代码开发和日常工作。',
 
     // ActiveSession
     'session.title': '会话',
@@ -238,7 +239,7 @@ const translations: Record<Locale, Record<string, string>> = {
     'settings.about.title': '关于',
     'settings.about.desc': '应用信息',
     'settings.about.version': '版本 0.1.0',
-    'settings.about.body': 'Smart Space 是一个桌面客户端 + 内嵌服务端的应用，基于 Tauri + React + Bun 构建。',
+    'settings.about.body': '智能工作台 是一个桌面客户端 + 内嵌服务端的应用，基于 Tauri + React + Bun 构建。',
 
     // Providers
     'settings.providers.title': '服务商',
@@ -430,7 +431,7 @@ const translations: Record<Locale, Record<string, string>> = {
 
   en: {
     // App
-    'app.name': 'Smart Space',
+    'app.name': 'Smart Lab',
     'app.subtitle': 'Desktop Client + Embedded Server',
 
     // Sidebar
@@ -460,7 +461,7 @@ const translations: Record<Locale, Record<string, string>> = {
     'window.close': 'Close',
 
     // HomePage
-    'home.welcome': 'Welcome to Smart Space',
+    'home.welcome': 'Welcome to Smart Lab',
     'home.subtitle': 'Ready to help you build, debug, and plan your projects.',
     'home.serverStatus': 'Server Status',
     'home.backend': 'Backend Service',
@@ -494,8 +495,9 @@ const translations: Record<Locale, Record<string, string>> = {
 
     // EmptySession
     'empty.title': 'Start a New Conversation',
-    'empty.subtitle': 'Type a message to start chatting with Smart Space',
+    'empty.subtitle': 'Type a message to start chatting with Smart Lab',
     'empty.placeholder': 'Type a message, press Enter to send',
+    'empty.readyMessage': 'Smart Lab is ready to help you with coding and daily work.',
 
     // ActiveSession
     'session.title': 'Session',
@@ -658,7 +660,7 @@ const translations: Record<Locale, Record<string, string>> = {
     'settings.about.title': 'About',
     'settings.about.desc': 'Application information',
     'settings.about.version': 'Version 0.1.0',
-    'settings.about.body': 'Smart Space is a desktop client + embedded server application built with Tauri + React + Bun.',
+    'settings.about.body': 'Smart Lab is a desktop client + embedded server application built with Tauri + React + Bun.',
 
     // Providers
     'settings.providers.title': 'Providers',

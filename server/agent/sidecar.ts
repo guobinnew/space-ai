@@ -1,5 +1,5 @@
 /**
- * Smart Space Sidecar — 统一子进程入口
+ * Smart Lab Sidecar — 统一子进程入口
  *
  * 参照 smart-code desktop/sidecars/smart-sidecar.ts 复刻。
  * desktop 通过 Tauri sidecar 或 bun 进程启动此文件，

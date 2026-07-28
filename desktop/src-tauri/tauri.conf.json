@@ -1,8 +1,8 @@
 {
   "$schema": "https://raw.githubusercontent.com/nicegui/tauri-v2-schema/main/tauri.conf.json",
-  "productName": "Smart Space",
+  "productName": "Smart Lab",
   "version": "1.0.0",
-  "identifier": "com.smartspace.app",
+  "identifier": "com.smartlab.app",
   "build": {
     "frontendDist": "../dist",
     "devUrl": "http://localhost:1420",
@@ -13,7 +13,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "Smart Space",
+        "title": "Smart Lab",
         "width": 1000,
         "height": 680,
         "minWidth": 1280,
@@ -24,7 +24,7 @@
       },
       {
         "label": "splash",
-        "title": "Smart Space",
+        "title": "Smart Lab",
         "width": 400,
         "height": 300,
         "center": true,

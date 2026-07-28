@@ -63,7 +63,7 @@ Usage notes:
     try {
       const response = await fetch(fetchUrl, {
         headers: {
-          'User-Agent': 'Mozilla/5.0 (compatible; SmartSpace/1.0)',
+          'User-Agent': 'Mozilla/5.0 (compatible; SmartLab/1.0)',
           'Accept': 'text/html,application/xhtml+xml,application/json,text/plain,*/*',
         },
         signal: AbortSignal.timeout(30000),

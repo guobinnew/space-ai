@@ -76,7 +76,7 @@ export async function handleApiRequest(req: Request, url: URL): Promise<Response
 
       case 'info':
         return Response.json({
-          name: 'smart-space-agent',
+          name: 'smart-lab-agent',
           version: process.env.APP_VERSION || '0.1.0',
           nodeVersion: process.version,
           bunVersion: typeof Bun !== 'undefined' ? Bun.version : 'N/A',

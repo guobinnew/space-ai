@@ -132,7 +132,7 @@ function getToneAndStyleSection(): string {
 // ─── CLI 前缀 ─────────────────────────────────────────────────
 
 function getCLIPrefix(): string {
-  return 'You are Smart Space, an AI coding assistant.'
+  return 'You are Smart Lab, an AI coding assistant.'
 }
 
 // ─── 语言偏好 ─────────────────────────────────────────────────

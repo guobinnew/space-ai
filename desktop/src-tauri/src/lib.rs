@@ -44,7 +44,7 @@ impl ServerSidecar {
         if let Ok(mut guard) = self.0.lock() {
             if let Some(ref mut child) = *guard {
                 let pid = child.id();
-                println!("[SmartSpace] Killing server sidecar (pid={})", pid);
+                println!("[SmartLab] Killing server sidecar (pid={})", pid);
 
                 #[cfg(target_os = "windows")]
                 {
@@ -60,7 +60,7 @@ impl ServerSidecar {
                     let _ = child.wait();
                 }
 
-                println!("[SmartSpace] Server sidecar killed");
+                println!("[SmartLab] Server sidecar killed");
             }
             *guard = None;
         }
@@ -77,11 +77,11 @@ impl Drop for ServerSidecar {
 /// Called when the server is confirmed ready (or on timeout fallback).
 fn show_main_window(app: &tauri::AppHandle) {
     if let Some(splash) = app.get_webview_window("splash") {
-        println!("[SmartSpace] Closing splash window...");
+        println!("[SmartLab] Closing splash window...");
         let _ = splash.close();
     }
     if let Some(main) = app.get_webview_window("main") {
-        println!("[SmartSpace] Showing main window...");
+        println!("[SmartLab] Showing main window...");
         let _ = main.show();
         let _ = main.set_focus();
     }
@@ -92,7 +92,7 @@ fn close_splashscreen(app: tauri::AppHandle) {
     // Legacy command — now handled by the Rust readiness check thread.
     // kept for backward compatibility but does nothing (the Rust thread
     // will close the splash when the server is ready).
-    println!("[SmartSpace] close_splashscreen called from frontend (handled by Rust readiness check)");
+    println!("[SmartLab] close_splashscreen called from frontend (handled by Rust readiness check)");
     let _ = &app;
 }
 
@@ -120,7 +120,7 @@ fn wait_for_server_ready(timeout: std::time::Duration) -> Option<u16> {
                             std::time::Duration::from_secs(2),
                         ) {
                             Ok(_) => {
-                                println!("[SmartSpace] Server is ready on port {}", port);
+                                println!("[SmartLab] Server is ready on port {}", port);
                                 return Some(port);
                             }
                             Err(_) => {
@@ -166,13 +166,13 @@ fn resolve_sidecar_path(resource_dir: &std::path::Path) -> Option<std::path::Pat
 
     if let Some(ref path) = dev_sidecar {
         if path.exists() {
-            println!("[SmartSpace] Dev mode: using sidecar at {:?}", path);
+            println!("[SmartLab] Dev mode: using sidecar at {:?}", path);
             return Some(path.clone());
         }
     }
 
     eprintln!(
-        "[SmartSpace] Sidecar not found at {:?} or {:?}",
+        "[SmartLab] Sidecar not found at {:?} or {:?}",
         bundled,
         dev_sidecar.as_deref().unwrap_or(std::path::Path::new(""))
     );
@@ -196,7 +196,7 @@ fn start_server_sidecar(app: &tauri::App) -> Result<Child, String> {
     // This allows the server to try the same port first, avoiding unnecessary
     // retries on 3721 if a previous run already moved to a fallback port.
     let last_port = read_server_port();
-    println!("[SmartSpace] Last successful port: {}, using as primary", last_port);
+    println!("[SmartLab] Last successful port: {}, using as primary", last_port);
 
     // Clear the stale port file so the readiness check knows to wait for a
     // fresh value from the new server instance.
@@ -264,7 +264,7 @@ fn start_server_sidecar(app: &tauri::App) -> Result<Child, String> {
         .spawn()
         .map_err(|e| format!("Failed to start server sidecar: {}", e))?;
 
-    println!("[SmartSpace] Server sidecar started (pid={}, port={})", child.id(), last_port);
+    println!("[SmartLab] Server sidecar started (pid={}, port={})", child.id(), last_port);
     Ok(child)
 }
 
@@ -281,7 +281,7 @@ pub fn run() {
                     app.manage(ServerSidecar(Mutex::new(Some(child))));
                 }
                 Err(e) => {
-                    eprintln!("[SmartSpace] Failed to start server sidecar: {}", e);
+                    eprintln!("[SmartLab] Failed to start server sidecar: {}", e);
                     app.manage(ServerSidecar(Mutex::new(None)));
                 }
             }
@@ -293,14 +293,14 @@ pub fn run() {
             let app_handle = app.handle().clone();
             std::thread::spawn(move || {
                 let timeout = std::time::Duration::from_secs(60);
-                println!("[SmartSpace] Waiting for server to be ready (timeout {}s)...", timeout.as_secs());
+                println!("[SmartLab] Waiting for server to be ready (timeout {}s)...", timeout.as_secs());
 
                 match wait_for_server_ready(timeout) {
                     Some(port) => {
-                        println!("[SmartSpace] Server ready on port {}, showing main window", port);
+                        println!("[SmartLab] Server ready on port {}, showing main window", port);
                     }
                     None => {
-                        eprintln!("[SmartSpace] Server startup timeout ({}s), showing main window anyway", timeout.as_secs());
+                        eprintln!("[SmartLab] Server startup timeout ({}s), showing main window anyway", timeout.as_secs());
                     }
                 }
 

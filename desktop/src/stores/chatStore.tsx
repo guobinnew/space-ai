@@ -32,7 +32,7 @@ async function maybeNotifyCompletion(enabled: boolean, _sessionId: string, _text
     // Send notification
     const { sendNotification } = await import('@tauri-apps/plugin-notification');
     sendNotification({
-      title: 'Smart Space',
+      title: 'Smart Lab',
       body: '会话回复已完成',
     });
   } catch {

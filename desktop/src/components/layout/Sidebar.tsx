@@ -112,7 +112,7 @@ export function Sidebar() {
               className={`sidebar-copy ${sidebarOpen ? 'sidebar-copy--visible' : 'sidebar-copy--hidden'} text-[13px] font-semibold tracking-tight text-[var(--color-text-primary)]`}
               style={{ fontFamily: 'var(--font-headline)' }}
             >
-              Smart Space
+              {t('app.name')}
               <span className="ml-1.5 text-[10px] font-normal text-[var(--color-text-tertiary)]">v{__APP_VERSION__}</span>
             </span>
           </div>

@@ -288,7 +288,7 @@ function AboutSettings() {
             className="text-lg font-bold text-[var(--color-text-primary)]"
             style={{ fontFamily: 'var(--font-headline)' }}
           >
-            Smart Space
+            {t('app.name')}
           </div>
           <div className="text-sm text-[var(--color-text-tertiary)] mt-0.5">{t('settings.about.version')}</div>
         </div>

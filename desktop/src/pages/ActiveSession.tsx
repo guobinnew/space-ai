@@ -372,7 +372,7 @@ export function ActiveSession({ sessionId }: { sessionId: string }) {
                   {t('empty.title')}
                 </h1>
                 <p className="text-base text-[var(--color-text-secondary)]">
-                 Smart Space 已准备好帮你完成代码开发和日常工作。
+                 {t('empty.readyMessage')}
                 </p>
                 <p className="mt-4 text-xs text-[var(--color-text-tertiary)]">选择工作模式，切换 AI 专注领域</p>
 

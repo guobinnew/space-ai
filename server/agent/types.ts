@@ -1,5 +1,5 @@
 /**
- * Smart Space Agent Server — Type Definitions
+ * Smart Lab Agent Server — Type Definitions
  *
  * 参照 smart-code src/server/types.ts 复刻，适配 SpaceAI 场景。
  */

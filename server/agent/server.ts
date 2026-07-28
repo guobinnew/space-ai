@@ -1,5 +1,5 @@
 /**
- * Smart Space Agent Server — HTTP + WebSocket Server (Bun runtime)
+ * Smart Lab Agent Server — HTTP + WebSocket Server (Bun runtime)
  *
  * 参照 smart-code src/server/server.ts 复刻，使用 Bun.serve。
  * 为桌面端 UI 提供 REST API 和 WebSocket 实时通信。
@@ -53,9 +53,9 @@ function writePortFile(port: number): void {
   try {
     const filePath = getServerPortFilePath()
     Bun.write(filePath, String(port))
-    console.log(`[SmartSpace Agent] Port file written: ${filePath} → ${port}`)
+    console.log(`[SmartLab Agent] Port file written: ${filePath} → ${port}`)
   } catch (err) {
-    console.error('[SmartSpace Agent] Failed to write port file:', err)
+    console.error('[SmartLab Agent] Failed to write port file:', err)
   }
 }
 
@@ -118,7 +118,7 @@ async function serveWithRetry(
         const serving = await isPortServing(tryPort, '127.0.0.1')
         if (serving) {
           console.log(
-            `[SmartSpace Agent] Port ${tryPort} already has a working server. ` +
+            `[SmartLab Agent] Port ${tryPort} already has a working server. ` +
               `Another instance is running — exiting gracefully.`,
           )
           writePortFile(tryPort)
@@ -128,7 +128,7 @@ async function serveWithRetry(
         // Zombie socket — retry
         if (attempt < maxRetries) {
           console.log(
-            `[SmartSpace Agent] Port ${tryPort} in use (zombie socket?), ` +
+            `[SmartLab Agent] Port ${tryPort} in use (zombie socket?), ` +
               `retrying in ${retryDelayMs}ms... (${attempt + 1}/${maxRetries})`,
           )
           await new Promise((r) => setTimeout(r, retryDelayMs))
@@ -136,7 +136,7 @@ async function serveWithRetry(
       }
     }
     console.log(
-      `[SmartSpace Agent] Port ${tryPort} unavailable after ${maxRetries + 1} attempts, trying next...`,
+      `[SmartLab Agent] Port ${tryPort} unavailable after ${maxRetries + 1} attempts, trying next...`,
     )
   }
 
@@ -289,7 +289,7 @@ export async function startServer(port = PORT, host = HOST) {
         if (url.pathname === '/api/info') {
           return Response.json(
             {
-              name: 'smart-space-agent',
+              name: 'smart-lab-agent',
               version: process.env.APP_VERSION || '0.1.0',
               nodeVersion: process.version,
               bunVersion: typeof Bun !== 'undefined' ? Bun.version : 'N/A',
@@ -381,8 +381,8 @@ export async function startServer(port = PORT, host = HOST) {
 
   actualPort = server.port
 
-  console.log(`[SmartSpace Agent] Running on http://${host}:${actualPort}`)
-  console.log(`[SmartSpace Agent] Health check: http://${host}:${actualPort}/api/health`)
+  console.log(`[SmartLab Agent] Running on http://${host}:${actualPort}`)
+  console.log(`[SmartLab Agent] Health check: http://${host}:${actualPort}/api/health`)
   return server
 }
 
@@ -394,10 +394,10 @@ async function gracefulShutdown(signal: string): Promise<void> {
   if (isShuttingDown) return
   isShuttingDown = true
 
-  console.log(`[SmartSpace Agent] Received ${signal}, shutting down...`)
+  console.log(`[SmartLab Agent] Received ${signal}, shutting down...`)
   deletePortFile()
   await new Promise<void>((resolve) => setTimeout(resolve, 200))
-  console.log('[SmartSpace Agent] Shutdown complete')
+  console.log('[SmartLab Agent] Shutdown complete')
   process.exitCode = 0
 }
 

@@ -16,7 +16,7 @@ app.get('/api/health', (_req: Request, res: Response) => {
 // Server info endpoint
 app.get('/api/info', (_req: Request, res: Response) => {
   res.json({
-    name: 'smart-space-server',
+    name: 'smart-lab-server',
     version: '0.1.0',
     nodeVersion: process.version,
     platform: process.platform,
@@ -25,15 +25,15 @@ app.get('/api/info', (_req: Request, res: Response) => {
 });
 
 const server = app.listen(PORT, HOST, () => {
-  console.log(`[SmartSpace Server] Running on http://${HOST}:${PORT}`);
-  console.log(`[SmartSpace Server] Health check: http://${HOST}:${PORT}/api/health`);
+  console.log(`[SmartLab Server] Running on http://${HOST}:${PORT}`);
+  console.log(`[SmartLab Server] Health check: http://${HOST}:${PORT}/api/health`);
 });
 
 // Graceful shutdown
 function shutdown(signal: string) {
-  console.log(`[SmartSpace Server] ${signal} received, shutting down...`);
+  console.log(`[SmartLab Server] ${signal} received, shutting down...`);
   server.close(() => {
-    console.log('[SmartSpace Server] Closed');
+    console.log('[SmartLab Server] Closed');
     process.exit(0);
   });
 }

@@ -244,7 +244,7 @@ export class ProviderService {
 
     const baseUrl = (provider.ttsBaseUrl || provider.baseUrl).replace(/\/+$/, '')
     const voice = provider.ttsVoice || 'alloy'
-    const testText = '我是Smart Space，已准备好帮你完成代码开发和日常工作。'
+    const testText = '我是Smart Lab，已准备好帮你完成代码开发和日常工作。'
 
     const start = Date.now()
     try {
