@@ -32,7 +32,9 @@ type ComputerUseStatus = {
   available: boolean
   platform: string
   pythonAvailable: boolean
+  pythonVersion: string | null
   setupCompleted: boolean
+  venvPath: string | null
 }
 
 export const computerUseApi = {

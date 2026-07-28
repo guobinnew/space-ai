@@ -75,7 +75,9 @@ export function ComputerUseSettings() {
           <div>
             <span className="text-[var(--color-text-tertiary)]">{t('settings.computerUse.python')}</span>
             <div className={`mt-0.5 ${status?.pythonAvailable ? 'text-[var(--color-success)]' : 'text-[var(--color-text-tertiary)]'}`}>
-              {status?.pythonAvailable ? t('settings.computerUse.pythonInstalled') : t('settings.computerUse.pythonNotInstalled')}
+              {status?.pythonAvailable
+                ? `${t('settings.computerUse.pythonInstalled')}${status.pythonVersion ? ` (${status.pythonVersion})` : ''}`
+                : t('settings.computerUse.pythonNotInstalled')}
             </div>
           </div>
           <div>

@@ -1,38 +1,30 @@
 /**
  * Computer Use API
  *
- * GET  /api/computer-use/status  — check availability
- * POST /api/computer-use/setup    — run setup
+ * GET  /api/computer-use/status  — 检测 Python + venv + 依赖状态
+ * POST /api/computer-use/setup   — 创建 venv + 安装依赖
  */
+import { getStatus, runSetup } from '../services/computerUseService'
 
-import { errorResponse } from '../middleware/errorHandler'
+export async function handleComputerUseApi(req: Request, url: URL, segments: string[]): Promise<Response> {
+  const action = segments[2] || ''
 
-export async function handleComputerUseApi(
-  req: Request,
-  _url: URL,
-  segments: string[],
-): Promise<Response> {
   try {
-    const action = segments[2]
-
+    // GET /api/computer-use/status
     if (action === 'status' && req.method === 'GET') {
-      const isWindows = process.platform === 'win32'
-      const isMac = process.platform === 'darwin'
-      return Response.json({
-        available: isMac || isWindows,
-        platform: process.platform,
-        pythonAvailable: false,
-        setupCompleted: false,
-      })
+      const status = await getStatus()
+      return Response.json(status)
     }
 
+    // POST /api/computer-use/setup
     if (action === 'setup' && req.method === 'POST') {
-      // TODO: implement actual setup (install python deps, etc.)
-      return Response.json({ success: false, message: '计算机操作设置功能开发中' })
+      const result = await runSetup()
+      return Response.json(result, { status: result.success ? 200 : 500 })
     }
 
-    return Response.json({ error: 'Not implemented' }, { status: 404 })
-  } catch (error) {
-    return errorResponse(error)
+    return Response.json({ error: 'NOT_FOUND', message: `No route: ${req.method} ${url.pathname}` }, { status: 404 })
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    return Response.json({ error: 'INTERNAL_ERROR', message: msg }, { status: 500 })
   }
 }

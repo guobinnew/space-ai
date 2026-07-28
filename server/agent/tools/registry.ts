@@ -23,6 +23,7 @@ import { taskCreateTool } from './TaskCreateTool'
 import { taskUpdateTool } from './TaskUpdateTool'
 import { taskListTool } from './TaskListTool'
 import { powerShellTool } from './PowerShellTool'
+import { computerUseTool } from './ComputerUseTool'
 
 /** 所有内建工具 */
 const builtinTools: Tool[] = [
@@ -43,6 +44,7 @@ const builtinTools: Tool[] = [
   exitPlanModeTool,
   skillTool,
   powerShellTool,
+  computerUseTool,
 ]
 
 /** 工具名 → 工具实例 映射 */
