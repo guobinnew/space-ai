@@ -194,10 +194,12 @@ function AgentDetailModal({
 
 function AgentEditModal({
   agent,
+  allTools,
   onClose,
   onSave,
 }: {
   agent: AgentDefinition | null
+  allTools: string[]
   onClose: () => void
   onSave: (input: CreateAgentInput) => Promise<void>
 }) {
@@ -303,12 +305,37 @@ function AgentEditModal({
           </div>
           <div>
             <label className="text-xs font-medium text-[var(--color-text-tertiary)]">{t('agent.disallowedTools')}</label>
-            <input
-              value={(form.disallowedTools ?? []).join(', ')}
-              onChange={(e) => setForm({ ...form, disallowedTools: e.target.value.split(',').map((s) => s.trim()).filter(Boolean) })}
-              placeholder={t('agent.disallowedPlaceholder')}
-              className={inputClass}
-            />
+            <div className="mt-1.5 grid grid-cols-2 gap-1.5 max-h-[180px] overflow-y-auto rounded-lg border border-[var(--color-border)] p-2">
+              {allTools.map((tool) => {
+                const checked = (form.disallowedTools ?? []).includes(tool)
+                return (
+                  <label
+                    key={tool}
+                    className={`flex items-center gap-2 px-2 py-1.5 rounded text-xs cursor-pointer transition-colors ${
+                      checked
+                        ? 'bg-[var(--color-error)]/10 text-[var(--color-error)]'
+                        : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)]'
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={(e) => {
+                        const current = form.disallowedTools ?? []
+                        setForm({
+                          ...form,
+                          disallowedTools: e.target.checked
+                            ? [...current, tool]
+                            : current.filter((t) => t !== tool),
+                        })
+                      }}
+                      className="rounded border-[var(--color-border)] accent-[var(--color-error)]"
+                    />
+                    {tool}
+                  </label>
+                )
+              })}
+            </div>
           </div>
         </div>
         <div className="flex justify-end gap-2 px-5 py-4 border-t border-[var(--color-border)] flex-shrink-0">
@@ -379,6 +406,8 @@ export function AgentSettings() {
 
   const builtInAgents = agents.filter((a) => a.source === 'built-in')
   const customAgents = agents.filter((a) => a.source === 'custom')
+  // 从所有 agent 的 availableTools 提取并集
+  const allTools = Array.from(new Set(agents.flatMap((a) => a.availableTools ?? []))).sort()
 
   return (
     <div className="max-w-2xl space-y-6">
@@ -443,8 +472,8 @@ export function AgentSettings() {
 
       {/* Modals */}
       {viewAgent && <AgentDetailModal agent={viewAgent} onClose={() => setViewAgent(null)} />}
-      {editAgent && <AgentEditModal agent={editAgent} onClose={() => setEditAgent(null)} onSave={handleUpdate} />}
-      {showAddModal && <AgentEditModal agent={null} onClose={() => setShowAddModal(false)} onSave={handleCreate} />}
+      {editAgent && <AgentEditModal agent={editAgent} allTools={allTools} onClose={() => setEditAgent(null)} onSave={handleUpdate} />}
+      {showAddModal && <AgentEditModal agent={null} allTools={allTools} onClose={() => setShowAddModal(false)} onSave={handleCreate} />}
     </div>
   )
 }

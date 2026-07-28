@@ -14,7 +14,7 @@ const DESCRIPTION = `Launch a new agent to handle complex, multi-step tasks auto
 Available agent types:
 - Explore: Fast agent for exploring codebases, finding files, searching code
 - Plan: Software architect agent for designing implementation plans
-- general-purpose: General-purpose agent for researching complex questions and executing multi-step tasks
+- General: General-purpose agent for researching complex questions and executing multi-step tasks
 
 When using this tool, specify the agentType and provide a detailed prompt describing the task.`
 
