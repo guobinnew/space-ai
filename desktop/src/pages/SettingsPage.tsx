@@ -6,9 +6,10 @@ import { ProviderSettings } from '../components/settings/ProviderSettings';
 import { SkillsSettings } from '../components/settings/SkillsSettings';
 import { ComputerUseSettings } from '../components/settings/ComputerUseSettings';
 import { MemorySettings } from '../components/settings/MemorySettings';
+import { AgentSettings } from '../components/settings/AgentSettings';
 import { useTranslation } from '../i18n';
 
-type SettingsCategory = 'general' | 'providers' | 'skills' | 'computerUse' | 'memory' | 'about';
+type SettingsCategory = 'general' | 'providers' | 'skills' | 'computerUse' | 'memory' | 'agents' | 'about';
 
 export function SettingsPage() {
   const t = useTranslation();
@@ -50,6 +51,12 @@ export function SettingsPage() {
               active={activeCategory === 'memory'}
               onClick={() => setActiveCategory('memory')}
             />
+            <CategoryButton
+              icon={<AgentIcon />}
+              label={t('settings.agents')}
+              active={activeCategory === 'agents'}
+              onClick={() => setActiveCategory('agents')}
+            />
           </div>
           <div className="border-t border-[var(--color-border)] pt-1">
             <CategoryButton
@@ -68,6 +75,7 @@ export function SettingsPage() {
           {activeCategory === 'skills' && <SkillsSettings />}
           {activeCategory === 'computerUse' && <ComputerUseSettings />}
           {activeCategory === 'memory' && <MemorySettings />}
+          {activeCategory === 'agents' && <AgentSettings />}
           {activeCategory === 'about' && <AboutSettings />}
         </div>
       </div>
@@ -347,6 +355,23 @@ function MemoryIcon() {
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96.44 2.5 2.5 0 0 1-2.96-3.08 3 3 0 0 1-.34-5.58 2.5 2.5 0 0 1 1.32-4.24 2.5 2.5 0 0 1 1.98-3A2.5 2.5 0 0 1 9.5 2Z" />
       <path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96.44 2.5 2.5 0 0 0 2.96-3.08 3 3 0 0 0 .34-5.58 2.5 2.5 0 0 0-1.32-4.24 2.5 2.5 0 0 0-1.98-3A2.5 2.5 0 0 0 14.5 2Z" />
+    </svg>
+  );
+}
+
+function AgentIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="4" y="4" width="16" height="16" rx="2" />
+      <rect x="9" y="9" width="6" height="6" />
+      <line x1="9" y1="1" x2="9" y2="4" />
+      <line x1="15" y1="1" x2="15" y2="4" />
+      <line x1="9" y1="20" x2="9" y2="23" />
+      <line x1="15" y1="20" x2="15" y2="23" />
+      <line x1="20" y1="9" x2="23" y2="9" />
+      <line x1="20" y1="14" x2="23" y2="14" />
+      <line x1="1" y1="9" x2="4" y2="9" />
+      <line x1="1" y1="14" x2="4" y2="14" />
     </svg>
   );
 }

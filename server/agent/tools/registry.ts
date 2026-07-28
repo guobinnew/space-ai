@@ -24,6 +24,7 @@ import { taskUpdateTool } from './TaskUpdateTool'
 import { taskListTool } from './TaskListTool'
 import { powerShellTool } from './PowerShellTool'
 import { computerUseTool } from './ComputerUseTool'
+import { agentTool } from './AgentTool'
 
 /** 所有内建工具 */
 const builtinTools: Tool[] = [
@@ -45,6 +46,7 @@ const builtinTools: Tool[] = [
   skillTool,
   powerShellTool,
   computerUseTool,
+  agentTool,
 ]
 
 /** 工具名 → 工具实例 映射 */
