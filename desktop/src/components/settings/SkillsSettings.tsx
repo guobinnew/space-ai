@@ -154,17 +154,41 @@ export function SkillsSettings() {
       console.log('[SkillsSettings] handleSkillClick: skillId =', skillId, 'skill =', skill)
       const data = await skillsApi.detail(skillId)
       console.log('[SkillsSettings] detail response:', data)
-      // 防御性检查：确保返回的数据结构正确
-      if (!data || !data.meta) {
+      // 兼容两种响应格式：
+      // 新格式: { meta, tree, files, skillRoot }
+      // 旧格式: { skill: { name, description, content, ... } }
+      const detailData = data as any
+      if (detailData?.meta) {
+        // 新格式（服务端已重启）
+        setDetail(detailData)
+        const skillMd = detailData.files?.find((f: any) => f.name === 'SKILL.md')
+        if (skillMd) {
+          setSelectedFile(skillMd)
+          await loadFileContent(detailData.meta.dirName || detailData.meta.name, skillMd.path)
+        }
+      } else if (detailData?.skill) {
+        // 旧格式（服务端未重启，/detail 端点不存在，回退到 /:name）
+        const s = detailData.skill
+        const fallbackDetail = {
+          meta: {
+            name: s.name,
+            description: s.description,
+            source: s.source,
+            userInvocable: s.userInvocable,
+            tokenEstimate: s.tokenEstimate,
+            basePath: s.basePath || '',
+            dirName: s.dirName,
+          },
+          tree: [],
+          files: [{ path: 'SKILL.md', name: 'SKILL.md', size: s.content?.length || 0, language: 'markdown' }],
+          skillRoot: '',
+        }
+        setDetail(fallbackDetail)
+        setSelectedFile(fallbackDetail.files[0])
+        setFileContent(s.content || '')
+        setFileLanguage('markdown')
+      } else {
         throw new Error('Invalid skill detail response')
-      }
-      setDetail(data)
-      // 默认选中 SKILL.md
-      const skillMd = data.files?.find(f => f.name === 'SKILL.md')
-      if (skillMd) {
-        setSelectedFile(skillMd)
-        // 使用 dirName 加载文件（更可靠）
-        await loadFileContent(data.meta.dirName || data.meta.name, skillMd.path)
       }
     } catch (err) {
       console.log('[SkillsSettings] detail failed, trying fallback:', err)
