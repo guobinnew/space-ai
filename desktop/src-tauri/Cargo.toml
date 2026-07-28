@@ -1,6 +1,6 @@
 [package]
 name = "smart-lab"
-version = "1.1.0"
+version = "1.2.0"
 description = "Smart Lab Desktop Application"
 authors = ["you"]
 edition = "2021"

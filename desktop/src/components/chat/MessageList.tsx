@@ -68,6 +68,17 @@ function buildRenderModel(messages: UIMessage[], toolCalls: ToolCallInfo[]): Ren
   return items
 }
 
+// 注入一次全局样式（content-visibility 优化）
+if (typeof document !== 'undefined' && !document.querySelector('#ml-scroll-styles')) {
+  const style = document.createElement('style');
+  style.id = 'ml-scroll-styles';
+  style.textContent = `
+    .msg-item { content-visibility: auto; contain-intrinsic-size: 80px; }
+    .msg-list-container { overscroll-behavior: contain; scroll-behavior: smooth; contain: layout style paint; }
+  `;
+  document.head.appendChild(style);
+}
+
 export function MessageList({
   messages,
   streamingText,
@@ -82,6 +93,7 @@ export function MessageList({
   const t = useTranslation();
   const endRef = useRef<HTMLDivElement>(null);
   const initialScrollDone = useRef(false);
+  const scrollRAF = useRef<number | null>(null);
 
   // Build render model from messages (preserves chronological order)
   const renderItems = useMemo(
@@ -97,26 +109,48 @@ export function MessageList({
     const scrollParent = el.parentElement?.parentElement;
     if (!scrollParent) return;
 
+    // Cancel any pending RAF
+    if (scrollRAF.current !== null) {
+      cancelAnimationFrame(scrollRAF.current);
+    }
+
     if (!initialScrollDone.current) {
       if (messages.length > 0) {
         initialScrollDone.current = true;
-        requestAnimationFrame(() => { scrollParent.scrollTop = scrollParent.scrollHeight; });
+        scrollRAF.current = requestAnimationFrame(() => {
+          scrollParent.scrollTo({ top: scrollParent.scrollHeight, behavior: 'instant' });
+          scrollRAF.current = null;
+        });
       }
       return;
     }
 
+    // New message -> smooth scroll to bottom
     if (messages.length > prevMsgCountRef.current) {
       prevMsgCountRef.current = messages.length;
-      scrollParent.scrollTop = scrollParent.scrollHeight;
+      scrollRAF.current = requestAnimationFrame(() => {
+        scrollParent.scrollTo({ top: scrollParent.scrollHeight, behavior: 'smooth' });
+        scrollRAF.current = null;
+      });
       return;
     }
     prevMsgCountRef.current = messages.length;
 
+    // Stream update: keep at bottom if user is near bottom
     const distanceFromBottom =
       scrollParent.scrollHeight - scrollParent.scrollTop - scrollParent.clientHeight;
     if (distanceFromBottom < 100) {
-      scrollParent.scrollTop = scrollParent.scrollHeight;
+      scrollRAF.current = requestAnimationFrame(() => {
+        scrollParent.scrollTo({ top: scrollParent.scrollHeight, behavior: 'instant' });
+        scrollRAF.current = null;
+      });
     }
+
+    return () => {
+      if (scrollRAF.current !== null) {
+        cancelAnimationFrame(scrollRAF.current);
+      }
+    };
   }, [messages.length, streamingText, thinkingText, toolCalls.length]);
 
   if (messages.length === 0 && !streamingText && chatState === 'idle' && toolCalls.length === 0) {
@@ -148,7 +182,7 @@ export function MessageList({
             status: isRunning ? 'running' : result ? (result.isError ? 'error' : 'completed') : 'running',
           };
           return (
-            <div key={msg.id} className="flex flex-col">
+            <div key={msg.id} className="msg-item">
               <ToolCallBlock toolCall={info} />
             </div>
           );
@@ -156,23 +190,33 @@ export function MessageList({
 
         const msg = item.msg;
         if (msg.type === 'user_text') {
-          return <UserMessage key={msg.id} content={msg.content} createdAt={msg.createdAt} />;
+          return (
+            <div key={msg.id} className="msg-item">
+              <UserMessage content={msg.content} createdAt={msg.createdAt} />
+            </div>
+          );
         }
         if (msg.type === 'assistant_text') {
-          return <AssistantMessage key={msg.id} content={msg.content} createdAt={msg.createdAt} />;
+          return (
+            <div key={msg.id} className="msg-item">
+              <AssistantMessage content={msg.content} createdAt={msg.createdAt} />
+            </div>
+          );
         }
         if (msg.type === 'thinking') {
           return (
-            <div key={msg.id}>
+            <div key={msg.id} className="msg-item">
               <ThinkingBlock content={msg.content} isActive={false} />
             </div>
           );
         }
         if (msg.type === 'error') {
           return (
-            <div key={msg.id} className="flex justify-start ml-10">
-              <div className="max-w-[80%] rounded-xl px-4 py-2.5 text-sm border border-[var(--color-error)]/30 bg-[var(--color-error)]/5 text-[var(--color-error)]">
-                {msg.message}
+            <div key={msg.id} className="msg-item">
+              <div className="flex justify-start ml-10">
+                <div className="max-w-[80%] rounded-xl px-4 py-2.5 text-sm border border-[var(--color-error)]/30 bg-[var(--color-error)]/5 text-[var(--color-error)]">
+                  {msg.message}
+                </div>
               </div>
             </div>
           );

@@ -6,7 +6,7 @@
  * 去掉 MermaidRenderer/CodeViewer/editorStore 依赖。
  */
 
-import { useMemo, useCallback } from 'react'
+import { useEffect, useMemo, useCallback } from 'react'
 import DOMPurify from 'dompurify'
 import { marked, type Tokens } from 'marked'
 import { useTranslation } from '../../i18n'
@@ -105,8 +105,19 @@ function enhanceHtml(html: string): string {
 
 // ─── 组件 ─────────────────────────────────────────────────────
 
+/** 全局样式注入（只注入一次） */
+let stylesInjected = false
+function injectStyles() {
+  if (stylesInjected || typeof document === 'undefined') return
+  stylesInjected = true
+  const el = document.createElement('style')
+  el.textContent = markdownStyles
+  document.head.appendChild(el)
+}
+
 export function MarkdownRenderer({ content, className }: Props) {
   const t = useTranslation()
+  useEffect(() => { injectStyles() }, [])
   const { html, codeBlocks } = useMemo(() => parseMarkdown(content), [content])
 
   // 将 HTML 按代码块占位符拆分，代码块用 React 组件渲染
@@ -133,6 +144,14 @@ export function MarkdownRenderer({ content, className }: Props) {
     return result
   }, [html, codeBlocks])
 
+  // 增强 HTML：表格包裹、链接处理（仅在 content 变化时执行）
+  const enhancedParts = useMemo(
+    () => parts.map((part) =>
+      part.type === 'html' ? { ...part, content: enhanceHtml(part.content) } : part
+    ),
+    [parts],
+  )
+
   const handleClick = useCallback(async (event: React.MouseEvent<HTMLDivElement>) => {
     const target = event.target as HTMLElement | null
 
@@ -153,10 +172,9 @@ export function MarkdownRenderer({ content, className }: Props) {
 
   return (
     <div className={`markdown-prose ${className || ''}`} onClick={handleClick}>
-      <style>{markdownStyles}</style>
-      {parts.map((part, i) =>
+      {enhancedParts.map((part, i) =>
         part.type === 'html' ? (
-          <div key={i} dangerouslySetInnerHTML={{ __html: enhanceHtml(part.content) }} />
+          <div key={i} dangerouslySetInnerHTML={{ __html: part.content }} />
         ) : (
           <CodeBlock key={part.block.id} block={part.block} t={t} />
         )
@@ -164,6 +182,8 @@ export function MarkdownRenderer({ content, className }: Props) {
     </div>
   )
 }
+
+// ─── CSS 样式（模块级别常量，避免每次渲染重建）────────────
 
 // ─── 代码块组件 ───────────────────────────────────────────────
 

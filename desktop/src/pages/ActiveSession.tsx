@@ -429,7 +429,7 @@ export function ActiveSession({ sessionId }: { sessionId: string }) {
         ) : (
           <>
             {/* Messages */}
-            <div ref={messagesContainerRef} className="flex-1 overflow-y-auto px-4">
+            <div ref={messagesContainerRef} className="flex-1 overflow-y-auto px-4 msg-list-container">
               <MessageList
                 messages={sessionState.messages}
                 streamingText={sessionState.streamingText}
