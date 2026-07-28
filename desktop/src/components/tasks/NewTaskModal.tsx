@@ -102,9 +102,9 @@ export function NewTaskModal({ open, onClose, editTask, initialPrompt }: Props) 
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
-      <div className="w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-xl" onClick={(e) => e.stopPropagation()}>
+      <div className="w-full max-w-lg mx-4 max-h-[90vh] flex flex-col rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-xl" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
-        <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-[var(--color-border)]">
+        <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-[var(--color-border)] shrink-0">
           <h2 className="text-base font-semibold text-[var(--color-text-primary)]">
             {isEdit ? t('task.editTitle') : t('task.newTitle')}
           </h2>
@@ -114,7 +114,7 @@ export function NewTaskModal({ open, onClose, editTask, initialPrompt }: Props) 
         </div>
 
         {/* Body */}
-        <div className="px-5 py-4 space-y-4">
+        <div className="px-5 py-4 space-y-4 overflow-y-auto">
 
           {/* Info banner */}
           <div className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-lg bg-[var(--color-surface-container)]">
