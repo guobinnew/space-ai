@@ -150,15 +150,45 @@ export function SkillsSettings() {
     setIsDetailLoading(true)
     try {
       const data = await skillsApi.detail(skill.name)
+      // 防御性检查：确保返回的数据结构正确
+      if (!data || !data.meta) {
+        throw new Error('Invalid skill detail response')
+      }
       setDetail(data)
       // 默认选中 SKILL.md
-      const skillMd = data.files.find(f => f.name === 'SKILL.md')
+      const skillMd = data.files?.find(f => f.name === 'SKILL.md')
       if (skillMd) {
         setSelectedFile(skillMd)
-        await loadFileContent(skill.name, skillMd.path)
+        await loadFileContent(data.meta.name, skillMd.path)
       }
     } catch (err) {
-      setMessage({ type: 'error', text: err instanceof Error ? err.message : 'Failed to load skill detail' })
+      // 如果 detail 端点失败（如服务端未重启），尝试回退到旧的 get 端点
+      try {
+        const fallback = await skillsApi.get(skill.name)
+        if (fallback?.skill) {
+          const s = fallback.skill
+          setDetail({
+            meta: {
+              name: s.name,
+              description: s.description,
+              source: s.source,
+              userInvocable: s.userInvocable,
+              tokenEstimate: s.tokenEstimate,
+              basePath: '',
+            },
+            tree: [],
+            files: [{ path: 'SKILL.md', name: 'SKILL.md', size: s.content?.length || 0, language: 'markdown' }],
+            skillRoot: '',
+          })
+          setSelectedFile({ path: 'SKILL.md', name: 'SKILL.md', size: s.content?.length || 0, language: 'markdown' })
+          setFileContent(s.content || '')
+          setFileLanguage('markdown')
+        } else {
+          throw err
+        }
+      } catch {
+        setMessage({ type: 'error', text: err instanceof Error ? err.message : 'Failed to load skill detail' })
+      }
     } finally {
       setIsDetailLoading(false)
     }
@@ -225,7 +255,7 @@ export function SkillsSettings() {
 
   // ─── Detail view ───────────────────────────────────────────
 
-  if (detail) {
+  if (detail && detail.meta) {
     const isMarkdown = selectedFile?.language === 'markdown'
 
     return (
