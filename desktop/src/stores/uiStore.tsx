@@ -80,9 +80,12 @@ export function UIProvider({ children }: { children: ReactNode }) {
     document.documentElement.setAttribute('data-theme', theme);
   }, [theme]);
 
-  // locale 变化：应用到 DOM
+  // locale 变化：应用到 DOM + 更新 Home tab 标题
   useEffect(() => {
     document.documentElement.setAttribute('data-locale', locale);
+    setTabs(prev => prev.map(tab =>
+      tab.id === HOME_TAB_ID ? { ...tab, title: translate('sidebar.home', locale) } : tab
+    ));
   }, [locale]);
 
   // 持久化到服务端的 setter（局部更新，失败静默）
