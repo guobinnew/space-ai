@@ -149,7 +149,9 @@ export function SkillsSettings() {
   const handleSkillClick = async (skill: SkillMeta) => {
     setIsDetailLoading(true)
     try {
-      const data = await skillsApi.detail(skill.name)
+      // 优先使用 dirName（磁盘目录名），避免 name 含特殊字符导致查找失败
+      const skillId = skill.dirName || skill.name
+      const data = await skillsApi.detail(skillId)
       // 防御性检查：确保返回的数据结构正确
       if (!data || !data.meta) {
         throw new Error('Invalid skill detail response')
@@ -159,12 +161,14 @@ export function SkillsSettings() {
       const skillMd = data.files?.find(f => f.name === 'SKILL.md')
       if (skillMd) {
         setSelectedFile(skillMd)
-        await loadFileContent(data.meta.name, skillMd.path)
+        // 使用 dirName 加载文件（更可靠）
+        await loadFileContent(data.meta.dirName || data.meta.name, skillMd.path)
       }
     } catch (err) {
       // 如果 detail 端点失败（如服务端未重启），尝试回退到旧的 get 端点
       try {
-        const fallback = await skillsApi.get(skill.name)
+        const fallbackId = skill.dirName || skill.name
+        const fallback = await skillsApi.get(fallbackId)
         if (fallback?.skill) {
           const s = fallback.skill
           setDetail({
@@ -175,6 +179,7 @@ export function SkillsSettings() {
               userInvocable: s.userInvocable,
               tokenEstimate: s.tokenEstimate,
               basePath: '',
+              dirName: s.dirName,
             },
             tree: [],
             files: [{ path: 'SKILL.md', name: 'SKILL.md', size: s.content?.length || 0, language: 'markdown' }],
@@ -220,7 +225,8 @@ export function SkillsSettings() {
     const file = detail.files.find(f => f.path === filePath)
     if (file) {
       setSelectedFile(file)
-      loadFileContent(detail.meta.name, filePath)
+      // 使用 dirName 加载文件（更可靠）
+      loadFileContent(detail.meta.dirName || detail.meta.name, filePath)
     }
   }, [detail])
 

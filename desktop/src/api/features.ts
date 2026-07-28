@@ -12,6 +12,8 @@ type SkillMeta = {
   source: 'builtin' | 'user' | 'project'
   userInvocable: boolean
   tokenEstimate?: number
+  /** 磁盘上的实际目录名（可能与 name 不同） */
+  dirName?: string
 }
 
 /** 技能文件树节点 */
@@ -34,7 +36,7 @@ type SkillFileEntry = {
 
 /** 技能完整详情（含文件树） */
 type SkillFullDetail = {
-  meta: SkillMeta & { basePath: string }
+  meta: SkillMeta & { basePath: string; dirName?: string }
   tree: SkillFileNode[]
   files: SkillFileEntry[]
   skillRoot: string

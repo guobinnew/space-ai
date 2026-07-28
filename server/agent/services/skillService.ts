@@ -28,6 +28,8 @@ export interface SkillMeta {
   userInvocable: boolean
   tokenEstimate?: number
   basePath?: string
+  /** 磁盘上的实际目录名（可能与 name 不同） */
+  dirName?: string
 }
 
 export interface SkillDetail extends SkillMeta {
@@ -113,6 +115,7 @@ export class SkillService {
       content,
       basePath: dirPath,
       tokenEstimate: this.estimateTokens(raw),
+      dirName,
     }
   }
 
@@ -137,9 +140,49 @@ export class SkillService {
     return skills
   }
 
+  /** 根据 name 或 dirName 查找技能目录 */
+  private async findSkillDir(nameOrDirName: string): Promise<string | null> {
+    const skillsDir = this.getSkillsDir()
+
+    // 1. 先尝试直接作为目录名
+    const directPath = path.join(skillsDir, nameOrDirName)
+    try {
+      const skillFile = path.join(directPath, SKILL_FILENAME)
+      await fs.access(skillFile)
+      return directPath
+    } catch {
+      // 目录不存在，继续搜索
+    }
+
+    // 2. 扫描所有目录，匹配 frontmatter name 或 dirName
+    let entries: import('fs').Dirent[]
+    try {
+      entries = await fs.readdir(skillsDir, { withFileTypes: true })
+    } catch {
+      return null
+    }
+
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue
+      // 匹配目录名
+      if (entry.name === nameOrDirName) {
+        return path.join(skillsDir, entry.name)
+      }
+      // 匹配 frontmatter name
+      const detail = await this.loadSkill(path.join(skillsDir, entry.name), entry.name)
+      if (detail && detail.name === nameOrDirName) {
+        return path.join(skillsDir, entry.name)
+      }
+    }
+
+    return null
+  }
+
   async getSkill(name: string): Promise<SkillDetail> {
-    const dirPath = path.join(this.getSkillsDir(), name)
-    const detail = await this.loadSkill(dirPath, name)
+    const dirPath = await this.findSkillDir(name)
+    if (!dirPath) throw ApiError.notFound(`Skill not found: ${name}`)
+    const dirName = path.basename(dirPath)
+    const detail = await this.loadSkill(dirPath, dirName)
     if (!detail) throw ApiError.notFound(`Skill not found: ${name}`)
     return detail
   }
@@ -234,8 +277,10 @@ export class SkillService {
   }
 
   async getSkillDetail(name: string): Promise<SkillFullDetail> {
-    const dirPath = path.join(this.getSkillsDir(), name)
-    const detail = await this.loadSkill(dirPath, name)
+    const dirPath = await this.findSkillDir(name)
+    if (!dirPath) throw ApiError.notFound(`Skill not found: ${name}`)
+    const dirName = path.basename(dirPath)
+    const detail = await this.loadSkill(dirPath, dirName)
     if (!detail) throw ApiError.notFound(`Skill not found: ${name}`)
 
     const tree = await this.scanDir(dirPath, dirPath)
@@ -249,6 +294,7 @@ export class SkillService {
         userInvocable: detail.userInvocable,
         tokenEstimate: detail.tokenEstimate,
         basePath: detail.basePath,
+        dirName: detail.dirName,
       },
       tree,
       files,
@@ -257,7 +303,8 @@ export class SkillService {
   }
 
   async getSkillFile(name: string, filePath: string): Promise<{ content: string; language: string }> {
-    const dirPath = path.join(this.getSkillsDir(), name)
+    const dirPath = await this.findSkillDir(name)
+    if (!dirPath) throw ApiError.notFound(`Skill not found: ${name}`)
 
     // 安全检查：确保文件在技能目录内
     const fullPath = path.resolve(dirPath, filePath)
