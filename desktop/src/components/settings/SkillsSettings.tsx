@@ -150,7 +150,13 @@ export function SkillsSettings() {
     setIsDetailLoading(true)
     try {
       // 优先使用 dirName（磁盘目录名），避免 name 含特殊字符导致查找失败
-      const skillId = skill.dirName || skill.name
+      // 如果 dirName 不存在（服务端未重启），从 basePath 中提取目录名
+      let skillId = skill.dirName || skill.name
+      if (!skill.dirName && skill.basePath) {
+        // 从 basePath 提取最后一段作为目录名
+        const parts = skill.basePath.replace(/[\\/]+$/, '').split(/[\\/]/)
+        skillId = parts[parts.length - 1] || skill.name
+      }
       console.log('[SkillsSettings] handleSkillClick: skillId =', skillId, 'skill =', skill)
       const data = await skillsApi.detail(skillId)
       console.log('[SkillsSettings] detail response:', data)
@@ -194,8 +200,8 @@ export function SkillsSettings() {
       console.log('[SkillsSettings] detail failed, trying fallback:', err)
       // 如果 detail 端点失败（如服务端未重启），尝试回退到旧的 get 端点
       try {
-        const fallbackId = skill.dirName || skill.name
-        const fallback = await skillsApi.get(fallbackId)
+        // 使用与 try 块相同的 skillId 计算逻辑
+        const fallback = await skillsApi.get(skillId)
         if (fallback?.skill) {
           const s = fallback.skill
           setDetail({
