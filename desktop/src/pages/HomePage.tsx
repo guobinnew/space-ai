@@ -156,7 +156,7 @@ export function HomePage() {
 
   return (
     <div className="flex-1 overflow-y-auto bg-[var(--color-surface)]">
-      <div className="mx-auto max-w-3xl px-8 py-10">
+      <div className="w-full px-6 py-8 lg:px-10 xl:px-14">
         {/* ── Header ── */}
         <div className="flex items-center justify-between mb-8">
           <div>
@@ -177,7 +177,7 @@ export function HomePage() {
         </div>
 
         {/* ── Stats ── */}
-        <div className="grid grid-cols-4 gap-3 mb-8">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
           <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-container-low)] px-4 py-3.5">
             <div className="text-lg font-bold text-[var(--color-text-primary)]">{totalSessions}</div>
             <div className="text-xs text-[var(--color-text-tertiary)] mt-0.5">{t('home.totalSessions')}</div>
@@ -201,7 +201,7 @@ export function HomePage() {
           <h2 className="text-xs font-semibold text-[var(--color-text-tertiary)] uppercase tracking-wider mb-3">
             {t('home.quickActions')}
           </h2>
-          <div className="grid grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             <button
               onClick={handleNewSession}
               className="group rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-container-low)] p-4 text-left hover:border-[var(--color-brand)]/40 hover:bg-[var(--color-surface-container)] transition-all"
@@ -257,8 +257,10 @@ export function HomePage() {
           </div>
         </div>
 
+        {/* ── Two-column: Tasks + Sessions ── */}
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-8">
         {/* ── Active Scheduled Tasks ── */}
-        <div className="mb-8">
+        <div>
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-xs font-semibold text-[var(--color-text-tertiary)] uppercase tracking-wider">
               {t('home.activeTasks')}
@@ -333,7 +335,7 @@ export function HomePage() {
         </div>
 
         {/* ── Recent Sessions ── */}
-        <div className="mb-8">
+        <div>
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-xs font-semibold text-[var(--color-text-tertiary)] uppercase tracking-wider">
               {t('home.recentSessions')}
@@ -409,6 +411,7 @@ export function HomePage() {
               ))}
             </div>
           )}
+        </div>
         </div>
 
         {/* ── Footer ── */}
