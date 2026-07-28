@@ -124,7 +124,7 @@ export function useTTS() {
           continue
         }
         // 同步获取并存入缓存
-        const entry = await fetchSegmentAudio(idx, segs, voice)
+        await fetchSegmentAudio(idx, segs, voice)
         if (cancelledRef.current) break
         cachedCharsRef.current += segs[idx]?.length || 0
         nextPrefetchIdxRef.current++

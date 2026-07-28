@@ -37,7 +37,7 @@ export function ActiveSession({ sessionId }: { sessionId: string }) {
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const {
     tasks: taskList,
-    hasPending,
+    hasPending: _hasPending,
     nextPending,
     fetchSessionTasks,
     clearTasks,

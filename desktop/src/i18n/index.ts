@@ -240,7 +240,7 @@ const translations: Record<Locale, Record<string, string>> = {
     'settings.about.desc': '应用基本信息',
     'settings.about.version': '版本',
     'settings.about.body': '智能工作台 是一个桌面客户端 + 内嵌服务端的应用，基于 Tauri + React + Bun 构建。',
-    'settings.about.contactAuthor': '联系作者',
+    'settings.about.contactAuthor': 'Unique',
     'settings.about.contactDesc': '扫码联系作者',
 
     // Providers
@@ -663,7 +663,7 @@ const translations: Record<Locale, Record<string, string>> = {
     'settings.about.desc': 'Application information',
     'settings.about.version': 'Version',
     'settings.about.body': 'Smart Lab is a desktop client + embedded server application built with Tauri + React + Bun.',
-    'settings.about.contactAuthor': 'Contact Author',
+    'settings.about.contactAuthor': 'Unique',
     'settings.about.contactDesc': 'Scan to contact the author',
 
     // Providers

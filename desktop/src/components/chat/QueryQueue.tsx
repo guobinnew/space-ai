@@ -139,8 +139,8 @@ export function QueryQueue({ sessionId }: QueryQueueProps) {
                 <div
                   key={query.id}
                   draggable
-                  onDragStart={(e) => { dragItemRef.current = index; e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', String(index)) }}
-                  onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setDragOverIndex(index) }}
+                  onDragStart={(e) => handleDragStart(e, index)}
+                  onDragOver={(e) => handleDragOver(e, index)}
                   onDragLeave={handleDragLeave}
                   onDragEnd={() => { dragItemRef.current = null; setDragOverIndex(null) }}
                   onDrop={(e) => { e.preventDefault(); handleDrop(e, index) }}

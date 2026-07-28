@@ -2,7 +2,7 @@
   "$schema": "https://raw.githubusercontent.com/nicegui/tauri-v2-schema/main/tauri.conf.json",
   "productName": "Smart Lab",
   "version": "1.0.0",
-  "identifier": "com.smartlab.app",
+  "identifier": "com.smartlab.desktop",
   "build": {
     "frontendDist": "../dist",
     "devUrl": "http://localhost:1420",
