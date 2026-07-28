@@ -110,6 +110,7 @@ export function Sidebar() {
               style={{ fontFamily: 'var(--font-headline)' }}
             >
               Smart Space
+              <span className="ml-1.5 text-[10px] font-normal text-[var(--color-text-tertiary)]">v{__APP_VERSION__}</span>
             </span>
           </div>
           <button
