@@ -271,12 +271,54 @@ function GeneralSettings() {
 
 function AboutSettings() {
   const t = useTranslation();
-  return (
-    <div className="max-w-xl">
-      <h2 className="text-base font-semibold text-[var(--color-text-primary)] mb-1">{t('settings.about.title')}</h2>
-      <p className="text-sm text-[var(--color-text-tertiary)] mb-6">{t('settings.about.desc')}</p>
 
-      <div className="flex items-center gap-4 mb-6">
+  const features = [
+    { key: 'multiSession', icon: '💬', color: 'var(--color-brand)' },
+    { key: 'streaming', icon: '⚡', color: 'var(--color-warning)' },
+    { key: 'codeEditor', icon: '📝', color: 'var(--color-success)' },
+    { key: 'tools', icon: '🔧', color: 'var(--color-error)' },
+    { key: 'agents', icon: '🤖', color: 'var(--color-brand)' },
+    { key: 'scheduled', icon: '⏰', color: 'var(--color-success)' },
+    { key: 'tts', icon: '🔊', color: 'var(--color-warning)' },
+    { key: 'computer', icon: '🖥️', color: 'var(--color-error)' },
+    { key: 'usage', icon: '📊', color: 'var(--color-brand)' },
+    { key: 'i18n', icon: '🌐', color: 'var(--color-success)' },
+  ];
+
+  const archLayers = [
+    { key: 'frontend', color: 'var(--color-brand)' },
+    { key: 'desktop', color: 'var(--color-success)' },
+    { key: 'server', color: 'var(--color-warning)' },
+    { key: 'ai', color: 'var(--color-error)' },
+  ];
+
+  const providers = [
+    'Anthropic', 'OpenAI', 'Google', 'xAI', 'Mistral',
+    'DeepSeek', 'Qwen', 'Zhipu', 'Moonshot', 'MiniMax',
+    'Ollama', 'LM Studio',
+  ];
+
+  const techItems = [
+    { name: 'Tauri v2', desc: 'Rust' },
+    { name: 'React 18', desc: 'TypeScript' },
+    { name: 'Vite', desc: 'HMR' },
+    { name: 'Bun', desc: 'Runtime' },
+    { name: 'Tailwind CSS', desc: 'v4' },
+    { name: 'Monaco', desc: 'Editor' },
+    { name: 'WebSocket', desc: 'Real-time' },
+    { name: 'esbuild', desc: 'Bundle' },
+  ];
+
+  return (
+    <div className="max-w-2xl space-y-8">
+      {/* Header */}
+      <div>
+        <h2 className="text-base font-semibold text-[var(--color-text-primary)] mb-1">{t('settings.about.title')}</h2>
+        <p className="text-sm text-[var(--color-text-tertiary)] mb-6">{t('settings.about.desc')}</p>
+      </div>
+
+      {/* App identity */}
+      <div className="flex items-center gap-4">
         <img
           src="/icon.png"
           alt={t('app.name')}
@@ -293,13 +335,95 @@ function AboutSettings() {
         </div>
       </div>
 
+      {/* Description */}
       <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-container-low)] p-4">
         <div className="text-sm text-[var(--color-text-secondary)] leading-relaxed">
           {t('settings.about.body')}
         </div>
       </div>
 
-      <div className="mt-6 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-container-low)] p-4 flex items-center gap-4">
+      {/* Core Features */}
+      <div>
+        <h3 className="text-sm font-semibold text-[var(--color-text-primary)] mb-3">{t('settings.about.features')}</h3>
+        <div className="grid grid-cols-2 gap-2">
+          {features.map((f) => (
+            <div
+              key={f.key}
+              className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-container-low)] p-3 flex items-start gap-2.5"
+            >
+              <span className="text-base leading-none mt-0.5">{f.icon}</span>
+              <div className="min-w-0">
+                <div className="text-xs font-medium text-[var(--color-text-primary)]">
+                  {t(`settings.about.feat.${f.key}`)}
+                </div>
+                <div className="text-[11px] text-[var(--color-text-tertiary)] mt-0.5 leading-snug">
+                  {t(`settings.about.feat.${f.key}Desc`)}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Architecture */}
+      <div>
+        <h3 className="text-sm font-semibold text-[var(--color-text-primary)] mb-3">{t('settings.about.arch')}</h3>
+        <div className="grid grid-cols-2 gap-2">
+          {archLayers.map((layer) => (
+            <div
+              key={layer.key}
+              className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-container-low)] p-3"
+            >
+              <div className="flex items-center gap-2 mb-1">
+                <span
+                  className="w-2 h-2 rounded-full"
+                  style={{ backgroundColor: layer.color }}
+                />
+                <span className="text-xs font-medium text-[var(--color-text-primary)]">
+                  {t(`settings.about.arch.${layer.key}`)}
+                </span>
+              </div>
+              <div className="text-[11px] text-[var(--color-text-tertiary)] leading-snug">
+                {t(`settings.about.arch.${layer.key}Desc`)}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Tech Stack */}
+      <div>
+        <h3 className="text-sm font-semibold text-[var(--color-text-primary)] mb-3">{t('settings.about.techStack')}</h3>
+        <div className="flex flex-wrap gap-2">
+          {techItems.map((item) => (
+            <span
+              key={item.name}
+              className="inline-flex items-center gap-1.5 rounded-full border border-[var(--color-border)] bg-[var(--color-surface-container-low)] px-3 py-1.5"
+            >
+              <span className="text-xs font-medium text-[var(--color-text-primary)]">{item.name}</span>
+              <span className="text-[10px] text-[var(--color-text-tertiary)]">{item.desc}</span>
+            </span>
+          ))}
+        </div>
+      </div>
+
+      {/* Supported Providers */}
+      <div>
+        <h3 className="text-sm font-semibold text-[var(--color-text-primary)] mb-3">{t('settings.about.providers')}</h3>
+        <div className="flex flex-wrap gap-2">
+          {providers.map((name) => (
+            <span
+              key={name}
+              className="inline-flex items-center rounded-full border border-[var(--color-border)] bg-[var(--color-surface-container-low)] px-3 py-1 text-xs text-[var(--color-text-secondary)]"
+            >
+              {name}
+            </span>
+          ))}
+        </div>
+      </div>
+
+      {/* Contact Author */}
+      <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-container-low)] p-4 flex items-center gap-4">
         <img src="/author.png" alt={t('about.author')} className="h-20 w-auto opacity-80" />
         <div>
           <div className="text-sm font-medium text-[var(--color-text-primary)]">{t('settings.about.contactAuthor')}</div>
