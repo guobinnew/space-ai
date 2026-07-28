@@ -265,7 +265,9 @@ function AgentEditModal({
             <div className="px-3 py-2 rounded-lg bg-[var(--color-error)]/10 text-sm text-[var(--color-error)]">{error}</div>
           )}
           <div>
-            <label className="text-xs font-medium text-[var(--color-text-tertiary)]">{t('agent.name')}</label>
+            <label className="text-xs font-medium text-[var(--color-text-tertiary)]">
+              {t('agent.name')} <span className="text-[var(--color-error)]">*</span>
+            </label>
             <input
               value={form.agentType}
               onChange={(e) => setForm({ ...form, agentType: e.target.value })}
@@ -275,7 +277,9 @@ function AgentEditModal({
             />
           </div>
           <div>
-            <label className="text-xs font-medium text-[var(--color-text-tertiary)]">{t('agent.description')}</label>
+            <label className="text-xs font-medium text-[var(--color-text-tertiary)]">
+              {t('agent.description')} <span className="text-[var(--color-error)]">*</span>
+            </label>
             <textarea
               value={form.whenToUse}
               onChange={(e) => setForm({ ...form, whenToUse: e.target.value })}
@@ -285,7 +289,9 @@ function AgentEditModal({
             />
           </div>
           <div>
-            <label className="text-xs font-medium text-[var(--color-text-tertiary)]">{t('agent.systemPrompt')}</label>
+            <label className="text-xs font-medium text-[var(--color-text-tertiary)]">
+              {t('agent.systemPrompt')} <span className="text-[var(--color-error)]">*</span>
+            </label>
             <textarea
               value={form.systemPrompt}
               onChange={(e) => setForm({ ...form, systemPrompt: e.target.value })}

@@ -12,7 +12,7 @@ import { callPythonHelper, getVenvPythonPath, getRuntimeDir } from '../services/
 import { existsSync } from 'node:fs'
 import path from 'node:path'
 
-const COMPUTER_USE_TOOL_NAME = 'computer_use'
+const COMPUTER_USE_TOOL_NAME = 'UseComputer'
 
 const inputSchema: ToolInputJSONSchema = {
   type: 'object',
