@@ -102,12 +102,11 @@ export function Sidebar() {
       <div className="px-3 pt-3 pb-2" data-tauri-drag-region>
         <div className={`flex ${sidebarOpen ? 'items-center justify-between gap-3' : 'flex-col items-center gap-2'}`}>
           <div className={`flex min-w-0 items-center ${sidebarOpen ? 'gap-2.5' : 'justify-center'}`}>
-            <div
-              className="h-8 w-8 rounded-lg flex-shrink-0 flex items-center justify-center text-white font-bold text-sm"
-              style={{ background: 'var(--gradient-btn-primary)' }}
-            >
-              S
-            </div>
+            <img
+              src="/icon.png"
+              alt="Smart Lab"
+              className="h-8 w-8 rounded-lg flex-shrink-0"
+            />
             <span
               className={`sidebar-copy ${sidebarOpen ? 'sidebar-copy--visible' : 'sidebar-copy--hidden'} text-[13px] font-semibold tracking-tight text-[var(--color-text-primary)]`}
               style={{ fontFamily: 'var(--font-headline)' }}
