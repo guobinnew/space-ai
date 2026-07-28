@@ -277,12 +277,11 @@ function AboutSettings() {
       <p className="text-sm text-[var(--color-text-tertiary)] mb-6">{t('settings.about.desc')}</p>
 
       <div className="flex items-center gap-4 mb-6">
-        <div
-          className="h-16 w-16 rounded-2xl flex-shrink-0 flex items-center justify-center text-white text-2xl font-bold"
-          style={{ background: 'var(--gradient-btn-primary)', boxShadow: 'var(--shadow-dropdown)' }}
-        >
-          S
-        </div>
+        <img
+          src="/icon.png"
+          alt="Smart Lab"
+          className="h-16 w-16 rounded-2xl flex-shrink-0"
+        />
         <div>
           <div
             className="text-lg font-bold text-[var(--color-text-primary)]"
@@ -290,7 +289,7 @@ function AboutSettings() {
           >
             {t('app.name')}
           </div>
-          <div className="text-sm text-[var(--color-text-tertiary)] mt-0.5">{t('settings.about.version')}</div>
+          <div className="text-sm text-[var(--color-text-tertiary)] mt-0.5">{t('settings.about.version')} {__APP_VERSION__}</div>
         </div>
       </div>
 
