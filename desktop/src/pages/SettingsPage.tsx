@@ -298,6 +298,14 @@ function AboutSettings() {
           {t('settings.about.body')}
         </div>
       </div>
+
+      <div className="mt-6 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-container-low)] p-4 flex items-center gap-4">
+        <img src="/author.png" alt="author" className="h-20 w-auto opacity-80" />
+        <div>
+          <div className="text-sm font-medium text-[var(--color-text-primary)]">{t('settings.about.contactAuthor')}</div>
+          <div className="text-xs text-[var(--color-text-tertiary)] mt-0.5">{t('settings.about.contactDesc')}</div>
+        </div>
+      </div>
     </div>
   );
 }
