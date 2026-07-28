@@ -3,6 +3,7 @@
  * Also reverse-parse cron into UI form state.
  */
 import { translate } from '../i18n'
+import type { Locale } from '../stores/uiStore'
 
 export type FrequencyKey = 'everyNMinutes' | 'everyNHours' | 'daily' | 'weekdays' | 'specificDays' | 'monthly' | 'customCron'
 
@@ -33,7 +34,7 @@ function formatTime(hour: number, minute: number): string { return `${pad(hour)}
 
 const DOW_LABELS = ['cron.dow0', 'cron.dow1', 'cron.dow2', 'cron.dow3', 'cron.dow4', 'cron.dow5', 'cron.dow6']
 
-function describeDow(field: string): string {
+function describeDow(field: string, locale: Locale): string {
   const days: number[] = []
   for (const part of field.split(',')) {
     const range = part.match(/^(\d+)-(\d+)$/)
@@ -43,21 +44,21 @@ function describeDow(field: string): string {
       days.push(parseInt(part))
     }
   }
-  return days.map((d) => translate(DOW_LABELS[d % 7])).join(', ')
+  return days.map((d) => translate(DOW_LABELS[d % 7]!, locale)).join(', ')
 }
 
-export function describeCron(cron: string): string {
+export function describeCron(cron: string, locale: Locale = 'zh'): string {
   const fields = cron.trim().split(/\s+/)
-  if (fields.length !== 5) return translate('cron.custom', { cron })
+  if (fields.length !== 5) return translate('cron.custom', locale, { cron })
   const [min, hour, dom, month, dow] = fields as string[]
 
   if (hour === '*' && dom === '*' && month === '*' && dow === '*') {
     const stepMatch = min.match(/^\*\/(\d+)$/)
     if (stepMatch) {
       const n = parseInt(stepMatch[1]!)
-      return n === 1 ? translate('cron.everyMinute') : translate('cron.everyNMinutes', { n })
+      return n === 1 ? translate('cron.everyMinute', locale) : translate('cron.everyNMinutes', locale, { n })
     }
-    if (min === '*') return translate('cron.everyMinute')
+    if (min === '*') return translate('cron.everyMinute', locale)
   }
 
   if (/^\d+$/.test(min) && dom === '*' && month === '*' && dow === '*') {
@@ -65,23 +66,23 @@ export function describeCron(cron: string): string {
     if (stepMatch) {
       const n = parseInt(stepMatch[1]!)
       const m = parseInt(min)
-      if (m === 0) return n === 1 ? translate('cron.everyHour') : translate('cron.everyNHours', { n })
-      return translate('cron.everyNHoursAt', { n, m: pad(m) })
+      if (m === 0) return n === 1 ? translate('cron.everyHour', locale) : translate('cron.everyNHours', locale, { n })
+      return translate('cron.everyNHoursAt', locale, { n, m: pad(m) })
     }
   }
 
   if (/^\d+$/.test(min) && /^\d+$/.test(hour) && dom === '*' && month === '*') {
     const time = formatTime(parseInt(hour), parseInt(min))
-    if (dow === '*') return translate('cron.daily', { time })
-    if (dow === '1-5') return translate('cron.weekdays', { time })
-    if (/^[\d,\-]+$/.test(dow)) return translate('cron.specificDays', { days: describeDow(dow), time })
+    if (dow === '*') return translate('cron.daily', locale, { time })
+    if (dow === '1-5') return translate('cron.weekdays', locale, { time })
+    if (/^[\d,\-]+$/.test(dow)) return translate('cron.specificDays', locale, { days: describeDow(dow, locale), time })
   }
 
   if (/^\d+$/.test(min) && /^\d+$/.test(hour) && /^\d+$/.test(dom) && month === '*' && dow === '*') {
-    return translate('cron.monthly', { day: parseInt(dom), time: formatTime(parseInt(hour), parseInt(min)) })
+    return translate('cron.monthly', locale, { day: parseInt(dom), time: formatTime(parseInt(hour), parseInt(min)) })
   }
 
-  return translate('cron.custom', { cron })
+  return translate('cron.custom', locale, { cron })
 }
 
 export function parseCron(cron: string): ParsedCron {

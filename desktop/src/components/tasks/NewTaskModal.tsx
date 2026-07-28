@@ -3,6 +3,7 @@ import { createScheduledTask, updateScheduledTask, type ScheduledTask } from '..
 import { DayOfWeekPicker } from './DayOfWeekPicker'
 import { describeCron, isValidCron, parseCron, type FrequencyKey } from '../../lib/cronDescribe'
 import { useTranslation } from '../../i18n'
+import { useUIStore } from '../../stores/uiStore'
 
 type Props = {
   open: boolean
@@ -44,6 +45,7 @@ const FREQUENCIES: { value: FrequencyKey; key: string }[] = [
 
 export function NewTaskModal({ open, onClose, editTask, initialPrompt }: Props) {
   const t = useTranslation()
+  const { locale } = useUIStore()
   const isEdit = !!editTask
   const parsed = editTask ? parseCron(editTask.cron) : null
 
@@ -247,7 +249,7 @@ export function NewTaskModal({ open, onClose, editTask, initialPrompt }: Props) 
             <span>
               {frequency === 'customCron' && customCron.trim() && !isValidCron(customCron)
                 ? t('task.cronInvalid')
-                : describeCron(cronValue)
+                : describeCron(cronValue, locale)
               }
             </span>
           </div>

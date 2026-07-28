@@ -5,6 +5,7 @@ import { describeCron } from '../../lib/cronDescribe'
 import { TaskRunsPanel } from './TaskRunsPanel'
 import { NewTaskModal } from './NewTaskModal'
 import { useTranslation, localeTag } from '../../i18n'
+import { useUIStore } from '../../stores/uiStore'
 
 type Props = {
   task: ScheduledTask
@@ -17,6 +18,7 @@ type ConfirmAction = 'run' | 'toggle' | 'delete' | null
 
 export function TaskRow({ task, showLogs, onToggleLogs, onRefresh }: Props) {
   const t = useTranslation()
+  const { locale } = useUIStore()
   const [showEdit, setShowEdit] = useState(false)
   const [showMenu, setShowMenu] = useState(false)
   const [isRunning, setIsRunning] = useState(false)
@@ -101,7 +103,7 @@ export function TaskRow({ task, showLogs, onToggleLogs, onRefresh }: Props) {
         {/* Right */}
         <div className="flex items-center gap-3 shrink-0">
           <span className="text-xs text-[var(--color-text-tertiary)]" title={task.cron}>
-            {describeCron(task.cron)}
+            {describeCron(task.cron, locale)}
           </span>
 
           <div className="flex items-center gap-0.5">
