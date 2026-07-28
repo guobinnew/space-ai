@@ -332,11 +332,11 @@ function ProviderFormModal({ onClose, onSaved, mode, provider }: ProviderFormMod
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
       <div
-        className="bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)] w-full max-w-lg max-h-[85vh] overflow-y-auto mx-4"
+        className="bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)] w-full max-w-lg max-h-[85vh] flex flex-col mx-4"
         style={{ boxShadow: 'var(--shadow-dropdown)' }}
       >
         {/* Modal header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--color-border)]">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--color-border)] flex-shrink-0">
           <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">
             {mode === 'create' ? t('provider.form.add') : t('provider.form.edit')}
           </h3>
@@ -349,7 +349,7 @@ function ProviderFormModal({ onClose, onSaved, mode, provider }: ProviderFormMod
         </div>
 
         {/* Modal body */}
-        <div className="px-5 py-4 space-y-4">
+        <div className="px-5 py-4 space-y-4 overflow-y-auto flex-1">
           {error && (
             <div className="rounded-lg border border-[var(--color-error)]/20 bg-[var(--color-error)]/5 px-3 py-2 text-xs text-[var(--color-error)]">
               {error}
@@ -503,7 +503,7 @@ function ProviderFormModal({ onClose, onSaved, mode, provider }: ProviderFormMod
         </div>
 
         {/* Modal footer */}
-        <div className="flex justify-end gap-2 px-5 py-4 border-t border-[var(--color-border)]">
+        <div className="flex justify-end gap-2 px-5 py-4 border-t border-[var(--color-border)] flex-shrink-0">
           <button
             onClick={onClose}
             className="px-4 py-2 text-sm font-medium text-[var(--color-text-secondary)] bg-[var(--color-surface-container)] hover:bg-[var(--color-surface-hover)] rounded-lg transition-colors"
