@@ -121,7 +121,7 @@ export function SkillsSettings() {
                 <div className="text-xs text-[var(--color-text-tertiary)] truncate mt-0.5">{skill.description}</div>
               </div>
               {skill.tokenEstimate && (
-                <span className="text-[10px] text-[var(--color-text-tertiary)] flex-shrink-0">~{skill.tokenEstimate} tokens</span>
+                <span className="text-[10px] text-[var(--color-text-tertiary)] flex-shrink-0">{t('skills.tokenEstimate', { n: skill.tokenEstimate })}</span>
               )}
             </div>
           ))}

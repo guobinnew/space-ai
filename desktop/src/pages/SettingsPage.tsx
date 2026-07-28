@@ -136,8 +136,8 @@ function GeneralSettings() {
   ];
 
   const locales: Array<{ value: typeof locale; label: string }> = [
-    { value: 'zh', label: '中文' },
-    { value: 'en', label: 'English' },
+    { value: 'zh', label: t('settings.general.langZh') },
+    { value: 'en', label: t('settings.general.langEn') },
   ];
 
   const handlePickDir = async () => {
@@ -279,7 +279,7 @@ function AboutSettings() {
       <div className="flex items-center gap-4 mb-6">
         <img
           src="/icon.png"
-          alt="Smart Lab"
+          alt={t('app.name')}
           className="h-16 w-16 rounded-2xl flex-shrink-0"
         />
         <div>
@@ -300,7 +300,7 @@ function AboutSettings() {
       </div>
 
       <div className="mt-6 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-container-low)] p-4 flex items-center gap-4">
-        <img src="/author.png" alt="author" className="h-20 w-auto opacity-80" />
+        <img src="/author.png" alt={t('about.author')} className="h-20 w-auto opacity-80" />
         <div>
           <div className="text-sm font-medium text-[var(--color-text-primary)]">{t('settings.about.contactAuthor')}</div>
           <div className="text-xs text-[var(--color-text-tertiary)] mt-0.5">{t('settings.about.contactDesc')}</div>

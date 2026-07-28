@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { useTranslation } from '../../i18n'
 
 const CONTEXT_WINDOW = 200_000
 const RING_SIZE = 24
@@ -18,6 +19,7 @@ type Props = {
 }
 
 export function ContextUsage({ inputTokens, queryRunning }: Props) {
+  const translate = useTranslation();
   const { total, pct, color, dashOffset } = useMemo(() => {
     const t = inputTokens
     const p = Math.min(100, Math.round((t / CONTEXT_WINDOW) * 100))
@@ -64,7 +66,7 @@ export function ContextUsage({ inputTokens, queryRunning }: Props) {
             className="text-[11px] font-semibold whitespace-nowrap"
             style={{ color: total === 0 ? 'var(--color-text-tertiary)' : color }}
           >
-            {total === 0 ? '计算中...' : `${pct}% · ${formatK(total)}/${formatK(CONTEXT_WINDOW)}`}
+            {total === 0 ? translate('chat.calculating') : `${pct}% · ${formatK(total)}/${formatK(CONTEXT_WINDOW)}`}
           </span>
         </div>
       </div>

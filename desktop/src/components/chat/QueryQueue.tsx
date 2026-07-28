@@ -7,6 +7,7 @@
 
 import { useState, useRef, useCallback } from 'react'
 import { useChatStore } from '../../stores/chatStore'
+import { useTranslation } from '../../i18n'
 import type { QueuedQuery } from '../../types/chat'
 
 const EMPTY_QUERIES: QueuedQuery[] = []
@@ -16,6 +17,7 @@ interface QueryQueueProps {
 }
 
 export function QueryQueue({ sessionId }: QueryQueueProps) {
+  const t = useTranslation();
   const { getSession, removeQueuedQuery, reorderQueuedQueries, executeQueryNow } = useChatStore()
   const [expanded, setExpanded] = useState(true)
 
@@ -103,12 +105,12 @@ export function QueryQueue({ sessionId }: QueryQueueProps) {
             <line x1="3" y1="18" x2="3.01" y2="18" />
           </svg>
           <span className="text-[11px] font-semibold text-[var(--color-text-secondary)]">
-            查询队列 ({queries.length})
+            {t('query.queueTitle', { n: queries.length })}
           </span>
           {isProcessing && (
             <span className="flex items-center gap-1.5 text-[10px] text-[var(--color-warning)]">
               <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-warning)] animate-pulse" />
-              处理中...
+              {t('query.processing')}
             </span>
           )}
           <button
@@ -120,7 +122,7 @@ export function QueryQueue({ sessionId }: QueryQueueProps) {
               <path d="M3 6h18" />
               <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
             </svg>
-            清空
+            {t('query.clear')}
           </button>
         </div>
 
@@ -180,7 +182,7 @@ export function QueryQueue({ sessionId }: QueryQueueProps) {
                       type="button"
                       onClick={(e) => { e.stopPropagation(); handleExecuteNow(query.id) }}
                       className="shrink-0 flex items-center justify-center w-5 h-5 rounded text-[var(--color-text-tertiary)] hover:bg-[var(--color-brand)]/10 hover:text-[var(--color-brand)] transition-colors"
-                      title="立即执行"
+                      title={t('query.runNow')}
                     >
                       <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
                         <polygon points="5 3 19 12 5 21 5 3" />
@@ -193,7 +195,7 @@ export function QueryQueue({ sessionId }: QueryQueueProps) {
                     type="button"
                     onClick={(e) => { e.stopPropagation(); handleRemove(query.id) }}
                     className="shrink-0 flex items-center justify-center w-5 h-5 rounded text-[var(--color-text-tertiary)] hover:bg-[var(--color-error)]/10 hover:text-[var(--color-error)] transition-colors"
-                    title="删除"
+                    title={t('query.delete')}
                   >
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <line x1="18" y1="6" x2="6" y2="18" />

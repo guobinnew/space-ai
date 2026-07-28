@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 import { settingsApi, type GeneralSettings } from '../api/settings';
+import { translate } from '../i18n';
 
 export type TabType = 'home' | 'settings' | 'session' | 'stats' | 'automation';
 export type Theme = 'dark' | 'light';
@@ -50,7 +51,7 @@ export function UIProvider({ children }: { children: ReactNode }) {
   const [defaultWorkDir, setDefaultWorkDirState] = useState<string>('');
   const [notifyOnCompletion, setNotifyOnCompletionState] = useState<boolean>(false);
   const [tabs, setTabs] = useState<Tab[]>([
-    { id: HOME_TAB_ID, title: '首页', type: 'home', closable: false },
+    { id: HOME_TAB_ID, title: translate('sidebar.home'), type: 'home', closable: false },
   ]);
   const [activeTabId, setActiveTabId] = useState<string>(HOME_TAB_ID);
 

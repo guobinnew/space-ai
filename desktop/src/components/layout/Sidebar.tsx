@@ -104,7 +104,7 @@ export function Sidebar() {
           <div className={`flex min-w-0 items-center ${sidebarOpen ? 'gap-2.5' : 'justify-center'}`}>
             <img
               src="/icon.png"
-              alt="Smart Lab"
+              alt={t('app.name')}
               className="h-8 w-8 rounded-lg flex-shrink-0"
             />
             <span

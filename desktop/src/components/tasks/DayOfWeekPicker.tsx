@@ -1,9 +1,12 @@
+import { useTranslation } from '../../i18n'
+
 type Props = { selected: number[]; onChange: (days: number[]) => void }
 
 const DAY_ORDER = [1, 2, 3, 4, 5, 6, 0]
-const DAY_LABELS = ['一', '二', '三', '四', '五', '六', '日']
+const DAY_KEYS = ['task.day1', 'task.day2', 'task.day3', 'task.day4', 'task.day5', 'task.day6', 'task.day7']
 
 export function DayOfWeekPicker({ selected, onChange }: Props) {
+  const t = useTranslation()
   const toggle = (day: number) => {
     if (selected.includes(day)) {
       if (selected.length <= 1) return
@@ -25,7 +28,7 @@ export function DayOfWeekPicker({ selected, onChange }: Props) {
                 : 'bg-[var(--color-surface)] text-[var(--color-text-tertiary)] border border-[var(--color-border)] hover:bg-[var(--color-surface-container)]'
             }`}
           >
-            {DAY_LABELS[idx]}
+            {t(DAY_KEYS[idx])}
           </button>
         )
       })}

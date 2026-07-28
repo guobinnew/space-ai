@@ -1,17 +1,19 @@
 import { useEffect, useState } from 'react'
 import { fetchTaskRuns, deleteRunRecord, type RunRecord } from '../../api/scheduled-tasks'
+import { useTranslation, localeTag } from '../../i18n'
 
 type Props = { taskId: string; onClose: () => void; refreshKey?: number }
 
-const STATUS_MAP: Record<string, { label: string; color: string }> = {
-  running:   { label: '执行中', color: 'var(--color-warning)' },
-  completed: { label: '成功',   color: 'var(--color-success)' },
-  failed:    { label: '失败',   color: 'var(--color-error)' },
-  timeout:   { label: '超时',   color: 'var(--color-error)' },
-  aborted:   { label: '已中止', color: 'var(--color-text-tertiary)' },
+const STATUS_MAP: Record<string, { key: string; color: string }> = {
+  running:   { key: 'task.statusRunning',   color: 'var(--color-warning)' },
+  completed: { key: 'task.statusCompleted', color: 'var(--color-success)' },
+  failed:    { key: 'task.statusFailed',    color: 'var(--color-error)' },
+  timeout:   { key: 'task.statusTimeout',   color: 'var(--color-error)' },
+  aborted:   { key: 'task.statusAborted',   color: 'var(--color-text-tertiary)' },
 }
 
 export function TaskRunsPanel({ taskId, onClose, refreshKey }: Props) {
+  const t = useTranslation()
   const [runs, setRuns] = useState<RunRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [expandedId, setExpandedId] = useState<string | null>(null)
@@ -34,7 +36,7 @@ export function TaskRunsPanel({ taskId, onClose, refreshKey }: Props) {
   useEffect(() => { if (refreshKey) load() }, [refreshKey])
 
   const handleDelete = async (runId: string) => {
-    if (!confirm('确定删除？')) return
+    if (!confirm(t('task.confirmDeleteRun'))) return
     await deleteRunRecord(runId)
     setRuns((p) => p.filter((r) => r.id !== runId))
   }
@@ -43,7 +45,7 @@ export function TaskRunsPanel({ taskId, onClose, refreshKey }: Props) {
     <div className="mt-2 mb-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-2.5 bg-[var(--color-surface-container)]">
-        <span className="text-xs font-medium text-[var(--color-text-primary)]">运行记录</span>
+        <span className="text-xs font-medium text-[var(--color-text-primary)]">{t('task.runsTitle')}</span>
         <button onClick={onClose} className="p-0.5 text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)] transition-colors">
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
         </button>
@@ -56,7 +58,7 @@ export function TaskRunsPanel({ taskId, onClose, refreshKey }: Props) {
             <div className="animate-spin w-4 h-4 border-2 border-[var(--color-brand)] border-t-transparent rounded-full" />
           </div>
         ) : runs.length === 0 ? (
-          <div className="px-4 py-6 text-center text-xs text-[var(--color-text-tertiary)]">暂无运行记录</div>
+          <div className="px-4 py-6 text-center text-xs text-[var(--color-text-tertiary)]">{t('task.runsEmpty')}</div>
         ) : (
           <div className="divide-y divide-[var(--color-border)]/50">
             {runs.map((run) => {
@@ -66,8 +68,8 @@ export function TaskRunsPanel({ taskId, onClose, refreshKey }: Props) {
                 <div key={run.id} className="px-4 py-2.5">
                   <div className="flex items-center gap-3">
                     <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: cfg.color }} />
-                    <span className="text-xs font-medium" style={{ color: cfg.color }}>{cfg.label}</span>
-                    <span className="text-xs text-[var(--color-text-tertiary)]">{new Date(run.startedAt).toLocaleString('zh-CN')}</span>
+                    <span className="text-xs font-medium" style={{ color: cfg.color }}>{t(cfg.key)}</span>
+                    <span className="text-xs text-[var(--color-text-tertiary)]">{new Date(run.startedAt).toLocaleString(localeTag())}</span>
                     {run.finishedAt && (
                       <span className="text-xs text-[var(--color-text-tertiary)]">
                         ({((new Date(run.finishedAt).getTime() - new Date(run.startedAt).getTime()) / 1000).toFixed(1)}s)
@@ -82,7 +84,7 @@ export function TaskRunsPanel({ taskId, onClose, refreshKey }: Props) {
                         </button>
                       )}
                       {run.error && (
-                        <span className="text-xs text-[var(--color-error)] truncate max-w-[160px]" title={run.error}>错误</span>
+                        <span className="text-xs text-[var(--color-error)] truncate max-w-[160px]" title={run.error}>{t('task.runsError')}</span>
                       )}
                       <button onClick={() => handleDelete(run.id)}
                         className="p-1 text-[var(--color-text-tertiary)] hover:text-[var(--color-error)] transition-colors"

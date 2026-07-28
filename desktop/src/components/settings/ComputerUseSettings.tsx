@@ -197,7 +197,7 @@ export function ComputerUseSettings() {
       await fetchStatus();
       if (result.success) await fetchApps();
     } catch {
-      setSetupResult({ success: false, steps: [{ name: 'error', ok: false, message: 'Request failed' }] });
+      setSetupResult({ success: false, steps: [{ name: 'error', ok: false, message: t('computerUse.requestFailed') }] });
     } finally {
       setSetupRunning(false);
     }

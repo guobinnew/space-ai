@@ -16,7 +16,7 @@ import { SessionTaskBar } from '../components/chat/SessionTaskBar';
 import { QueryQueue } from '../components/chat/QueryQueue';
 import { EditorPanel } from '../components/editor/EditorPanel';
 import { Modal } from '../components/shared/Modal';
-import { useTranslation } from '../i18n';
+import { useTranslation, localeTag } from '../i18n';
 
 const DEFAULT_CHAT_WIDTH = 540;
 const MIN_EDITOR_WIDTH = 400;
@@ -75,7 +75,7 @@ export function ActiveSession({ sessionId }: { sessionId: string }) {
     if (hours < 24) return t('session.timeHours', { n: hours })
     const days = Math.floor(hours / 24)
     if (days < 7) return t('session.timeDays', { n: days })
-    return new Date(isoTime).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })
+    return new Date(isoTime).toLocaleDateString(localeTag(), { month: 'short', day: 'numeric' })
   }
 
   // Get session workDir
@@ -254,7 +254,7 @@ export function ActiveSession({ sessionId }: { sessionId: string }) {
             <span className="text-sm font-medium text-[var(--color-text-primary)] truncate">
               {session?.title || t('session.title')}
               <span className="ml-2 text-[10px] font-normal px-1.5 py-0.5 rounded-full bg-[var(--color-brand)]/10 text-[var(--color-brand)] align-middle">
-                {mode === 'code' ? '代码开发' : '日常办公'}
+                {mode === 'code' ? t('empty.modeCode') : t('empty.modeOffice')}
               </span>
             </span>
             <div className="flex items-center gap-1.5 text-[10px] text-[var(--color-text-tertiary)]">
@@ -374,7 +374,7 @@ export function ActiveSession({ sessionId }: { sessionId: string }) {
                 <p className="text-base text-[var(--color-text-secondary)]">
                  {t('empty.readyMessage')}
                 </p>
-                <p className="mt-4 text-xs text-[var(--color-text-tertiary)]">选择工作模式，切换 AI 专注领域</p>
+                <p className="mt-4 text-xs text-[var(--color-text-tertiary)]">{t('empty.modeHint')}</p>
 
                 {/* Mode switcher */}
                 <div className="mt-3 inline-flex items-center rounded-full border border-[var(--color-border)] bg-[var(--color-surface-container-low)] p-1">
@@ -384,7 +384,7 @@ export function ActiveSession({ sessionId }: { sessionId: string }) {
                     style={mode === 'code' ? { background: 'var(--gradient-btn-primary)' } : undefined}
                   >
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="16 18 22 12 16 6" /><polyline points="8 6 2 12 8 18" /></svg>
-                    代码开发
+                    {t('empty.modeCode')}
                   </button>
                   <button
                     onClick={() => setMode('office')}
@@ -392,12 +392,12 @@ export function ActiveSession({ sessionId }: { sessionId: string }) {
                     style={mode === 'office' ? { background: 'var(--gradient-btn-primary)' } : undefined}
                   >
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>
-                    日常办公
+                    {t('empty.modeOffice')}
                   </button>
                 </div>
 
                 <p className="mt-4 text-sm text-[var(--color-text-tertiary)]">
-                  {mode === 'code' ? '专注于代码编写、调试和架构设计' : '专注于文档撰写、数据分析和日常任务'}
+                  {mode === 'code' ? t('empty.modeCodeDesc') : t('empty.modeOfficeDesc')}
                 </p>
               </div>
             </div>
@@ -417,10 +417,10 @@ export function ActiveSession({ sessionId }: { sessionId: string }) {
                 <div
                   onClick={!hasMessages && !isGenerating ? handlePickDir : undefined}
                   className={`flex items-center gap-2 pl-2.5 pr-3 py-1.5 rounded-full border border-[var(--color-border)] bg-[var(--color-surface-container)] text-[11px] text-[var(--color-text-secondary)] select-text transition-colors hover:bg-[var(--color-surface-hover)] ${!hasMessages && !isGenerating ? 'cursor-pointer' : 'cursor-default'}`}
-                  title={hasMessages ? '已有消息，不可更改工作目录' : (workDir || '设置工作目录')}
+                  title={hasMessages ? t('session.workDirLocked') : (workDir || t('session.setWorkDir'))}
                 >
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-[var(--color-text-tertiary)]"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" /></svg>
-                  <span className="truncate max-w-[280px] sm:max-w-[360px] select-text">{workDir || '设置工作目录'}</span>
+                  <span className="truncate max-w-[280px] sm:max-w-[360px] select-text">{workDir || t('session.setWorkDir')}</span>
                 </div>
                 <span className="text-[11px] text-[var(--color-text-tertiary)]/60 whitespace-nowrap">{t('chat.aiDisclaimer')}</span>
               </div>
@@ -453,7 +453,7 @@ export function ActiveSession({ sessionId }: { sessionId: string }) {
                 <div className="mx-auto max-w-3xl flex items-center justify-between gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-container-low)] px-4 py-3">
                   <div className="flex items-center gap-2 text-sm text-[var(--color-text-primary)]">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--color-text-secondary)] shrink-0"><path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" /></svg>
-                    <span>检测到未完成的任务清单，是否继续执行？</span>
+                    <span>{t('session.continuePrompt')}</span>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     <button
@@ -461,13 +461,13 @@ export function ActiveSession({ sessionId }: { sessionId: string }) {
                       className="rounded-lg px-3 py-1.5 text-sm font-medium text-white transition-opacity hover:opacity-90"
                       style={{ background: 'var(--gradient-btn-primary)' }}
                     >
-                      继续
+                      {t('common.continue')}
                     </button>
                     <button
                       onClick={handleDeclineTasks}
                       className="rounded-lg px-3 py-1.5 text-sm font-medium border border-[var(--color-border)] bg-[var(--color-surface-container)] text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-text-primary)]"
                     >
-                      暂不执行
+                      {t('session.notNow')}
                     </button>
                   </div>
                 </div>
@@ -488,13 +488,13 @@ export function ActiveSession({ sessionId }: { sessionId: string }) {
                 <div
                   onClick={!hasMessages && !isGenerating ? handlePickDir : undefined}
                   className={`flex items-center gap-2 pl-2.5 pr-3 py-1.5 rounded-full border border-[var(--color-border)] bg-[var(--color-surface-container)] text-[11px] text-[var(--color-text-secondary)] select-text transition-colors hover:bg-[var(--color-surface-hover)] ${!hasMessages && !isGenerating ? 'cursor-pointer' : 'cursor-default'}`}
-                  title={hasMessages ? '已有消息，不可更改工作目录' : (workDir || '设置工作目录')}
+                  title={hasMessages ? t('session.workDirLocked') : (workDir || t('session.setWorkDir'))}
                 >
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-[var(--color-text-tertiary)]">
                     <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
                   </svg>
                   <span className="truncate max-w-[280px] sm:max-w-[360px] select-text">
-                    {workDir || '设置工作目录'}
+                    {workDir || t('session.setWorkDir')}
                   </span>
                 </div>
                 <span className="text-[11px] text-[var(--color-text-tertiary)]/60 whitespace-nowrap">

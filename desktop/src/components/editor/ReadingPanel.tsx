@@ -5,6 +5,7 @@
  * 控制按钮：暂停/继续、重新开始、停止。
  */
 import { useRef, useEffect } from 'react'
+import { useTranslation } from '../../i18n'
 import type { useTTS } from '../../hooks/useTTS'
 
 type Props = {
@@ -12,6 +13,7 @@ type Props = {
 }
 
 export function ReadingPanel({ tts }: Props) {
+  const t = useTranslation()
   const scrollRef = useRef<HTMLDivElement>(null)
   const segRefs = useRef<(HTMLDivElement | null)[]>([])
 
@@ -36,7 +38,7 @@ export function ReadingPanel({ tts }: Props) {
     return (
       <div className="flex flex-col h-full">
         <div className="flex-1 flex items-center justify-center text-sm text-[var(--color-text-tertiary)]">
-          朗读已停止
+          {t('reading.stopped')}
         </div>
       </div>
     )
@@ -50,7 +52,7 @@ export function ReadingPanel({ tts }: Props) {
         <div className="flex items-center gap-1.5 text-xs text-[var(--color-text-secondary)]">
           {tts.isLoading && <span className="animate-spin w-3 h-3 border-2 border-[var(--color-brand)] border-t-transparent rounded-full" />}
           <span className="font-medium">
-            {tts.state === 'playing' ? '朗读中' : tts.state === 'paused' ? '已暂停' : tts.state === 'loading' ? '加载中' : tts.state === 'error' ? '错误' : '就绪'}
+            {tts.state === 'playing' ? t('reading.playing') : tts.state === 'paused' ? t('reading.paused') : tts.state === 'loading' ? t('reading.loading') : tts.state === 'error' ? t('reading.error') : t('reading.ready')}
           </span>
           {tts.progress.total > 0 && (
             <span className="text-[var(--color-text-tertiary)] tabular-nums">
@@ -67,7 +69,7 @@ export function ReadingPanel({ tts }: Props) {
               className="flex items-center gap-1 px-2.5 py-1 text-xs rounded-md text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] transition-colors"
             >
               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 9v6m4-6v6" /></svg>
-              暂停
+              {t('reading.pause')}
             </button>
           )}
           {tts.isPaused && (
@@ -75,7 +77,7 @@ export function ReadingPanel({ tts }: Props) {
               className="flex items-center gap-1 px-2.5 py-1 text-xs rounded-md text-[var(--color-brand)] hover:bg-[var(--color-brand)]/10 transition-colors"
             >
               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" /></svg>
-              继续
+              {t('reading.resume')}
             </button>
           )}
 
@@ -85,7 +87,7 @@ export function ReadingPanel({ tts }: Props) {
               className="flex items-center gap-1 px-2.5 py-1 text-xs rounded-md text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] transition-colors"
             >
               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
-              重来
+              {t('reading.restart')}
             </button>
           )}
         </div>

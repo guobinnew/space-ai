@@ -9,6 +9,7 @@
 import { useMemo, useCallback } from 'react'
 import DOMPurify from 'dompurify'
 import { marked, type Tokens } from 'marked'
+import { useTranslation } from '../../i18n'
 
 type Props = {
   content: string
@@ -105,6 +106,7 @@ function enhanceHtml(html: string): string {
 // ─── 组件 ─────────────────────────────────────────────────────
 
 export function MarkdownRenderer({ content, className }: Props) {
+  const t = useTranslation()
   const { html, codeBlocks } = useMemo(() => parseMarkdown(content), [content])
 
   // 将 HTML 按代码块占位符拆分，代码块用 React 组件渲染
@@ -156,7 +158,7 @@ export function MarkdownRenderer({ content, className }: Props) {
         part.type === 'html' ? (
           <div key={i} dangerouslySetInnerHTML={{ __html: enhanceHtml(part.content) }} />
         ) : (
-          <CodeBlock key={part.block.id} block={part.block} />
+          <CodeBlock key={part.block.id} block={part.block} t={t} />
         )
       )}
     </div>
@@ -165,17 +167,17 @@ export function MarkdownRenderer({ content, className }: Props) {
 
 // ─── 代码块组件 ───────────────────────────────────────────────
 
-function CodeBlock({ block }: { block: CodeBlock }) {
+function CodeBlock({ block, t }: { block: CodeBlock; t: (key: string, params?: Record<string, string | number>) => string }) {
   return (
     <div className="md-code-block">
       <div className="md-code-header">
-        <span className="md-code-lang">{block.language || 'text'}</span>
+        <span className="md-code-lang">{block.language || t('markdown.langText')}</span>
         <button
           data-copy-code={block.code}
           className="md-copy-btn"
-          title="复制"
+          title={t('markdown.copy')}
         >
-          复制
+          {t('markdown.copy')}
         </button>
       </div>
       <pre className="md-code-pre">

@@ -8,6 +8,7 @@
 
 import { useState } from 'react'
 import { useTaskStore } from '../../stores/cliTaskStore'
+import { useTranslation } from '../../i18n'
 import type { Task } from '../../types/task'
 
 const statusConfig = {
@@ -31,6 +32,7 @@ const statusConfig = {
 } as const
 
 export function SessionTaskBar({ sessionId }: { sessionId: string }) {
+  const t = useTranslation();
   const {
     tasks,
     clearTasks,
@@ -63,7 +65,7 @@ export function SessionTaskBar({ sessionId }: { sessionId: string }) {
             </div>
 
             <span className="text-xs font-semibold text-[var(--color-text-primary)]">
-              任务清单
+              {t('task.barTitle')}
             </span>
 
             {/* Progress bar */}
@@ -102,7 +104,7 @@ export function SessionTaskBar({ sessionId }: { sessionId: string }) {
           {allCompleted && (
             <button
               type="button"
-              aria-label="清空任务清单"
+              aria-label={t('task.clearAria')}
               onClick={() => clearTasks(sessionId)}
               className="flex shrink-0 items-center justify-center rounded-lg p-1.5 text-[var(--color-text-tertiary)] hover:bg-[var(--color-surface-container-low)] hover:text-[var(--color-text-primary)] transition-colors"
             >
@@ -128,6 +130,7 @@ export function SessionTaskBar({ sessionId }: { sessionId: string }) {
 }
 
 function TaskItem({ task }: { task: Task }) {
+  const t = useTranslation();
   const config = statusConfig[task.status]
 
   return (
@@ -180,7 +183,7 @@ function TaskItem({ task }: { task: Task }) {
           <div className="flex items-center gap-1 mt-0.5">
             <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-warning)] animate-pulse" />
             <span className="text-[10px] text-[var(--color-warning)]">
-              进行中...
+              {t('task.inProgress')}
             </span>
           </div>
         )}

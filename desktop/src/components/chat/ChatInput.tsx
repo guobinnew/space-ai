@@ -261,7 +261,7 @@ export function ChatInput({ onSend, onStop, isGenerating, disabled, usage, total
 
           <div className="flex items-center gap-2 flex-shrink-0">
             {usage && (
-              <div className="flex items-center gap-1.5" title={`${contextTokens.toLocaleString()} / ${DEFAULT_CONTEXT_LIMIT.toLocaleString()} tokens`}>
+              <div className="flex items-center gap-1.5" title={t('chat.contextTokens', { tokens: contextTokens, limit: DEFAULT_CONTEXT_LIMIT })}>
                 <div className="w-16 h-1.5 rounded-full bg-[var(--color-surface-container-high)] overflow-hidden">
                   <div className="h-full rounded-full transition-all" style={{ width: `${contextPercent}%`, background: contextColor }} />
                 </div>
@@ -271,7 +271,7 @@ export function ChatInput({ onSend, onStop, isGenerating, disabled, usage, total
             {totalUsage && totalUsage.totalInput > 0 && (
               <span
                 className="text-[10px] text-[var(--color-text-tertiary)] tabular-nums"
-                title={`累计: 输入 ${totalUsage.totalInput.toLocaleString()} · 输出 ${totalUsage.totalOutput.toLocaleString()} · 缓存读 ${totalUsage.totalCacheRead.toLocaleString()} · 缓存创 ${totalUsage.totalCacheCreation.toLocaleString()}`}
+                title={t('chat.contextTooltip', { input: totalUsage.totalInput, output: totalUsage.totalOutput, cacheRead: totalUsage.totalCacheRead, cacheWrite: totalUsage.totalCacheCreation })}
               >
                 ⇄{totalUsage.totalInput + totalUsage.totalOutput}
               </span>

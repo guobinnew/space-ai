@@ -236,7 +236,7 @@ export function ToolCallBlock({ toolCall }: Props) {
           </span>
         )}
         {isFileRead && (
-          <span className="shrink-0 text-[11px] text-[var(--color-text-tertiary)]" title="在编辑器中打开">
+          <span className="shrink-0 text-[11px] text-[var(--color-text-tertiary)]" title={t('tool.openInEditor')}>
             ↗
           </span>
         )}

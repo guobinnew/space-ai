@@ -6,7 +6,7 @@
  */
 
 import { useState, useEffect, useRef, useMemo, useLayoutEffect, memo, Component, type ReactNode } from 'react';
-import { useTranslation } from '../../i18n';
+import { useTranslation, translate } from '../../i18n';
 
 const WINDOW_SIZE = 15000;
 const CHUNK_SIZE = 15000;
@@ -27,7 +27,7 @@ class ThinkingErrorBoundary extends Component<
     if (this.state.hasError) {
       return (
         <div className="mt-1 rounded-lg border border-[var(--color-border)]/40 bg-[var(--color-surface-container-lowest)] p-2.5 text-[11px] text-[var(--color-text-tertiary)]">
-          Content too large to display
+          {translate('thinking.tooLarge')}
         </div>
       )
     }
@@ -139,10 +139,10 @@ function ThinkingBlockInner({ content, isActive = false }: { content?: string; i
                 onClick={loadEarlier}
                 className="mb-2 block w-full rounded px-2 py-1 text-center text-[11px] text-[var(--color-brand)] hover:bg-[var(--color-surface-container)]/60 hover:underline"
               >
-                Show earlier ({Math.round(windowStart / 1000)}k chars hidden)
+                {t('thinking.showEarlier', { n: Math.round(windowStart / 1000) })}
               </button>
             )}
-            {displayContent || (isActive ? '正在分析任务...' : '思考过程已完成')}
+            {displayContent || (isActive ? t('thinking.analyzing') : t('thinking.completed'))}
             {isActive && expanded && <span className="thinking-cursor" />}
           </div>
         </ThinkingErrorBoundary>

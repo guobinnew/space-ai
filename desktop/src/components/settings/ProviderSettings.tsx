@@ -54,7 +54,7 @@ const [ttsTestResults, setTtsTestResults] = useState<Record<string, { loading: b
         ...r,
         [provider.id]: {
           loading: false,
-          result: { connectivity: { success: false, latencyMs: 0, error: '请求失败' } },
+          result: { connectivity: { success: false, latencyMs: 0, error: t('provider.requestFailed') } },
         },
       }));
     }
@@ -72,13 +72,13 @@ const [ttsTestResults, setTtsTestResults] = useState<Record<string, { loading: b
         audio.play().catch(() => {});
         setTtsTestResults((r) => ({ ...r, [provider.id]: { loading: false, success: true, latencyMs } }));
       } else {
-        setTtsTestResults((r) => ({ ...r, [provider.id]: { loading: false, success: false, error: error || '未知错误' } }));
+        setTtsTestResults((r) => ({ ...r, [provider.id]: { loading: false, success: false, error: error || t('provider.unknownError') } }));
       }
     } catch {
-      setTtsTestResults((r) => ({
-        ...r,
-        [provider.id]: { loading: false, success: false, error: '请求失败' },
-      }));
+        setTtsTestResults((r) => ({
+          ...r,
+          [provider.id]: { loading: false, success: false, error: t('provider.requestFailed') },
+        }));
     }
   };
 
@@ -204,7 +204,7 @@ const [ttsTestResults, setTtsTestResults] = useState<Record<string, { loading: b
                     disabled={ttsTest?.loading || !provider.models.tts}
                     className="px-2.5 py-1 text-xs text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] rounded transition-colors disabled:opacity-50"
                   >
-                    {ttsTest?.loading ? t('settings.providers.testing') : 'TTS'}
+                    {ttsTest?.loading ? t('settings.providers.testing') : t('provider.tts')}
                   </button>
                   <button onClick={() => setEditingProvider(provider)} className="px-2.5 py-1 text-xs text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] rounded transition-colors">
                     {t('settings.providers.edit')}

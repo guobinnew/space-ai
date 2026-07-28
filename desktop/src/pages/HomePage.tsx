@@ -4,7 +4,7 @@
  * 显示主要功能入口 + 最近会话列表
  */
 import { useState, useEffect, useCallback } from 'react';
-import { useTranslation } from '../i18n';
+import { useTranslation, localeTag } from '../i18n';
 import { useUIStore } from '../stores/uiStore';
 import { sessionsApi } from '../api/sessions';
 import { refreshServerPort, getServerBaseUrl } from '../api/serverPort';
@@ -23,7 +23,7 @@ function formatRelativeTime(isoTime: string, t: (k: string, vars?: Record<string
   if (hours < 24) return t('session.timeHours', { n: hours })
   const days = Math.floor(hours / 24)
   if (days < 7) return t('session.timeDays', { n: days })
-  return new Date(isoTime).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })
+  return new Date(isoTime).toLocaleDateString(localeTag(), { month: 'short', day: 'numeric' })
 }
 
 export function HomePage() {
@@ -87,10 +87,10 @@ export function HomePage() {
   // Compute stats
   const totalSessions = allSessions.length;
   const totalMessages = allSessions.reduce((sum, s) => sum + (s.messageCount || 0), 0);
-  const todayStr = new Date().toLocaleDateString('zh-CN');
+  const todayStr = new Date().toLocaleDateString(localeTag());
   const todaySessions = allSessions.filter((s) => {
     const d = s.modifiedAt || s.createdAt;
-    return d && new Date(d).toLocaleDateString('zh-CN') === todayStr;
+    return d && new Date(d).toLocaleDateString(localeTag()) === todayStr;
   }).length;
 
   const handleNewSession = useCallback(() => {
@@ -247,7 +247,7 @@ export function HomePage() {
                       {session.title || t('session.title')}
                     </div>
                     <div className="text-[11px] text-[var(--color-text-tertiary)] mt-0.5">
-                      {session.messageCount > 0 && `${session.messageCount} 条消息 · `}
+                      {session.messageCount > 0 && `${t('session.messageCount', { n: session.messageCount })} · `}
                       {formatRelativeTime(session.modifiedAt || session.createdAt, t)}
                     </div>
                   </div>

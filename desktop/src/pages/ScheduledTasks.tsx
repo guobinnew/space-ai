@@ -6,8 +6,10 @@ import { fetchScheduledTasks, type ScheduledTask } from '../api/scheduled-tasks'
 import { TaskList } from '../components/tasks/TaskList'
 import { TaskEmptyState } from '../components/tasks/TaskEmptyState'
 import { NewTaskModal } from '../components/tasks/NewTaskModal'
+import { useTranslation } from '../i18n'
 
 export function ScheduledTasksPage() {
+  const t = useTranslation()
   const [tasks, setTasks] = useState<ScheduledTask[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -22,7 +24,7 @@ export function ScheduledTasksPage() {
       setTasks(ts)
       setInitialized(true)
     } catch (err) {
-      setError(err instanceof Error ? err.message : '加载失败')
+      setError(err instanceof Error ? err.message : t('scheduledTasks.loadError'))
     }
     setLoading(false)
   }, [])
@@ -35,15 +37,15 @@ export function ScheduledTasksPage() {
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h1 className="text-2xl font-bold text-[var(--color-text-primary)]">定时任务</h1>
+            <h1 className="text-2xl font-bold text-[var(--color-text-primary)]">{t('scheduledTasks.title')}</h1>
             <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
-              使用 <code className="px-1 py-0.5 rounded bg-[var(--color-surface-container)] text-xs font-mono">/schedule</code> 指令创建定时任务
+              {t('scheduledTasks.hint', { cmd: '/schedule' })}
             </p>
           </div>
           <button onClick={() => setShowForm(true)}
             className="px-4 py-2 rounded-lg text-sm bg-[var(--color-brand)] text-white hover:opacity-90 transition-opacity"
           >
-            新建任务
+            {t('scheduledTasks.newTask')}
           </button>
         </div>
 
@@ -53,7 +55,7 @@ export function ScheduledTasksPage() {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
           <span className="text-xs text-[var(--color-text-secondary)]">
-            定时任务通过后台调度执行。请确保应用在后台运行。
+            {t('scheduledTasks.notice')}
           </span>
         </div>
 
@@ -71,7 +73,7 @@ export function ScheduledTasksPage() {
             <button onClick={load}
               className="px-4 py-2 rounded-lg text-sm border border-[var(--color-border)] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-container)] transition-colors"
             >
-              重试
+              {t('common.retry')}
             </button>
           </div>
         ) : tasks.length === 0 ? (

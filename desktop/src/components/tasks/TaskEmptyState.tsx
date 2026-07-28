@@ -1,6 +1,9 @@
+import { useTranslation } from '../../i18n'
+
 type Props = { onCreateTask: () => void }
 
 export function TaskEmptyState({ onCreateTask }: Props) {
+  const t = useTranslation()
   return (
     <div className="flex flex-col items-center justify-center py-20">
       <div className="w-16 h-16 rounded-full bg-[var(--color-surface-container)] flex items-center justify-center mb-4">
@@ -9,14 +12,14 @@ export function TaskEmptyState({ onCreateTask }: Props) {
           <polyline points="12 6 12 12 16 14" />
         </svg>
       </div>
-      <h3 className="text-sm font-medium text-[var(--color-text-primary)] mb-1">暂无定时任务</h3>
+      <h3 className="text-sm font-medium text-[var(--color-text-primary)] mb-1">{t('task.emptyTitle')}</h3>
       <p className="text-sm text-[var(--color-text-tertiary)] mb-4 text-center max-w-sm">
-        创建定时任务后，它们会出现在这里。点击下方按钮开始。
+        {t('task.emptyDesc')}
       </p>
       <button onClick={onCreateTask}
         className="px-4 py-2 rounded-lg text-sm bg-[var(--color-brand)] text-white hover:opacity-90 transition-opacity"
       >
-        新建任务
+        {t('scheduledTasks.newTask')}
       </button>
     </div>
   )

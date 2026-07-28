@@ -4,6 +4,7 @@ import { executeScheduledTask, deleteScheduledTask, updateScheduledTask, fetchTa
 import { describeCron } from '../../lib/cronDescribe'
 import { TaskRunsPanel } from './TaskRunsPanel'
 import { NewTaskModal } from './NewTaskModal'
+import { useTranslation, localeTag } from '../../i18n'
 
 type Props = {
   task: ScheduledTask
@@ -15,6 +16,7 @@ type Props = {
 type ConfirmAction = 'run' | 'toggle' | 'delete' | null
 
 export function TaskRow({ task, showLogs, onToggleLogs, onRefresh }: Props) {
+  const t = useTranslation()
   const [showEdit, setShowEdit] = useState(false)
   const [showMenu, setShowMenu] = useState(false)
   const [isRunning, setIsRunning] = useState(false)
@@ -90,8 +92,8 @@ export function TaskRow({ task, showLogs, onToggleLogs, onRefresh }: Props) {
               <div className="text-xs text-[var(--color-text-secondary)] truncate">{task.description}</div>
             )}
             <div className="flex items-center gap-3 text-[11px] text-[var(--color-text-tertiary)] mt-0.5">
-              <span>{new Date(task.createdAt).toLocaleDateString('zh-CN')}</span>
-              {task.lastFiredAt && <span>{new Date(task.lastFiredAt).toLocaleString('zh-CN')}</span>}
+              <span>{new Date(task.createdAt).toLocaleDateString(localeTag())}</span>
+              {task.lastFiredAt && <span>{new Date(task.lastFiredAt).toLocaleString(localeTag())}</span>}
             </div>
           </div>
         </div>
@@ -117,7 +119,7 @@ export function TaskRow({ task, showLogs, onToggleLogs, onRefresh }: Props) {
                 </svg>
               </button>
               {confirmAction === 'run' && (
-                <ConfirmPopover message="立即执行此任务？" confirmLabel="执行" onConfirm={handleRunNow} onCancel={() => setConfirmAction(null)} cancelLabel="取消" />
+                <ConfirmPopover message={t('task.runNowConfirm')} confirmLabel={t('scheduledTasks.runNow')} onConfirm={handleRunNow} onCancel={() => setConfirmAction(null)} cancelLabel={t('common.cancel')} />
               )}
             </div>
 
@@ -141,18 +143,18 @@ export function TaskRow({ task, showLogs, onToggleLogs, onRefresh }: Props) {
                   <button onClick={() => { setShowMenu(false); setShowEdit(true) }}
                     className="flex items-center gap-2.5 w-full px-3 py-2 text-xs text-left rounded text-[var(--color-text-primary)] hover:bg-[var(--color-surface-container)] transition-colors">
                     <svg className="w-4 h-4 text-[var(--color-text-secondary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
-                    编辑
+                    {t('common.edit')}
                   </button>
                   <button onClick={() => setConfirmAction('toggle')}
                     className="flex items-center gap-2.5 w-full px-3 py-2 text-xs text-left rounded text-[var(--color-text-primary)] hover:bg-[var(--color-surface-container)] transition-colors">
                     <svg className="w-4 h-4 text-[var(--color-text-secondary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={task.enabled !== false ? 'M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z' : 'M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z'} /></svg>
-                    {task.enabled !== false ? '停用' : '启用'}
+                    {task.enabled !== false ? t('task.disable') : t('task.enable')}
                   </button>
                   <div className="my-1 h-px bg-[var(--color-border)]/50" />
                   <button onClick={() => setConfirmAction('delete')}
                     className="flex items-center gap-2.5 w-full px-3 py-2 text-xs text-left rounded text-[var(--color-error)] hover:bg-[var(--color-error)]/8 transition-colors">
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                    删除
+                    {t('common.delete')}
                   </button>
                 </div>
               )}
@@ -160,18 +162,18 @@ export function TaskRow({ task, showLogs, onToggleLogs, onRefresh }: Props) {
               {confirmAction === 'toggle' && (
                 <div ref={confirmRef}>
                   <ConfirmPopover
-                    message={task.enabled !== false ? '停用此任务？' : '启用此任务？'}
-                    confirmLabel={task.enabled !== false ? '停用' : '启用'}
-                    onConfirm={handleToggle} onCancel={() => { setConfirmAction(null); setShowMenu(false) }} cancelLabel="取消"
+                    message={task.enabled !== false ? t('task.disableConfirm') : t('task.enableConfirm')}
+                    confirmLabel={task.enabled !== false ? t('task.disable') : t('task.enable')}
+                    onConfirm={handleToggle} onCancel={() => { setConfirmAction(null); setShowMenu(false) }} cancelLabel={t('common.cancel')}
                   />
                 </div>
               )}
               {confirmAction === 'delete' && (
                 <div ref={confirmRef}>
                   <ConfirmPopover
-                    message="确定删除此任务？"
-                    confirmLabel="删除" onConfirm={handleDelete}
-                    onCancel={() => { setConfirmAction(null); setShowMenu(false) }} cancelLabel="取消"
+                    message={t('task.deleteConfirmTask')}
+                    confirmLabel={t('common.delete')} onConfirm={handleDelete}
+                    onCancel={() => { setConfirmAction(null); setShowMenu(false) }} cancelLabel={t('common.cancel')}
                     variant="error"
                   />
                 </div>

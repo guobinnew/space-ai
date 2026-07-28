@@ -7,6 +7,7 @@
 
 import { createContext, useContext, useState, useCallback, type ReactNode } from 'react';
 import { sessionsApi } from '../api/sessions';
+import { translate } from '../i18n';
 import type { SessionListItem, ChatMessage } from '../types/session';
 
 interface SessionState {
@@ -40,7 +41,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       const data = await sessionsApi.list();
       setSessions(data.sessions);
     } catch (err) {
-      setError(err instanceof Error ? err.message : '加载会话列表失败');
+      setError(err instanceof Error ? err.message : translate('session.loadListError'));
     } finally {
       setIsLoading(false);
     }
@@ -88,7 +89,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       const data = await sessionsApi.getMessages(id);
       setMessages((prev) => ({ ...prev, [id]: data.messages }));
     } catch (err) {
-      setError(err instanceof Error ? err.message : '加载消息失败');
+      setError(err instanceof Error ? err.message : translate('session.loadMessagesError'));
     }
   }, []);
 
@@ -113,7 +114,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       const assistantMsg: ChatMessage = {
         id: `temp-assistant-${Date.now()}`,
         role: 'assistant',
-        content: '收到消息。会话功能开发中，暂不支持 AI 回复。',
+        content: translate('session.devPlaceholder'),
         createdAt: new Date().toISOString(),
       };
       setMessages((prev) => ({
@@ -127,7 +128,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         prev.map((s) => {
           if (s.id !== id) return s;
           // Auto-title from first user message (only if user hasn't manually renamed)
-          const newTitle = s.messageCount === 0 && s.title === '新会话' && content.trim()
+          const newTitle = s.messageCount === 0 && s.title === translate('session.newTitle') && content.trim()
             ? content.slice(0, 30) + (content.length > 30 ? '...' : '')
             : s.title;
           return {
@@ -139,7 +140,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         }),
       );
     } catch (err) {
-      setError(err instanceof Error ? err.message : '发送消息失败');
+      setError(err instanceof Error ? err.message : translate('session.sendError'));
     }
   }, []);
 

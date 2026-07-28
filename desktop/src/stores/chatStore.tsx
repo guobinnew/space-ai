@@ -13,6 +13,7 @@ import { sessionsApi } from '../api/sessions';
 import { tasksApi } from '../api/tasks';
 import { getServerPort } from '../api/serverPort';
 import { useUIStore } from './uiStore';
+import { translate } from '../i18n';
 import type { UIMessage, PerSessionChatState, QuestionItem, QueuedQuery } from '../types/chat';
 
 /**
@@ -32,8 +33,8 @@ async function maybeNotifyCompletion(enabled: boolean, _sessionId: string, _text
     // Send notification
     const { sendNotification } = await import('@tauri-apps/plugin-notification');
     sendNotification({
-      title: 'Smart Lab',
-      body: '会话回复已完成',
+      title: translate('app.name'),
+      body: translate('notification.replyDone'),
     });
   } catch {
     // Not in Tauri or notification unavailable — silently ignore

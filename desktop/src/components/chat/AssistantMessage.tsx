@@ -11,7 +11,7 @@ import { toBlob } from 'html-to-image';
 import { MarkdownRenderer } from '../markdown/MarkdownRenderer';
 import { MessageActionBar } from './MessageActionBar';
 import { parseRefsFromContent, RefTagList } from './refParser';
-import { useTranslation } from '../../i18n';
+import { useTranslation, localeTag } from '../../i18n';
 
 /** Animated robot face with blinking eyes */
 function AgentAvatar() {
@@ -105,7 +105,7 @@ export function AssistantMessage({
         {createdAt && !streaming && (
           <div className="flex items-center gap-2 mt-1 ml-1">
             <span className="text-[10px] text-[var(--color-text-tertiary)]">
-              {new Date(createdAt).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}
+              {new Date(createdAt).toLocaleTimeString(localeTag(), { hour: '2-digit', minute: '2-digit' })}
             </span>
             <MessageActionBar
               copyText={content}

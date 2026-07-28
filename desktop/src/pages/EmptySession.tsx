@@ -13,9 +13,9 @@ import { useUIStore } from '../stores/uiStore';
 
 type WorkMode = 'code' | 'office';
 
-const modeDesc: Record<WorkMode, string> = {
-  code: '专注于代码编写、调试和架构设计',
-  office: '专注于文档撰写、数据分析和日常任务',
+const modeDescKey: Record<WorkMode, string> = {
+  code: 'empty.modeCodeDesc',
+  office: 'empty.modeOfficeDesc',
 };
 
 export function EmptySession() {
@@ -34,7 +34,7 @@ export function EmptySession() {
     setIsSubmitting(true);
     try {
       const sessionId = await createSession(defaultWorkDir || undefined);
-      openTab(sessionId, '新会话', 'session');
+      openTab(sessionId, t('session.newTitle'), 'session');
       connectToSession(sessionId);
       setTimeout(() => {
         sendMessage(sessionId, text);
@@ -75,7 +75,7 @@ export function EmptySession() {
               {t('empty.readyMessage')}
             </p>
             <p className="mt-4 text-xs text-[var(--color-text-tertiary)]">
-              选择工作模式，切换 AI 专注领域
+              {t('empty.modeHint')}
             </p>
 
             {/* Mode switcher */}
@@ -93,7 +93,7 @@ export function EmptySession() {
                   <polyline points="16 18 22 12 16 6" />
                   <polyline points="8 6 2 12 8 18" />
                 </svg>
-                代码开发
+                {t('empty.modeCode')}
               </button>
               <button
                 onClick={() => setMode('office')}
@@ -108,13 +108,13 @@ export function EmptySession() {
                   <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                   <polyline points="14 2 14 8 20 8" />
                 </svg>
-                日常办公
+                {t('empty.modeOffice')}
               </button>
             </div>
 
             {/* Mode description */}
             <p className="mt-4 text-sm text-[var(--color-text-tertiary)]">
-              {modeDesc[mode]}
+              {t(modeDescKey[mode])}
             </p>
           </div>
         </div>

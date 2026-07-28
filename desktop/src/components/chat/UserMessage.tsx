@@ -6,7 +6,7 @@
  */
 
 import { useMemo } from 'react';
-import { useTranslation } from '../../i18n';
+import { useTranslation, localeTag } from '../../i18n';
 import { MessageActionBar } from './MessageActionBar';
 import { parseRefsFromContent, RefTagList } from './refParser';
 
@@ -32,7 +32,7 @@ export function UserMessage({ content, createdAt }: { content: string; createdAt
               copyLabel={t('chat.copy')}
             />
             <span className="text-[10px] text-[var(--color-text-tertiary)]">
-              {new Date(createdAt).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}
+              {new Date(createdAt).toLocaleTimeString(localeTag(), { hour: '2-digit', minute: '2-digit' })}
             </span>
           </div>
         )}

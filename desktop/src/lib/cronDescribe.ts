@@ -2,6 +2,8 @@
  * Cron utilities: human-readable description and validation.
  * Also reverse-parse cron into UI form state.
  */
+import { translate } from '../i18n'
+
 export type FrequencyKey = 'everyNMinutes' | 'everyNHours' | 'daily' | 'weekdays' | 'specificDays' | 'monthly' | 'customCron'
 
 export type ParsedCron = {
@@ -29,7 +31,7 @@ const DEFAULTS: ParsedCron = {
 function pad(n: number): string { return n.toString().padStart(2, '0') }
 function formatTime(hour: number, minute: number): string { return `${pad(hour)}:${pad(minute)}` }
 
-const DOW_LABELS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
+const DOW_LABELS = ['cron.dow0', 'cron.dow1', 'cron.dow2', 'cron.dow3', 'cron.dow4', 'cron.dow5', 'cron.dow6']
 
 function describeDow(field: string): string {
   const days: number[] = []
@@ -41,21 +43,21 @@ function describeDow(field: string): string {
       days.push(parseInt(part))
     }
   }
-  return days.map((d) => DOW_LABELS[d % 7]).join(', ')
+  return days.map((d) => translate(DOW_LABELS[d % 7])).join(', ')
 }
 
 export function describeCron(cron: string): string {
   const fields = cron.trim().split(/\s+/)
-  if (fields.length !== 5) return `自定义: ${cron}`
+  if (fields.length !== 5) return translate('cron.custom', { cron })
   const [min, hour, dom, month, dow] = fields as string[]
 
   if (hour === '*' && dom === '*' && month === '*' && dow === '*') {
     const stepMatch = min.match(/^\*\/(\d+)$/)
     if (stepMatch) {
       const n = parseInt(stepMatch[1]!)
-      return n === 1 ? '每分钟' : `每 ${n} 分钟`
+      return n === 1 ? translate('cron.everyMinute') : translate('cron.everyNMinutes', { n })
     }
-    if (min === '*') return '每分钟'
+    if (min === '*') return translate('cron.everyMinute')
   }
 
   if (/^\d+$/.test(min) && dom === '*' && month === '*' && dow === '*') {
@@ -63,23 +65,23 @@ export function describeCron(cron: string): string {
     if (stepMatch) {
       const n = parseInt(stepMatch[1]!)
       const m = parseInt(min)
-      if (m === 0) return n === 1 ? '每小时' : `每 ${n} 小时`
-      return `每 ${n} 小时（${pad(m)}分）`
+      if (m === 0) return n === 1 ? translate('cron.everyHour') : translate('cron.everyNHours', { n })
+      return translate('cron.everyNHoursAt', { n, m: pad(m) })
     }
   }
 
   if (/^\d+$/.test(min) && /^\d+$/.test(hour) && dom === '*' && month === '*') {
     const time = formatTime(parseInt(hour), parseInt(min))
-    if (dow === '*') return `每天 ${time}`
-    if (dow === '1-5') return `工作日 ${time}`
-    if (/^[\d,\-]+$/.test(dow)) return `每 ${describeDow(dow)} ${time}`
+    if (dow === '*') return translate('cron.daily', { time })
+    if (dow === '1-5') return translate('cron.weekdays', { time })
+    if (/^[\d,\-]+$/.test(dow)) return translate('cron.specificDays', { days: describeDow(dow), time })
   }
 
   if (/^\d+$/.test(min) && /^\d+$/.test(hour) && /^\d+$/.test(dom) && month === '*' && dow === '*') {
-    return `每月 ${parseInt(dom)} 号 ${formatTime(parseInt(hour), parseInt(min))}`
+    return translate('cron.monthly', { day: parseInt(dom), time: formatTime(parseInt(hour), parseInt(min)) })
   }
 
-  return `自定义: ${cron}`
+  return translate('cron.custom', { cron })
 }
 
 export function parseCron(cron: string): ParsedCron {
