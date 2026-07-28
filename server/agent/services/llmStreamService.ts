@@ -988,9 +988,13 @@ async function runOpenAILoop(
   isCancelled: () => boolean,
 ): Promise<string> {
   // Build messages: system + history (as simple strings)
+  // OpenAI 要求 assistant content 为 null 而非空字符串（Kimi 等第三方 API 会拒绝空 content）
   const messages: OpenAIMessage[] = [
     { role: 'system', content: systemPrompt },
-    ...history.map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content })),
+    ...history.map((m) => ({
+      role: m.role as 'user' | 'assistant',
+      content: m.role === 'assistant' && !m.content ? null : m.content,
+    })),
   ]
 
   let fullText = ''
