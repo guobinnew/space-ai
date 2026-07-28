@@ -157,7 +157,7 @@ function GeneralSettings() {
       {/* Appearance */}
       <h2 className="text-base font-semibold text-[var(--color-text-primary)] mb-1">{t('settings.general.appearance')}</h2>
       <p className="text-sm text-[var(--color-text-tertiary)] mb-3">{t('settings.general.appearanceDesc')}</p>
-      <div className="flex gap-2 mb-8">
+      <div className="flex gap-2 mb-8 max-w-md">
         {themes.map(({ value, label }) => (
           <button
             key={value}
@@ -177,7 +177,7 @@ function GeneralSettings() {
       {/* Language */}
       <h2 className="text-base font-semibold text-[var(--color-text-primary)] mb-1">{t('settings.general.language')}</h2>
       <p className="text-sm text-[var(--color-text-tertiary)] mb-3">{t('settings.general.languageDesc')}</p>
-      <div className="flex gap-2 mb-8">
+      <div className="flex gap-2 mb-8 max-w-md">
         {locales.map(({ value, label }) => (
           <button
             key={value}
