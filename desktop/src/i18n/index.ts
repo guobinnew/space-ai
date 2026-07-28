@@ -1273,5 +1273,5 @@ export function translate(key: string, locale: Locale = 'zh', params?: Record<st
 
 /** Locale tag for native Intl/Date formatting, derived from the current UI locale. */
 export function localeTag(): string {
-  return useUIStore.getState().locale === 'en' ? 'en-US' : 'zh-CN';
+  return document.documentElement.getAttribute('data-locale') === 'en' ? 'en-US' : 'zh-CN';
 }
