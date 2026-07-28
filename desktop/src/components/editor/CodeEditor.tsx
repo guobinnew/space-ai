@@ -254,6 +254,13 @@ export function CodeEditor() {
   const [mdViewMode, setMdViewMode] = useState<'edit' | 'preview' | 'split'>('split')
   const [readingMode, setReadingMode] = useState(false)
 
+  // 朗读完毕自动退出朗读模式
+  useEffect(() => {
+    if (readingMode && tts.state === 'idle' && tts.currentIndex === -1) {
+      setReadingMode(false)
+    }
+  }, [readingMode, tts.state, tts.currentIndex])
+
   if (!activeFile) {
     return (
       <div className="flex flex-col items-center justify-center h-full bg-[var(--color-surface)] text-[var(--color-text-tertiary)]">
@@ -367,7 +374,7 @@ export function CodeEditor() {
                   setReadingMode(false)
                 } else {
                   setReadingMode(true)
-                  pinFile(activeFilePath)
+                  if (activeFilePath) pinFile(activeFilePath)
                   tts.speak(plainText)
                 }
               }}
