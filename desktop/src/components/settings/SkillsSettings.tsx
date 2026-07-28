@@ -151,7 +151,9 @@ export function SkillsSettings() {
     try {
       // 优先使用 dirName（磁盘目录名），避免 name 含特殊字符导致查找失败
       const skillId = skill.dirName || skill.name
+      console.log('[SkillsSettings] handleSkillClick: skillId =', skillId, 'skill =', skill)
       const data = await skillsApi.detail(skillId)
+      console.log('[SkillsSettings] detail response:', data)
       // 防御性检查：确保返回的数据结构正确
       if (!data || !data.meta) {
         throw new Error('Invalid skill detail response')
@@ -165,6 +167,7 @@ export function SkillsSettings() {
         await loadFileContent(data.meta.dirName || data.meta.name, skillMd.path)
       }
     } catch (err) {
+      console.log('[SkillsSettings] detail failed, trying fallback:', err)
       // 如果 detail 端点失败（如服务端未重启），尝试回退到旧的 get 端点
       try {
         const fallbackId = skill.dirName || skill.name

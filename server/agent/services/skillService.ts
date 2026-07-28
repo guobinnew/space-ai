@@ -143,12 +143,14 @@ export class SkillService {
   /** 根据 name 或 dirName 查找技能目录 */
   private async findSkillDir(nameOrDirName: string): Promise<string | null> {
     const skillsDir = this.getSkillsDir()
+    console.log('[skillService] findSkillDir: looking for', nameOrDirName, 'in', skillsDir)
 
     // 1. 先尝试直接作为目录名
     const directPath = path.join(skillsDir, nameOrDirName)
     try {
       const skillFile = path.join(directPath, SKILL_FILENAME)
       await fs.access(skillFile)
+      console.log('[skillService] findSkillDir: found direct match at', directPath)
       return directPath
     } catch {
       // 目录不存在，继续搜索
@@ -158,7 +160,9 @@ export class SkillService {
     let entries: import('fs').Dirent[]
     try {
       entries = await fs.readdir(skillsDir, { withFileTypes: true })
-    } catch {
+      console.log('[skillService] findSkillDir: found', entries.length, 'entries in skills dir')
+    } catch (err) {
+      console.log('[skillService] findSkillDir: failed to read skills dir', err)
       return null
     }
 
@@ -166,15 +170,18 @@ export class SkillService {
       if (!entry.isDirectory()) continue
       // 匹配目录名
       if (entry.name === nameOrDirName) {
+        console.log('[skillService] findSkillDir: matched dir name', entry.name)
         return path.join(skillsDir, entry.name)
       }
       // 匹配 frontmatter name
       const detail = await this.loadSkill(path.join(skillsDir, entry.name), entry.name)
       if (detail && detail.name === nameOrDirName) {
+        console.log('[skillService] findSkillDir: matched frontmatter name', detail.name, '-> dir', entry.name)
         return path.join(skillsDir, entry.name)
       }
     }
 
+    console.log('[skillService] findSkillDir: no match found')
     return null
   }
 
@@ -277,14 +284,18 @@ export class SkillService {
   }
 
   async getSkillDetail(name: string): Promise<SkillFullDetail> {
+    console.log('[skillService] getSkillDetail called with name:', name)
     const dirPath = await this.findSkillDir(name)
+    console.log('[skillService] findSkillDir result:', dirPath)
     if (!dirPath) throw ApiError.notFound(`Skill not found: ${name}`)
     const dirName = path.basename(dirPath)
     const detail = await this.loadSkill(dirPath, dirName)
     if (!detail) throw ApiError.notFound(`Skill not found: ${name}`)
 
     const tree = await this.scanDir(dirPath, dirPath)
+    console.log('[skillService] scanDir result, nodes:', tree.length)
     const files = this.flattenTree(tree)
+    console.log('[skillService] flattenTree result, files:', files.length)
 
     return {
       meta: {
