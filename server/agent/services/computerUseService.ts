@@ -65,19 +65,69 @@ export type PythonRuntime = {
 }
 
 export type ComputerUseStatus = {
-  available: boolean
   platform: string
-  pythonAvailable: boolean
-  pythonVersion: string | null
-  setupCompleted: boolean
-  venvPath: string | null
+  supported: boolean
+  python: {
+    installed: boolean
+    version: string | null
+    path: string | null
+  }
+  venv: {
+    created: boolean
+    path: string
+  }
+  dependencies: {
+    installed: boolean
+    requirementsFound: boolean
+  }
+  permissions: {
+    accessibility: boolean | null
+    screenRecording: boolean | null
+  }
+}
+
+export type SetupStep = {
+  name: string
+  ok: boolean
+  message: string
 }
 
 export type SetupResult = {
   success: boolean
-  message: string
-  details?: string
+  steps: SetupStep[]
 }
+
+export type InstalledApp = {
+  bundleId: string
+  displayName: string
+  path: string
+}
+
+export type AuthorizedApp = {
+  bundleId: string
+  displayName: string
+  authorizedAt: string
+}
+
+export type ComputerUseConfig = {
+  authorizedApps: AuthorizedApp[]
+  grantFlags: {
+    clipboardRead: boolean
+    clipboardWrite: boolean
+    systemKeyCombos: boolean
+  }
+}
+
+const DEFAULT_CONFIG: ComputerUseConfig = {
+  authorizedApps: [],
+  grantFlags: {
+    clipboardRead: true,
+    clipboardWrite: true,
+    systemKeyCombos: true,
+  },
+}
+
+const CONFIG_FILE = path.join(CONFIG_DIR, 'computer-use-config.json')
 
 /** 运行命令 */
 async function runCommand(cmd: string, args: string[], timeoutMs = 30000): Promise<{ ok: boolean; stdout: string; stderr: string }> {
@@ -154,81 +204,131 @@ async function checkVenvReady(): Promise<boolean> {
 /** 获取状态 */
 export async function getStatus(): Promise<ComputerUseStatus> {
   const platform = process.platform
-  const available = platform === 'win32' || platform === 'darwin'
+  const supported = platform === 'win32' || platform === 'darwin'
   const venvPython = getVenvPython()
   const python = await detectPython(venvPython)
-  const setupCompleted = await checkVenvReady()
+  const venvCreated = await checkVenvExists()
+  const depsInstalled = venvCreated && await checkVenvReady()
 
   return {
-    available,
     platform,
-    pythonAvailable: python.installed,
-    pythonVersion: python.version,
-    setupCompleted,
-    venvPath: setupCompleted ? VENV_DIR : null,
+    supported,
+    python: {
+      installed: python.installed,
+      version: python.version,
+      path: python.path,
+    },
+    venv: {
+      created: venvCreated,
+      path: VENV_DIR,
+    },
+    dependencies: {
+      installed: depsInstalled,
+      requirementsFound: true,
+    },
+    permissions: {
+      accessibility: platform === 'win32' ? true : null,
+      screenRecording: platform === 'win32' ? true : null,
+    },
+  }
+}
+
+/** 检查 venv 是否存在（不检查依赖） */
+async function checkVenvExists(): Promise<boolean> {
+  const venvPython = getVenvPython()
+  try {
+    await fs.access(venvPython)
+    return true
+  } catch {
+    return false
   }
 }
 
 /** 安装设置：创建 venv + 安装依赖 */
 export async function runSetup(): Promise<SetupResult> {
   const platform = process.platform
+  const steps: SetupStep[] = []
+
   if (platform !== 'win32' && platform !== 'darwin') {
-    return { success: false, message: `不支持的平台: ${platform}` }
+    steps.push({ name: 'platform', ok: false, message: `不支持的平台: ${platform}` })
+    return { success: false, steps }
   }
 
-  // 1. 检测系统 Python
+  // Step 1: 检测系统 Python
   const python = await detectPython()
   if (!python.installed || !python.command) {
-    return { success: false, message: '未检测到 Python，请先安装 Python 3.8+ 并添加到 PATH' }
+    steps.push({ name: 'python_check', ok: false, message: '未检测到 Python，请先安装 Python 3.8+ 并添加到 PATH' })
+    return { success: false, steps }
   }
+  steps.push({
+    name: 'python_check',
+    ok: true,
+    message: python.source === 'venv'
+      ? `Python ${python.version}（使用现有虚拟环境）`
+      : `Python ${python.version}`,
+  })
 
   const pythonCmd = python.command
   const pythonArgs = python.prefixArgs
 
-  // 2. 创建 venv
+  // Step 2: 部署 helper 脚本
   try {
-    await fs.mkdir(CONFIG_DIR, { recursive: true })
-    // 如果 venv 已存在，先删除
-    try { await fs.rm(VENV_DIR, { recursive: true, force: true }) } catch {}
-    const venvResult = await runCommand(pythonCmd, [...pythonArgs, '-m', 'venv', VENV_DIR], 120000) // 2 分钟超时
-    if (!venvResult.ok) {
-      return { success: false, message: '创建虚拟环境失败', details: venvResult.stderr }
-    }
+    await deployHelperScript()
+    steps.push({ name: 'runtime_files', ok: true, message: '运行时文件已就绪' })
   } catch (err) {
-    return { success: false, message: `创建 venv 失败: ${err instanceof Error ? err.message : String(err)}` }
+    steps.push({ name: 'runtime_files', ok: false, message: `提取运行时文件失败: ${err instanceof Error ? err.message : String(err)}` })
+    return { success: false, steps }
   }
 
-  // 3. 安装依赖
+  // Step 3: 创建 venv
+  const venvExists = await checkVenvExists()
+  if (!venvExists) {
+    try {
+      await fs.mkdir(CONFIG_DIR, { recursive: true })
+      const venvResult = await runCommand(pythonCmd, [...pythonArgs, '-m', 'venv', VENV_DIR], 120000)
+      if (!venvResult.ok) {
+        steps.push({ name: 'venv', ok: false, message: `创建虚拟环境失败: ${venvResult.stderr}` })
+        return { success: false, steps }
+      }
+      steps.push({ name: 'venv', ok: true, message: '虚拟环境已创建' })
+    } catch (err) {
+      steps.push({ name: 'venv', ok: false, message: `创建 venv 失败: ${err instanceof Error ? err.message : String(err)}` })
+      return { success: false, steps }
+    }
+  } else {
+    steps.push({ name: 'venv', ok: true, message: '虚拟环境已存在' })
+  }
+
+  // Step 4: 安装依赖
   const venvPython = getVenvPython()
   const requirements = platform === 'win32' ? WIN_REQUIREMENTS : MAC_REQUIREMENTS
 
-  // 写入 requirements.txt
   const reqFile = path.join(RUNTIME_DIR, 'requirements.txt')
   await fs.mkdir(RUNTIME_DIR, { recursive: true })
   await fs.writeFile(reqFile, requirements.join('\n') + '\n', 'utf-8')
 
-  // 使用清华镜像加速（中国网络环境）
   const pipInstallResult = await runCommand(venvPython, [
     '-m', 'pip', 'install',
     '-i', 'https://pypi.tuna.tsinghua.edu.cn/simple',
     '--trusted-host', 'pypi.tuna.tsinghua.edu.cn',
     ...requirements,
-  ], 300000) // 5 分钟超时
+  ], 300000)
 
   if (!pipInstallResult.ok) {
-    return { success: false, message: '安装 Python 依赖失败', details: pipInstallResult.stderr.slice(0, 1000) }
+    steps.push({ name: 'deps', ok: false, message: `安装依赖失败: ${pipInstallResult.stderr.slice(0, 500)}` })
+    return { success: false, steps }
   }
+  steps.push({ name: 'deps', ok: true, message: '依赖已安装' })
 
-  // 4. 部署 helper 脚本
-  await deployHelperScript()
-
-  // 5. 验证
+  // Step 5: 验证
   const verifyResult = await runCommand(venvPython, ['-c', 'import pyautogui, mss, PIL; print("ok")'])
   if (!verifyResult.ok || verifyResult.stdout.trim() !== 'ok') {
-    return { success: false, message: '依赖验证失败', details: verifyResult.stderr }
+    steps.push({ name: 'verify', ok: false, message: '依赖验证失败' })
+    return { success: false, steps }
   }
+  steps.push({ name: 'verify', ok: true, message: '环境验证通过' })
 
-  return { success: true, message: '计算机操作环境设置完成' }
+  return { success: true, steps }
 }
 
 /** 部署平台对应的 Python helper 脚本 */
@@ -274,5 +374,70 @@ export async function callPythonHelper(action: string, params: Record<string, un
     return JSON.parse(result.stdout)
   } catch {
     return { raw: result.stdout }
+  }
+}
+
+/** 列出系统已安装的应用 */
+export async function listInstalledApps(): Promise<InstalledApp[]> {
+  const venvPython = getVenvPythonPath()
+  const helperScript = path.join(RUNTIME_DIR, process.platform === 'win32' ? 'win_helper.py' : 'mac_helper.py')
+
+  try {
+    await fs.access(venvPython)
+    await fs.access(helperScript)
+  } catch {
+    return []
+  }
+
+  // 传入 list_installed_apps 命令
+  const result = await runCommand(venvPython, [helperScript, 'list_installed_apps'])
+  if (!result.ok) return []
+
+  try {
+    const parsed = JSON.parse(result.stdout)
+    // do_list_installed_apps 返回数组（不是 {success, ...} 格式）
+    return Array.isArray(parsed) ? parsed : []
+  } catch {
+    return []
+  }
+}
+
+/** 加载授权配置 */
+export async function loadConfig(): Promise<ComputerUseConfig> {
+  try {
+    const raw = await fs.readFile(CONFIG_FILE, 'utf-8')
+    const parsed = JSON.parse(raw)
+    return {
+      authorizedApps: parsed.authorizedApps ?? [],
+      grantFlags: {
+        ...DEFAULT_CONFIG.grantFlags,
+        ...parsed.grantFlags,
+      },
+    }
+  } catch {
+    return { ...DEFAULT_CONFIG }
+  }
+}
+
+/** 保存授权配置 */
+export async function saveConfig(config: ComputerUseConfig): Promise<void> {
+  await fs.mkdir(CONFIG_DIR, { recursive: true })
+  await fs.writeFile(CONFIG_FILE, JSON.stringify(config, null, 2), 'utf-8')
+}
+
+/** 打开系统设置 */
+export async function openSystemSettings(pane: string): Promise<void> {
+  const allowed = ['Privacy_ScreenCapture', 'Privacy_Accessibility']
+  if (!allowed.includes(pane)) {
+    throw new Error('Invalid pane')
+  }
+
+  if (process.platform === 'darwin') {
+    const url = `x-apple.systempreferences:com.apple.preference.security?${pane}`
+    await runCommand('open', [url])
+  } else if (process.platform === 'win32') {
+    await runCommand('cmd', ['/c', 'start', 'ms-settings:privacy'])
+  } else {
+    throw new Error('Unsupported platform')
   }
 }
