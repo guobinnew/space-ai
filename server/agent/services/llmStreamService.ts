@@ -1148,6 +1148,13 @@ async function runOpenAILoop(
         content: result.content,
         tool_call_id: tu.id,
       })
+
+      // Inject newMessages (e.g. skill content) into conversation history
+      if (result.newMessages && result.newMessages.length > 0) {
+        for (const nm of result.newMessages) {
+          messages.push({ role: nm.role as 'user', content: nm.content })
+        }
+      }
     }
 
     if (loopDetected) {
@@ -1203,44 +1210,58 @@ async function callOpenAI(
   isCancelled?: () => boolean,
 ): Promise<LLMResponse> {
   const url = `${baseUrl}/chat/completions`
-  const body: Record<string, unknown> = {
-    model,
-    max_tokens: 16000,
-    messages,
-    stream: true,
-    stream_options: { include_usage: true },
-  }
-  if (toolDefs.length > 0) {
-    body.tools = toolDefs.map((t) => ({
-      type: 'function',
-      function: {
-        name: t.name,
-        description: t.description,
-        parameters: t.input_schema,
+
+  // 某些 OpenAI 兼容 API 可能不支持 stream_options.include_usage
+  // 首次尝试带 include_usage，若 400 则降级重试
+  let includeUsage = true
+  while (true) {
+    const body: Record<string, unknown> = {
+      model,
+      max_tokens: 16000,
+      messages,
+      stream: true,
+    }
+    if (includeUsage) {
+      body.stream_options = { include_usage: true }
+    }
+    if (toolDefs.length > 0) {
+      body.tools = toolDefs.map((t) => ({
+        type: 'function',
+        function: {
+          name: t.name,
+          description: t.description,
+          parameters: t.input_schema,
+        },
+      }))
+      body.tool_choice = 'auto'
+    }
+
+    const streamTimeout = createStreamingTimeout()
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`,
       },
-    }))
-    body.tool_choice = 'auto'
-  }
+      body: JSON.stringify(body),
+      signal: streamTimeout.signal,
+    })
 
-  const streamTimeout = createStreamingTimeout()
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify(body),
-    signal: streamTimeout.signal,
-  })
+    if (!response.ok) {
+      const errText = await response.text().catch(() => '')
+      // 若 API 不支持 stream_options，降级重试
+      if (response.status === 400 && includeUsage) {
+        includeUsage = false
+        streamTimeout.clear()
+        continue
+      }
+      streamTimeout.clear()
+      throw new Error(`OpenAI API ${response.status}: ${errText.slice(0, 300)}`)
+    }
 
-  if (!response.ok) {
-    const errText = await response.text().catch(() => '')
-    throw new Error(`OpenAI API ${response.status}: ${errText.slice(0, 300)}`)
-  }
+    if (!response.body) throw new Error('No response body')
 
-  if (!response.body) throw new Error('No response body')
-
-  onChunk({ type: 'status', state: 'streaming' })
+    onChunk({ type: 'status', state: 'streaming' })
 
   const reader = response.body.getReader()
   const decoder = new TextDecoder()
@@ -1330,8 +1351,9 @@ async function callOpenAI(
   else if (finishReason === 'tool_calls') stopReason = 'tool_use'
   else if (finishReason === 'length') stopReason = 'length'
 
-  streamTimeout.clear()
-  return { text: fullText, toolUses, stopReason, inputTokens, outputTokens, cacheReadTokens: 0, cacheCreationTokens: 0, thinkingBlocks: [] }
+    streamTimeout.clear()
+    return { text: fullText, toolUses, stopReason, inputTokens, outputTokens, cacheReadTokens: 0, cacheCreationTokens: 0, thinkingBlocks: [] }
+  }
 }
 
 // ─── 工具执行 ────────────────────────────────────────────────
