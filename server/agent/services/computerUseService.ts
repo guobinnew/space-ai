@@ -384,6 +384,14 @@ export async function listInstalledApps(): Promise<InstalledApp[]> {
 
   try {
     await fs.access(venvPython)
+  } catch {
+    return []
+  }
+
+  // 确保部署最新的 helper 脚本（修复旧版本缺少 list_installed_apps 的问题）
+  await deployHelperScript()
+
+  try {
     await fs.access(helperScript)
   } catch {
     return []
@@ -391,13 +399,23 @@ export async function listInstalledApps(): Promise<InstalledApp[]> {
 
   // 传入 list_installed_apps 命令
   const result = await runCommand(venvPython, [helperScript, 'list_installed_apps'])
-  if (!result.ok) return []
+  if (!result.ok) {
+    console.error('[ComputerUse] listInstalledApps failed:', result.stderr || result.stdout)
+    return []
+  }
 
   try {
     const parsed = JSON.parse(result.stdout)
     // do_list_installed_apps 返回数组（不是 {success, ...} 格式）
-    return Array.isArray(parsed) ? parsed : []
+    if (Array.isArray(parsed)) return parsed
+    // 如果返回了 {error: ...} 格式，说明执行出错
+    if (parsed && typeof parsed === 'object' && 'error' in parsed) {
+      console.error('[ComputerUse] listInstalledApps error:', parsed.error)
+      return []
+    }
+    return []
   } catch {
+    console.error('[ComputerUse] listInstalledApps JSON parse failed:', result.stdout.slice(0, 200))
     return []
   }
 }
