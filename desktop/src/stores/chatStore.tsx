@@ -460,7 +460,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const sendMessage = useCallback(
-    (sessionId: string, content: string, skipQueue?: boolean) => {
+    (sessionId: string, content: string, skipQueue?: boolean, providerId?: string) => {
       let shouldSendViaWs = false;
       updateSession(sessionId, (prev) => {
         const isBusy = prev.chatState !== 'idle';
@@ -470,6 +470,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
           const query: QueuedQuery = {
             id: `q-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
             content,
+            providerId, // 队列中携带 providerId
             createdAt: new Date().toISOString(),
           };
           return {
@@ -500,9 +501,9 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       });
 
       if (shouldSendViaWs) {
-        wsManager.send(sessionId, { type: 'user_message', content });
-        // 首条消息标题同步由服务端 auto-title + 侧边栏 fetchSessions 完成，
-        // 此处不额外处理（React hooks 不能在 event callback 中调用）。
+        const wsPayload: Record<string, unknown> = { type: 'user_message', content };
+        if (providerId) wsPayload.providerId = providerId;
+        wsManager.send(sessionId, wsPayload);
       }
     },
     [updateSession, getSession],
@@ -598,7 +599,9 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         content: query.content,
         createdAt: new Date().toISOString(),
       };
-      wsManager.send(sessionId, { type: 'user_message', content: query.content });
+      const wsPayload: Record<string, unknown> = { type: 'user_message', content: query.content };
+      if (query.providerId) wsPayload.providerId = query.providerId;
+      wsManager.send(sessionId, wsPayload);
       return {
         ...prev,
         messages: [...prev.messages, userMsg],

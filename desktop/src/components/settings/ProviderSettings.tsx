@@ -7,7 +7,7 @@ import type { SavedProvider, ProviderTestResult, ProviderPreset, ApiFormat, Mode
 export function ProviderSettings() {
   const t = useTranslation();
   const [providers, setProviders] = useState<SavedProvider[]>([]);
-  const [activeId, setActiveId] = useState<string | null>(null);
+  const [defaultId, setDefaultId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [editingProvider, setEditingProvider] = useState<SavedProvider | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -21,7 +21,7 @@ const [ttsTestResults, setTtsTestResults] = useState<Record<string, { loading: b
     try {
       const data = await providersApi.list();
       setProviders(data.providers);
-      setActiveId(data.activeId);
+      setDefaultId(data.defaultId);
     } catch (err) {
       setError(err instanceof Error ? err.message : t('settings.providers.loadFailed'));
     } finally {
@@ -34,7 +34,7 @@ const [ttsTestResults, setTtsTestResults] = useState<Record<string, { loading: b
   }, []);
 
   const handleDelete = async (provider: SavedProvider) => {
-    if (activeId === provider.id) return;
+    if (defaultId === provider.id) return;
     if (!window.confirm(`${t('settings.providers.confirmDelete')}「${provider.name}」？`)) return;
     try {
       await providersApi.delete(provider.id);
@@ -82,9 +82,9 @@ const [ttsTestResults, setTtsTestResults] = useState<Record<string, { loading: b
     }
   };
 
-  const handleActivate = async (id: string) => {
+  const handleSetDefault = async (id: string) => {
     try {
-      await providersApi.activate(id);
+      await providersApi.setDefault(id);
       await fetchProviders();
     } catch (err) {
       setError(err instanceof Error ? err.message : t('settings.providers.activateFailed'));
@@ -135,7 +135,7 @@ const [ttsTestResults, setTtsTestResults] = useState<Record<string, { loading: b
       ) : (
         <div className="flex flex-col gap-2">
           {providers.map((provider) => {
-            const isActive = activeId === provider.id;
+            const isDefault = defaultId === provider.id;
             const test = testResults[provider.id];
             const ttsTest = ttsTestResults[provider.id];
             const preset = PROVIDER_PRESETS.find((p) => p.id === provider.presetId);
@@ -143,12 +143,12 @@ const [ttsTestResults, setTtsTestResults] = useState<Record<string, { loading: b
               <div
                 key={provider.id}
                 className={`relative flex items-center gap-4 px-4 py-3.5 rounded-xl border transition-all group ${
-                  isActive
+                  isDefault
                     ? 'border-[var(--color-brand)] bg-[var(--color-surface-container)] shadow-[var(--shadow-focus-ring)]'
                     : 'border-[var(--color-border)] hover:border-[var(--color-border-focus)]'
                 }`}
               >
-                <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${isActive ? 'bg-[var(--color-success)]' : 'bg-[var(--color-text-tertiary)]'}`} />
+                <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${isDefault ? 'bg-[var(--color-success)]' : 'bg-[var(--color-text-tertiary)]'}`} />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-semibold text-[var(--color-text-primary)] truncate">{provider.name}</span>
@@ -160,8 +160,8 @@ const [ttsTestResults, setTtsTestResults] = useState<Record<string, { loading: b
                         OpenAI
                       </span>
                     )}
-                    {isActive && (
-                      <span className="px-1.5 py-0.5 text-[10px] font-bold rounded border border-[var(--color-brand)]/18 bg-[var(--color-brand)]/14 text-[var(--color-brand)] leading-none">{t('settings.providers.active')}</span>
+                    {isDefault && (
+                      <span className="px-1.5 py-0.5 text-[10px] font-bold rounded border border-[var(--color-brand)]/18 bg-[var(--color-brand)]/14 text-[var(--color-brand)] leading-none">{t('settings.providers.default')}</span>
                     )}
                   </div>
                   <div className="text-xs text-[var(--color-text-tertiary)] truncate mt-0.5">
@@ -187,9 +187,9 @@ const [ttsTestResults, setTtsTestResults] = useState<Record<string, { loading: b
                   )}
                 </div>
                 <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
-                  {!isActive && (
-                    <button onClick={() => handleActivate(provider.id)} className="px-2.5 py-1 text-xs text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] rounded transition-colors">
-                      {t('settings.providers.activate')}
+                  {!isDefault && (
+                    <button onClick={() => handleSetDefault(provider.id)} className="px-2.5 py-1 text-xs text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] rounded transition-colors">
+                      {t('settings.providers.setDefault')}
                     </button>
                   )}
                   <button
@@ -209,7 +209,7 @@ const [ttsTestResults, setTtsTestResults] = useState<Record<string, { loading: b
                   <button onClick={() => setEditingProvider(provider)} className="px-2.5 py-1 text-xs text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] rounded transition-colors">
                     {t('settings.providers.edit')}
                   </button>
-                  {!isActive && (
+                  {!isDefault && (
                     <button onClick={() => handleDelete(provider)} className="px-2.5 py-1 text-xs text-[var(--color-error)] hover:bg-[var(--color-surface-hover)] rounded transition-colors">
                       {t('settings.providers.delete')}
                     </button>

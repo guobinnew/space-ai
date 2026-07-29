@@ -3,15 +3,16 @@
  *
  * 参照 smart-code api/providers.ts 复刻。
  *
- * GET    /api/providers              — list all saved providers + activeId
- * GET    /api/providers/presets      — list available presets
- * GET    /api/providers/auth-status  — check whether any usable auth exists
- * POST   /api/providers              — add a provider
- * PUT    /api/providers/:id          — update a provider
- * DELETE /api/providers/:id          — delete a provider
- * POST   /api/providers/:id/activate — activate a saved provider
- * POST   /api/providers/:id/test     — test a saved provider
- * POST   /api/providers/test         — test unsaved config
+ * GET    /api/providers                — list all saved providers + defaultId
+ * GET    /api/providers/default        — get the default provider
+ * GET    /api/providers/presets        — list available presets
+ * GET    /api/providers/auth-status    — check whether any usable auth exists
+ * POST   /api/providers                — add a provider
+ * PUT    /api/providers/:id            — update a provider
+ * DELETE /api/providers/:id            — delete a provider
+ * POST   /api/providers/:id/set-default — set as default provider
+ * POST   /api/providers/:id/test       — test a saved provider
+ * POST   /api/providers/test           — test unsaved config
  */
 
 import { ProviderService, sanitizeProvider } from '../services/providerService'
@@ -114,8 +115,8 @@ export async function handleProvidersApi(
     // /api/providers (no ID)
     if (!id) {
       if (req.method === 'GET') {
-        const { providers, activeId } = await providerService.listProviders()
-        return Response.json({ providers: providers.map(sanitizeProvider), activeId })
+        const { providers, defaultId } = await providerService.listProviders()
+        return Response.json({ providers: providers.map(sanitizeProvider), defaultId })
       }
       if (req.method === 'POST') {
         const body = await parseJsonBody(req)
@@ -126,10 +127,16 @@ export async function handleProvidersApi(
       throw methodNotAllowed(req.method)
     }
 
-    // /api/providers/:id/activate
-    if (action === 'activate') {
+    // /api/providers/default — 获取默认服务商
+    if (id === 'default' && req.method === 'GET') {
+      const provider = await providerService.getDefaultProvider()
+      return Response.json({ provider: provider ? sanitizeProvider(provider) : null })
+    }
+
+    // /api/providers/:id/set-default — 设为默认
+    if (action === 'set-default') {
       if (req.method !== 'POST') throw methodNotAllowed(req.method)
-      await providerService.activateProvider(id)
+      await providerService.setDefaultProvider(id)
       return Response.json({ ok: true })
     }
 

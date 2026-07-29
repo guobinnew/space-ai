@@ -59,6 +59,8 @@ export type QueuedQuery = {
   id: string
   content: string
   createdAt: string
+  /** 选中的服务商 ID，发送时带入 */
+  providerId?: string
 }
 
 export type PerSessionChatState = {

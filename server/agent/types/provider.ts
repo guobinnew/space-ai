@@ -30,7 +30,7 @@ export type SavedProvider = {
 }
 
 export type ProvidersIndex = {
-  activeId: string | null
+  defaultId: string | null
   providers: SavedProvider[]
 }
 

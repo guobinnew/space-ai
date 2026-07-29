@@ -22,7 +22,7 @@ import type {
   ApiFormat,
 } from '../types/provider'
 
-const DEFAULT_INDEX: ProvidersIndex = { activeId: null, providers: [] }
+const DEFAULT_INDEX: ProvidersIndex = { defaultId: null, providers: [] }
 
 export class ProviderService {
   private getConfigDir(): string {
@@ -44,7 +44,14 @@ export class ProviderService {
   private async readIndex(): Promise<ProvidersIndex> {
     try {
       const raw = await fs.readFile(this.getIndexPath(), 'utf-8')
-      return JSON.parse(raw) as ProvidersIndex
+      const index = JSON.parse(raw) as ProvidersIndex & { activeId?: string | null }
+      // 兼容旧字段 activeId → defaultId
+      if (index.activeId !== undefined && index.defaultId === undefined) {
+        index.defaultId = index.activeId
+        delete (index as any).activeId
+        await this.writeIndex(index as ProvidersIndex)
+      }
+      return index as ProvidersIndex
     } catch (err: unknown) {
       if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
         return { ...DEFAULT_INDEX, providers: [] }
@@ -55,7 +62,9 @@ export class ProviderService {
 
   private async writeIndex(index: ProvidersIndex): Promise<void> {
     await this.ensureConfigDir()
-    await fs.writeFile(this.getIndexPath(), JSON.stringify(index, null, 2), 'utf-8')
+    // 只写新字段，不写旧字段
+    const toWrite = { defaultId: index.defaultId, providers: index.providers }
+    await fs.writeFile(this.getIndexPath(), JSON.stringify(toWrite, null, 2), 'utf-8')
   }
 
   private async readSettings(): Promise<Record<string, unknown>> {
@@ -75,9 +84,15 @@ export class ProviderService {
 
   // --- CRUD ---
 
-  async listProviders(): Promise<{ providers: SavedProvider[]; activeId: string | null }> {
+  async listProviders(): Promise<{ providers: SavedProvider[]; defaultId: string | null }> {
     const index = await this.readIndex()
-    return { providers: index.providers, activeId: index.activeId }
+    return { providers: index.providers, defaultId: index.defaultId }
+  }
+
+  async getDefaultProvider(): Promise<SavedProvider | null> {
+    const index = await this.readIndex()
+    if (!index.defaultId) return null
+    return index.providers.find((p) => p.id === index.defaultId) || null
   }
 
   async getProvider(id: string): Promise<SavedProvider> {
@@ -131,7 +146,7 @@ export class ProviderService {
     index.providers[idx] = updated
     await this.writeIndex(index)
 
-    if (index.activeId === id) {
+    if (index.defaultId === id) {
       await this.syncToSettings(updated)
     }
 
@@ -143,22 +158,22 @@ export class ProviderService {
     const idx = index.providers.findIndex((p) => p.id === id)
     if (idx === -1) throw ApiError.notFound(`Provider not found: ${id}`)
 
-    if (index.activeId === id) {
-      throw ApiError.conflict('Cannot delete the active provider. Switch to another provider first.')
+    if (index.defaultId === id) {
+      throw ApiError.conflict('Cannot delete the default provider. Switch to another provider first.')
     }
 
     index.providers.splice(idx, 1)
     await this.writeIndex(index)
   }
 
-  // --- Activation ---
+  // --- Default ---
 
-  async activateProvider(id: string): Promise<void> {
+  async setDefaultProvider(id: string): Promise<void> {
     const index = await this.readIndex()
     const provider = index.providers.find((p) => p.id === id)
     if (!provider) throw ApiError.notFound(`Provider not found: ${id}`)
 
-    index.activeId = id
+    index.defaultId = id
     await this.writeIndex(index)
     await this.syncToSettings(provider)
   }
@@ -187,13 +202,13 @@ export class ProviderService {
   async checkAuthStatus(): Promise<{
     hasAuth: boolean
     source: 'spaceai-provider' | 'env' | 'none'
-    activeProvider?: string
+    defaultProvider?: string
   }> {
     const index = await this.readIndex()
-    if (index.activeId) {
-      const provider = index.providers.find((p) => p.id === index.activeId)
+    if (index.defaultId) {
+      const provider = index.providers.find((p) => p.id === index.defaultId)
       if (provider?.apiKey) {
-        return { hasAuth: true, source: 'spaceai-provider', activeProvider: provider.name }
+        return { hasAuth: true, source: 'spaceai-provider', defaultProvider: provider.name }
       }
     }
 

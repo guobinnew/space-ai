@@ -186,8 +186,8 @@ export function ActiveSession({ sessionId }: { sessionId: string }) {
     document.body.style.userSelect = 'none';
   }, []);
 
-  const handleSend = (content: string) => {
-    sendMessage(sessionId, content);
+  const handleSend = (content: string, providerId?: string) => {
+    sendMessage(sessionId, content, providerId ? false : undefined, providerId);
   };
 
   const handleStop = () => {

@@ -338,8 +338,9 @@ export async function startServer(port = PORT, host = HOST) {
             if (data.type === 'user_message' && data.content) {
               const sessionId = ws.data.sessionId
               const userContent = data.content
+              const providerId = data.providerId as string | undefined
 
-              await conversationService.sendMessage(sessionId, userContent)
+              await conversationService.sendMessage(sessionId, userContent, providerId)
             }
 
             if (data.type === 'stop_generation') {

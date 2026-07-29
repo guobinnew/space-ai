@@ -204,19 +204,22 @@ export async function streamChat(
   onChunk: (chunk: StreamChunk) => void,
   isCancelled?: () => boolean,
   askUser?: (request: AskUserRequest) => Promise<string>,
+  /** 指定使用的 provider ID，不传则使用默认服务商 */
+  providerId?: string,
 ): Promise<void> {
-  console.log(`[LLM] streamChat start: sessionId=${sessionId}, content="${userContent.slice(0, 50)}..."`)
+  console.log(`[LLM] streamChat start: sessionId=${sessionId}, content="${userContent.slice(0, 50)}...", providerId=${providerId || '(default)'}`)
 
-  // Get active provider
-  const { providers, activeId } = await providerService.listProviders()
-  if (!activeId) {
-    onChunk({ type: 'error', message: '没有活跃的服务商，请先在设置中配置并激活一个服务商' })
+  // Get provider: 优先使用传入的 providerId，否则使用默认服务商
+  const { providers, defaultId } = await providerService.listProviders()
+  const targetId = providerId || defaultId
+  if (!targetId) {
+    onChunk({ type: 'error', message: '没有默认的服务商，请先在设置中配置并设置一个默认服务商' })
     return
   }
 
-  const provider = providers.find((p) => p.id === activeId)
+  const provider = providers.find((p) => p.id === targetId)
   if (!provider) {
-    onChunk({ type: 'error', message: '找不到活跃的服务商配置' })
+    onChunk({ type: 'error', message: '找不到指定的服务商配置' })
     return
   }
 

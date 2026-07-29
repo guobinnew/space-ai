@@ -50,8 +50,9 @@ class ConversationService {
 
   /**
    * Send a user message — triggers LLM streaming with agentic loop.
+   * @param providerId 指定使用的 provider ID，不传则使用默认服务商
    */
-  async sendMessage(sessionId: string, content: string): Promise<void> {
+  async sendMessage(sessionId: string, content: string, providerId?: string): Promise<void> {
     const proc = this.sessions.get(sessionId)
     if (!proc) {
       throw new Error(`Session not started: ${sessionId}`)
@@ -96,6 +97,7 @@ class ConversationService {
       },
       () => proc.cancelled,
       askUser,
+      providerId,
     )
   }
 

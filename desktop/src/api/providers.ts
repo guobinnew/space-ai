@@ -14,7 +14,7 @@ import type {
   ProviderPreset,
 } from '../types/provider'
 
-type ProvidersResponse = { providers: SavedProvider[]; activeId: string | null }
+type ProvidersResponse = { providers: SavedProvider[]; defaultId: string | null }
 type ProviderResponse = { provider: SavedProvider }
 type PresetsResponse = { presets: ProviderPreset[] }
 type TestResultResponse = { result: ProviderTestResult }
@@ -49,8 +49,12 @@ export const providersApi = {
     return api.delete<{ ok: true }>(`/api/providers/${encodeURIComponent(id)}`)
   },
 
-  activate(id: string) {
-    return api.post<{ ok: true }>(`/api/providers/${encodeURIComponent(id)}/activate`)
+  setDefault(id: string) {
+    return api.post<{ ok: true }>(`/api/providers/${encodeURIComponent(id)}/set-default`)
+  },
+
+  getDefault() {
+    return api.get<{ provider: SavedProvider | null }>('/api/providers/default')
   },
 
   test(id: string, overrides?: { baseUrl?: string; modelId?: string; apiFormat?: string }) {

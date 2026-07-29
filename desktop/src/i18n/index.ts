@@ -294,6 +294,8 @@ const translations: Record<Locale, Record<string, string>> = {
     'settings.providers.addFirst': '添加第一个服务商',
     'settings.providers.active': '当前',
     'settings.providers.activate': '启用',
+    'settings.providers.default': '默认',
+    'settings.providers.setDefault': '设为默认',
     'settings.providers.test': '测试',
     'settings.providers.testing': '测试中...',
     'settings.providers.edit': '编辑',
@@ -604,6 +606,9 @@ const translations: Record<Locale, Record<string, string>> = {
     'chat.calculating': '计算中...',
     'chat.contextTooltip': '累计：输入 {input} · 输出 {output} · 缓存读 {cacheRead} · 缓存创 {cacheCreate}',
     'chat.contextTokens': '{tokens} / {limit} tokens',
+    'chat.selectProvider': '选择模型服务商',
+    'chat.providerLocked': '正在生成中，完成后方可切换',
+    'chat.noProvider': '未选择',
 
     // Tool / Thinking / Query
     'tool.openInEditor': '在编辑器中打开',
@@ -967,6 +972,8 @@ const translations: Record<Locale, Record<string, string>> = {
     'settings.providers.addFirst': 'Add your first provider',
     'settings.providers.active': 'Active',
     'settings.providers.activate': 'Activate',
+    'settings.providers.default': 'Default',
+    'settings.providers.setDefault': 'Set as Default',
     'settings.providers.test': 'Test',
     'settings.providers.testing': 'Testing...',
     'settings.providers.edit': 'Edit',
@@ -1277,6 +1284,9 @@ const translations: Record<Locale, Record<string, string>> = {
     'chat.calculating': 'Calculating...',
     'chat.contextTooltip': 'Total: Input {input} · Output {output} · Cache Read {cacheRead} · Cache Write {cacheCreate}',
     'chat.contextTokens': '{tokens} / {limit} tokens',
+    'chat.selectProvider': 'Select model provider',
+    'chat.providerLocked': 'Currently generating, switch after completion',
+    'chat.noProvider': 'No provider',
 
     // Tool / Thinking / Query
     'tool.openInEditor': 'Open in editor',

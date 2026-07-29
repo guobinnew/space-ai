@@ -3,6 +3,7 @@
  *
  * 参照 smart-code chat/ChatInput.tsx 复刻。
  * 支持文件/目录/代码引用的可视化标签显示。
+ * 支持下拉选择模型服务商，当前正在运行的 query 不受影响。
  */
 
 import { useState, useRef, useEffect } from 'react';
@@ -21,7 +22,7 @@ type FileRefTag = { id: string; fileName: string; filePath: string };
 type DirRefTag = { id: string; dirName: string; dirPath: string };
 
 type ChatInputProps = {
-  onSend: (content: string) => void;
+  onSend: (content: string, providerId?: string) => void;
   onStop: () => void;
   isGenerating: boolean;
   disabled?: boolean;
@@ -30,7 +31,7 @@ type ChatInputProps = {
   placeholder?: string;
 };
 
-type ActiveProvider = Pick<SavedProvider, 'id' | 'name' | 'models' | 'apiFormat'> & { models: { main: string } };
+type ProviderOption = Pick<SavedProvider, 'id' | 'name' | 'models' | 'apiFormat'> & { models: { main: string } };
 
 let refCounter = 0;
 
@@ -38,24 +39,38 @@ export function ChatInput({ onSend, onStop, isGenerating, disabled, usage, total
   const t = useTranslation();
   const [input, setInput] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const [activeProvider, setActiveProvider] = useState<ActiveProvider | null>(null);
+  const [providers, setProviders] = useState<ProviderOption[]>([]);
+  const [selectedProviderId, setSelectedProviderId] = useState<string | null>(null);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
   const [codeRefs, setCodeRefs] = useState<CodeRefTag[]>([]);
   const [fileRefs, setFileRefs] = useState<FileRefTag[]>([]);
   const [dirRefs, setDirRefs] = useState<DirRefTag[]>([]);
   const { pendingFileRef, pendingDirRef, pendingCodeRef, clearPendingFileRef, clearPendingDirRef, clearPendingCodeRef } = usePendingRefStore();
 
   useEffect(() => {
-    void providersApi.list().then(({ providers, activeId }) => {
-      const active = providers.find((p) => p.id === activeId);
-      if (active) {
-        setActiveProvider({
-          id: active.id,
-          name: active.name,
-          models: active.models,
-          apiFormat: active.apiFormat,
-        });
-      }
+    void providersApi.list().then(({ providers: list, defaultId }) => {
+      const options = list.map((p) => ({
+        id: p.id,
+        name: p.name,
+        models: p.models,
+        apiFormat: p.apiFormat,
+      }));
+      setProviders(options);
+      // 默认选中 defaultId，否则选第一个
+      setSelectedProviderId(defaultId || options[0]?.id || null);
     }).catch(() => {});
+  }, []);
+
+  // 点击下拉外部关闭
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
   }, []);
 
   // Consume pending file ref → show as tag (do NOT read content until send)
@@ -102,6 +117,8 @@ export function ChatInput({ onSend, onStop, isGenerating, disabled, usage, total
     el.style.height = Math.min(el.scrollHeight, 120) + 'px';
   }, [input]);
 
+  const selectedProvider = providers.find((p) => p.id === selectedProviderId) || providers[0] || null;
+
   const handleSubmit = async () => {
     let text = input.trim();
     if (!text || disabled) return;
@@ -140,7 +157,8 @@ export function ChatInput({ onSend, onStop, isGenerating, disabled, usage, total
       text = text + '\n\n' + refBlocks.join('\n\n');
     }
 
-    onSend(text);
+    // 传入当前选中的 providerId（正在运行的 query 已在发送前捕获此值，不受后续切换影响）
+    onSend(text, selectedProviderId || undefined);
     setInput('');
     setCodeRefs([]);
     setFileRefs([]);
@@ -162,7 +180,6 @@ export function ChatInput({ onSend, onStop, isGenerating, disabled, usage, total
     contextPercent > 80 ? 'var(--color-error)' :
     contextPercent > 50 ? 'var(--color-warning)' :
     'var(--color-brand)';
-  const modelName = activeProvider?.models?.main || '';
 
   /** Render a single ref tag badge */
   const RefTag = ({ icon, label, path, onRemove }: { icon: string; label: string; path: string; onRemove: () => void }) => (
@@ -247,15 +264,57 @@ export function ChatInput({ onSend, onStop, isGenerating, disabled, usage, total
         {/* Bottom toolbar */}
         <div className="flex items-center justify-between px-3 py-2 border-t border-[var(--color-border)] bg-[var(--color-surface-container-low)]">
           <div className="flex items-center gap-2 min-w-0 flex-1">
-            {modelName && (
-              <span className="flex items-center gap-1 px-2 py-1 text-[11px] rounded-md text-[var(--color-text-tertiary)] bg-[var(--color-surface-container-high)] flex-shrink-0">
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="3" y="3" width="18" height="18" rx="2" />
-                  <line x1="9" y1="9" x2="15" y2="9" />
-                  <line x1="9" y1="13" x2="15" y2="13" />
-                </svg>
-                <span className="truncate max-w-[100px]">{modelName}</span>
-              </span>
+            {/* Provider dropdown */}
+            {providers.length > 0 && (
+              <div className="relative flex-shrink-0" ref={dropdownRef}>
+                <button
+                  onClick={() => { if (!isGenerating) setDropdownOpen((o) => !o); }}
+                  className={`flex items-center gap-1.5 px-2 py-1 text-[11px] rounded-md transition-colors ${
+                    isGenerating
+                      ? 'text-[var(--color-text-tertiary)] bg-[var(--color-surface-container-high)] cursor-not-allowed opacity-60'
+                      : 'text-[var(--color-text-secondary)] bg-[var(--color-surface-container-high)] hover:bg-[var(--color-surface-hover)] cursor-pointer'
+                  }`}
+                  title={isGenerating ? t('chat.providerLocked') : t('chat.selectProvider')}
+                >
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="3" width="18" height="18" rx="2" />
+                    <line x1="9" y1="9" x2="15" y2="9" />
+                    <line x1="9" y1="13" x2="15" y2="13" />
+                  </svg>
+                  <span className="truncate max-w-[80px]">{selectedProvider?.models?.main || selectedProvider?.name || t('chat.noProvider')}</span>
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={`transition-transform ${dropdownOpen ? 'rotate-180' : ''}`}>
+                    <polyline points="6 9 12 15 18 9" />
+                  </svg>
+                </button>
+                {dropdownOpen && (
+                  <div className="absolute bottom-full left-0 mb-1 w-48 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] shadow-lg z-50 max-h-48 overflow-y-auto" style={{ boxShadow: 'var(--shadow-dropdown)' }}>
+                    {providers.map((p) => (
+                      <button
+                        key={p.id}
+                        onClick={() => {
+                          setSelectedProviderId(p.id);
+                          setDropdownOpen(false);
+                        }}
+                        className={`w-full flex items-center gap-2 px-3 py-2 text-left text-xs transition-colors ${
+                          p.id === selectedProviderId
+                            ? 'text-[var(--color-brand)] bg-[var(--color-brand)]/5'
+                            : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)]'
+                        }`}
+                      >
+                        <span className="flex-1 min-w-0">
+                          <span className="block truncate font-medium">{p.models?.main || p.name}</span>
+                          <span className="block text-[10px] text-[var(--color-text-tertiary)] truncate">{p.name}</span>
+                        </span>
+                        {p.id === selectedProviderId && (
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="20 6 9 17 4 12" />
+                          </svg>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             )}
           </div>
 
