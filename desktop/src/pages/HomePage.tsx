@@ -91,7 +91,7 @@ export function HomePage() {
     void loadRecent();
   }, [loadRecent]);
 
-  // Load scheduled tasks
+  // Load scheduled tasks (轮询刷新)
   useEffect(() => {
     let cancelled = false;
     const load = async () => {
@@ -107,7 +107,8 @@ export function HomePage() {
       } catch { /* ignore */ }
     };
     void load();
-    return () => { cancelled = true; };
+    const interval = setInterval(load, 10000); // 每 10s 轮询
+    return () => { cancelled = true; clearInterval(interval); };
   }, []);
 
   // Load today's usage
