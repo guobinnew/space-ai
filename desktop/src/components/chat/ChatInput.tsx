@@ -6,7 +6,8 @@
  * 支持下拉选择模型服务商，当前正在运行的 query 不受影响。
  */
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslation } from '../../i18n';
 import { providersApi } from '../../api/providers';
 import { filesystemApi } from '../../api/filesystem';
@@ -43,6 +44,9 @@ export function ChatInput({ onSend, onStop, isGenerating, disabled, usage, total
   const [selectedProviderId, setSelectedProviderId] = useState<string | null>(null);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const dropdownBtnRef = useRef<HTMLButtonElement>(null);
+  const dropdownPortalRef = useRef<HTMLDivElement>(null);
+  const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
   const [codeRefs, setCodeRefs] = useState<CodeRefTag[]>([]);
   const [fileRefs, setFileRefs] = useState<FileRefTag[]>([]);
   const [dirRefs, setDirRefs] = useState<DirRefTag[]>([]);
@@ -62,16 +66,40 @@ export function ChatInput({ onSend, onStop, isGenerating, disabled, usage, total
     }).catch(() => {});
   }, []);
 
-  // 点击下拉外部关闭
+  // 计算下拉菜单位置（基于按钮在视口中的坐标，fixed 定位）
+  const calcDropdownPos = useCallback((): React.CSSProperties => {
+    const btn = dropdownBtnRef.current;
+    if (!btn) return {};
+    const rect = btn.getBoundingClientRect();
+    return { position: 'fixed', left: `${rect.left}px`, top: `${rect.top - 8}px`, transform: 'translateY(-100%)', boxShadow: 'var(--shadow-dropdown)' };
+  }, []);
+
+  // 监听窗口滚动/大小变化时关闭下拉
+  useEffect(() => {
+    if (!dropdownOpen) return;
+    const handleClose = () => setDropdownOpen(false);
+    window.addEventListener('scroll', handleClose, true);
+    window.addEventListener('resize', handleClose);
+    return () => {
+      window.removeEventListener('scroll', handleClose, true);
+      window.removeEventListener('resize', handleClose);
+    };
+  }, [dropdownOpen]);
+
+  // 点击下拉外部关闭（portal 在 body 下，需同时检查 wrapper + portal）
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+      if (!dropdownOpen) return;
+      const target = e.target as Node;
+      const inWrapper = dropdownRef.current?.contains(target);
+      const inPortal = dropdownPortalRef.current?.contains(target);
+      if (!inWrapper && !inPortal) {
         setDropdownOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
-  }, []);
+  }, [dropdownOpen]);
 
   // Consume pending file ref → show as tag (do NOT read content until send)
   useEffect(() => {
@@ -268,7 +296,8 @@ export function ChatInput({ onSend, onStop, isGenerating, disabled, usage, total
             {providers.length > 0 && (
               <div className="relative flex-shrink-0" ref={dropdownRef}>
                 <button
-                  onClick={() => { if (!isGenerating) setDropdownOpen((o) => !o); }}
+                  ref={dropdownBtnRef}
+                  onClick={() => { if (!isGenerating) { setDropdownOpen((o) => !o); setDropdownStyle(calcDropdownPos()); } }}
                   className={`flex items-center gap-1.5 px-2 py-1 text-[11px] rounded-md transition-colors ${
                     isGenerating
                       ? 'text-[var(--color-text-tertiary)] bg-[var(--color-surface-container-high)] cursor-not-allowed opacity-60'
@@ -286,8 +315,12 @@ export function ChatInput({ onSend, onStop, isGenerating, disabled, usage, total
                     <polyline points="6 9 12 15 18 9" />
                   </svg>
                 </button>
-                {dropdownOpen && (
-                  <div className="absolute bottom-full left-0 mb-1 w-48 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] shadow-lg z-50 max-h-48 overflow-y-auto" style={{ boxShadow: 'var(--shadow-dropdown)' }}>
+                {dropdownOpen && createPortal(
+                  <div
+                    ref={dropdownPortalRef}
+                    className="w-48 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] shadow-lg z-[10000] max-h-48 overflow-y-auto"
+                    style={dropdownStyle}
+                  >
                     {providers.map((p) => (
                       <button
                         key={p.id}
@@ -312,7 +345,8 @@ export function ChatInput({ onSend, onStop, isGenerating, disabled, usage, total
                         )}
                       </button>
                     ))}
-                  </div>
+                  </div>,
+                  document.body
                 )}
               </div>
             )}
