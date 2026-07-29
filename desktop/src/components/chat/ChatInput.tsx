@@ -202,7 +202,7 @@ export function ChatInput({ onSend, onStop, isGenerating, disabled, usage, total
 
   return (
     <div className="max-w-3xl mx-auto">
-      <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-container-lowest)] focus-within:border-[var(--color-border-focus)] transition-colors overflow-hidden">
+      <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-container-lowest)] focus-within:border-[var(--color-border-focus)] transition-colors" style={{ overflow: 'clip' }}>
         {/* Ref tags */}
         <div className="px-3 pt-3 pb-0">
           {codeRefs.length > 0 && (
