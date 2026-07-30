@@ -460,7 +460,8 @@ export function ActiveSession({ sessionId }: { sessionId: string }) {
                 />
               </div>
             ) : (
-              /* Messages */
+              <>
+              {/* Messages */}
               <div ref={messagesContainerRef} className="flex-1 overflow-y-auto px-4 msg-list-container">
                 <MessageList
                   messages={sessionState.messages}
@@ -476,8 +477,6 @@ export function ActiveSession({ sessionId }: { sessionId: string }) {
               </div>
             )}
 
-            {/* Bottom area — 查找模式下隐藏 */}
-            {!searchMode && (<>
               {/* Query queue + Task bar (above input, below messages) */}
               <QueryQueue sessionId={sessionId} />
               <SessionTaskBar sessionId={sessionId} />
@@ -505,7 +504,6 @@ export function ActiveSession({ sessionId }: { sessionId: string }) {
                   </div>
                 </div>
               </div>
-            )}
 
             {/* Input */}
             <div className="px-4 py-3 border-t border-[var(--color-border)] flex-shrink-0">
@@ -535,7 +533,8 @@ export function ActiveSession({ sessionId }: { sessionId: string }) {
                 </span>
               </div>
             </div>
-            </>)}
+            </>
+            )}
         </>)}
       </div>
 
