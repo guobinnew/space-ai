@@ -86,9 +86,9 @@ export async function handleTtsApi(req: Request, url: URL): Promise<Response> {
       return Response.json({ error: 'Missing "text" field' }, { status: 400 })
     }
 
-    // 获取激活 Provider 的 TTS 配置
-    const { providers, activeId } = await providerSvc.listProviders()
-    const active = activeId ? providers.find((p) => p.id === activeId) : undefined
+    // 获取默认 Provider 的 TTS 配置
+    const { providers, defaultId } = await providerSvc.listProviders()
+    const active = defaultId ? providers.find((p) => p.id === defaultId) : undefined
     if (!active) {
       return Response.json({ error: 'No active provider' }, { status: 400 })
     }

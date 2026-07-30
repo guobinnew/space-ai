@@ -194,8 +194,8 @@ export async function runSubAgent(
   parentContext: ToolContext,
 ): Promise<SubAgentResult> {
   // 获取 provider 配置
-  const { providers, activeId } = await providerService.listProviders()
-  const provider = providers.find((p) => p.id === activeId)
+  const { providers, defaultId } = await providerService.listProviders()
+  const provider = providers.find((p) => p.id === defaultId)
   if (!provider) throw new Error('No active provider')
   const format: ApiFormat = provider.apiFormat ?? 'anthropic'
   const baseUrl = provider.baseUrl.replace(/\/+$/, '')

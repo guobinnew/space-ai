@@ -258,8 +258,8 @@ export function CodeEditor() {
 
   // 检查激活服务商是否配置了 TTS 模型
   useEffect(() => {
-    void providersApi.list().then(({ providers, activeId }) => {
-      const active = activeId ? providers.find((p) => p.id === activeId) : undefined
+    void providersApi.list().then(({ providers, defaultId }) => {
+      const active = defaultId ? providers.find((p) => p.id === defaultId) : undefined
       setTtsAvailable(!!active?.models?.tts)
     }).catch(() => setTtsAvailable(true))
   }, [])
