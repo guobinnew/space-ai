@@ -74,6 +74,9 @@
   --color-border: var(--color-outline-variant);
   --color-border-focus: var(--color-primary);
 
+  --color-user-message-bg: #95EC69;
+  --color-user-message-fg: #1B1C1A;
+
   --color-text-primary: var(--color-on-surface);
   --color-text-secondary: var(--color-on-surface-variant);
   --color-text-tertiary: var(--color-outline);
@@ -129,6 +132,9 @@
 
   --color-border: rgba(90, 65, 56, 0.18);
   --color-border-focus: rgba(255, 181, 159, 0.55);
+
+  --color-user-message-bg: #1B7D32;
+  --color-user-message-fg: #E5E2E1;
 
   --color-text-primary: var(--color-on-surface);
   --color-text-secondary: var(--color-on-surface-variant);

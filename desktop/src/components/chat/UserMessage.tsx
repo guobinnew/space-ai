@@ -17,7 +17,7 @@ export const UserMessage = memo(function UserMessage({ content, createdAt }: { c
   return (
     <div className="group flex items-end justify-end gap-1.5 mb-3">
       <div className="min-w-0 max-w-[80%]">
-        <div className="rounded-xl px-4 py-3 text-base bg-[var(--color-surface-container-high)] text-[var(--color-text-primary)]">
+        <div className="rounded-xl px-4 py-3 text-base bg-[var(--color-user-message-bg)] text-[var(--color-user-message-fg)]">
           {/* Ref tags */}
           <RefTagList refs={refs} />
           {/* Clean content */}
