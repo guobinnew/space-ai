@@ -484,6 +484,7 @@ export function ActiveSession({ sessionId }: { sessionId: string }) {
               <QueryQueue sessionId={sessionId} />
               <SessionTaskBar sessionId={sessionId} />
 
+              {showContinuePrompt && (
               <div className="px-4 pb-2 flex-shrink-0">
                 <div className="mx-auto max-w-3xl flex items-center justify-between gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-container-low)] px-4 py-3">
                   <div className="flex items-center gap-2 text-sm text-[var(--color-text-primary)]">
@@ -507,6 +508,7 @@ export function ActiveSession({ sessionId }: { sessionId: string }) {
                   </div>
                 </div>
               </div>
+              )}
 
             {/* Input */}
             <div className="px-4 py-3 border-t border-[var(--color-border)] flex-shrink-0">
