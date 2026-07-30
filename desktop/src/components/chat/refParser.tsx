@@ -119,8 +119,9 @@ function NotFoundIcon({ className = '' }: { className?: string }) {
   )
 }
 
-/** 单个引用 tag —— 异步检查存在性，不存在则禁用点击并显示警告图标 */
-function RefTag({ ref: refItem }: { ref: ParsedRef }) {
+/** 单个引用 tag —— 异步检查存在性，不存在则禁用点击并显示警告图标。
+ * 注意：不能用 `ref` 作为 prop 名（React 会消费它作为 ref 转发），用 `refItem`。 */
+function RefTag({ refItem }: { refItem: ParsedRef }) {
   const t = useTranslation()
   const openFile = useEditorStore((s) => s.openFile)
   const [exists, setExists] = useState<boolean | null>(null) // null=checking, true, false
@@ -206,8 +207,8 @@ export function RefTagList({ refs }: { refs: ParsedRef[] }): ReactNode {
 
   return (
     <div className="space-y-1.5 mb-3">
-      {refs.map((ref, idx) => (
-        <RefTag key={`${ref.type}-${refPath(ref)}-${idx}`} ref={ref} />
+      {refs.map((refItem, idx) => (
+        <RefTag key={`${refItem.type}-${refPath(refItem)}-${idx}`} refItem={refItem} />
       ))}
     </div>
   )
