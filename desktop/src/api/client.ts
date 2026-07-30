@@ -1,0 +1,54 @@
+/**
+ * API client base
+ *
+ * 参照 smart-code api/client.ts 复刻，简化版。
+ * 端口动态发现（支持服务端端口回退）。
+ */
+
+import { getServerBaseUrl, getCachedServerBaseUrl } from './serverPort'
+
+/** Returns the base URL for API requests (sync, uses cached port). */
+export function getBaseUrl(): string {
+  return getCachedServerBaseUrl()
+}
+
+async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
+  const baseUrl = await getServerBaseUrl()
+  const res = await fetch(`${baseUrl}${path}`, {
+    method,
+    headers: body ? { 'Content-Type': 'application/json' } : undefined,
+    body: body ? JSON.stringify(body) : undefined,
+  })
+
+  if (!res.ok) {
+    let message = `HTTP ${res.status}`
+    try {
+      const err = await res.json()
+      if (err.message) message = err.message
+      else if (err.error) message = err.error
+    } catch {
+      /* ignore */
+    }
+    throw new Error(message)
+  }
+
+  return res.json() as Promise<T>
+}
+
+export const api = {
+  get<T>(path: string): Promise<T> {
+    return request<T>('GET', path)
+  },
+  post<T>(path: string, body?: unknown): Promise<T> {
+    return request<T>('POST', path, body)
+  },
+  put<T>(path: string, body?: unknown): Promise<T> {
+    return request<T>('PUT', path, body)
+  },
+  patch<T>(path: string, body?: unknown): Promise<T> {
+    return request<T>('PATCH', path, body)
+  },
+  delete<T>(path: string): Promise<T> {
+    return request<T>('DELETE', path)
+  },
+}

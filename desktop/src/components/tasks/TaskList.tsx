@@ -1,0 +1,45 @@
+import { useState } from 'react'
+import type { ScheduledTask } from '../../api/scheduled-tasks'
+import { TaskRow } from './TaskRow'
+import { useTranslation } from '../../i18n'
+
+type Props = { tasks: ScheduledTask[]; onRefresh: () => void }
+
+export function TaskList({ tasks, onRefresh }: Props) {
+  const t = useTranslation()
+  const enabledCount = tasks.filter((tk) => tk.enabled !== false).length
+  const [expandedLogsId, setExpandedLogsId] = useState<string | null>(null)
+
+  return (
+    <div>
+      {/* Stats */}
+      <div className="grid grid-cols-3 gap-4 mb-6">
+        <div className="px-4 py-3 rounded-xl bg-[var(--color-surface-container)]">
+          <div className="text-2xl font-bold text-[var(--color-text-primary)]">{tasks.length}</div>
+          <div className="text-xs text-[var(--color-text-secondary)]">{t('task.listTotal')}</div>
+        </div>
+        <div className="px-4 py-3 rounded-xl bg-[var(--color-surface-container)]">
+          <div className="text-2xl font-bold text-[var(--color-success)]">{enabledCount}</div>
+          <div className="text-xs text-[var(--color-text-secondary)]">{t('task.listEnabled')}</div>
+        </div>
+        <div className="px-4 py-3 rounded-xl bg-[var(--color-surface-container)]">
+          <div className="text-2xl font-bold text-[var(--color-text-tertiary)]">{tasks.length - enabledCount}</div>
+          <div className="text-xs text-[var(--color-text-secondary)]">{t('task.listDisabled')}</div>
+        </div>
+      </div>
+
+      {/* Task rows */}
+      <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]">
+        {tasks.map((task) => (
+          <TaskRow
+            key={task.id}
+            task={task}
+            showLogs={expandedLogsId === task.id}
+            onToggleLogs={() => setExpandedLogsId(expandedLogsId === task.id ? null : task.id)}
+            onRefresh={onRefresh}
+          />
+        ))}
+      </div>
+    </div>
+  )
+}

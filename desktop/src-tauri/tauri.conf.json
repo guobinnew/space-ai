@@ -1,27 +1,30 @@
 {
   "$schema": "https://raw.githubusercontent.com/nicegui/tauri-v2-schema/main/tauri.conf.json",
-  "productName": "Smart Space",
-  "version": "0.1.0",
-  "identifier": "com.smartspace.app",
+  "productName": "Smart Lab",
+  "version": "1.2.0",
+  "identifier": "com.smartlab.desktop",
   "build": {
     "frontendDist": "../dist",
     "devUrl": "http://localhost:1420",
-    "beforeDevCommand": "npm run dev",
+    "beforeDevCommand": "npx vite",
     "beforeBuildCommand": "npm run build:full"
   },
   "app": {
     "windows": [
       {
         "label": "main",
-        "title": "Smart Space",
-        "width": 900,
-        "height": 600,
+        "title": "Smart Lab",
+        "width": 1000,
+        "height": 680,
+        "minWidth": 1280,
+        "minHeight": 480,
         "center": true,
-        "visible": false
+        "visible": false,
+        "decorations": false
       },
       {
         "label": "splash",
-        "title": "Smart Space",
+        "title": "Smart Lab",
         "width": 400,
         "height": 300,
         "center": true,
@@ -47,7 +50,29 @@
       "icons/icon.ico"
     ],
     "resources": {
-      "../../server/dist/server.js": "server/"
+      "../../server/dist/agent/": "agent/"
+    },
+    "windows": {
+      "nsis": {
+        "installMode": "currentUser",
+        "displayLanguageSelector": true
+      }
+    },
+    "macOS": {
+      "dmg": {
+        "appPosition": {
+          "x": 180,
+          "y": 170
+        },
+        "applicationFolderPosition": {
+          "x": 480,
+          "y": 170
+        },
+        "windowSize": {
+          "width": 660,
+          "height": 400
+        }
+      }
     }
   }
 }
