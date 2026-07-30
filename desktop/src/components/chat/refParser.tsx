@@ -3,8 +3,10 @@
  * Returns an object with extracted refs and the clean content without ref blocks.
  */
 
-import type { ReactNode } from 'react'
+import { type ReactNode, useEffect, useState, useCallback } from 'react'
 import { useEditorStore } from '../../stores/editorStore'
+import { filesystemApi } from '../../api/filesystem'
+import { useTranslation } from '../../i18n'
 
 type ParsedFileRef = { type: 'file'; filePath: string; content?: string }
 type ParsedDirRef = { type: 'dir'; dirPath: string }
@@ -88,46 +90,125 @@ function shortName(filePath: string): string {
   return filePath.replace(/\\/g, '/').split('/').pop() || filePath
 }
 
+/** 取 ref 的路径（file/code 用 filePath，dir 用 dirPath） */
+function refPath(ref: ParsedRef): string {
+  return ref.type === 'dir' ? ref.dirPath : ref.filePath
+}
+
+/** 内联警告 SVG（三角加感叹号），与 brand 同色调 */
+function NotFoundIcon({ className = '' }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 16 16"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      className={className}
+      aria-hidden="true"
+    >
+      <path
+        d="M8 1.5l6.5 11.5H1.5L8 1.5z"
+        fill="currentColor"
+        fillOpacity="0.18"
+        stroke="currentColor"
+        strokeWidth="1.3"
+        strokeLinejoin="round"
+      />
+      <path d="M8 6v3.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+      <circle cx="8" cy="11.5" r="0.85" fill="currentColor" />
+    </svg>
+  )
+}
+
+/** 单个引用 tag —— 异步检查存在性，不存在则禁用点击并显示警告图标 */
+function RefTag({ ref: refItem }: { ref: ParsedRef }) {
+  const t = useTranslation()
+  const openFile = useEditorStore((s) => s.openFile)
+  const [exists, setExists] = useState<boolean | null>(null) // null=checking, true, false
+
+  const path = refPath(refItem)
+
+  useEffect(() => {
+    let cancelled = false
+    filesystemApi
+      .exists(path)
+      .then((res) => {
+        if (!cancelled && res) setExists(res.exists)
+      })
+      .catch(() => {
+        if (!cancelled) setExists(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [path])
+
+  const handleClick = useCallback(() => {
+    if (exists === false) return
+    if (refItem.type === 'file' || refItem.type === 'code') {
+      void openFile(refItem.filePath)
+    }
+  }, [exists, refItem, openFile])
+
+  const isMissing = exists === false
+  // dir 本身就不可点击；file/code 在 missing 时禁用
+  const clickable = !isMissing && (refItem.type === 'file' || refItem.type === 'code')
+
+  const baseCls =
+    'flex items-center gap-1.5 rounded-lg bg-[var(--color-surface-container)] px-2.5 py-1.5 text-xs border border-[var(--color-border)]/50'
+  const stateCls = isMissing
+    ? 'cursor-not-allowed opacity-70 border-[var(--color-error)]/40'
+    : clickable
+      ? 'cursor-pointer hover:border-[var(--color-brand)]/50'
+      : ''
+
+  const tooltip = isMissing
+    ? t('ref.notFoundTooltip', { path })
+    : path
+
+  switch (refItem.type) {
+    case 'code':
+      return (
+        <div key={`code-${path}`} onClick={handleClick} title={tooltip} className={`${baseCls} ${stateCls}`}>
+          <span className="text-[14px] text-[var(--color-brand)] font-mono font-bold shrink-0">{'{}'}</span>
+          <span className="font-medium text-[var(--color-text-primary)]">{shortName(refItem.filePath)}</span>
+          <span className="text-[var(--color-brand)] font-mono shrink-0">L{refItem.startLine}-L{refItem.endLine}</span>
+          {isMissing && (
+            <NotFoundIcon className="w-3.5 h-3.5 text-[var(--color-error)] shrink-0" />
+          )}
+        </div>
+      )
+    case 'file':
+      return (
+        <div key={`file-${path}`} onClick={handleClick} title={tooltip} className={`${baseCls} ${stateCls}`}>
+          <span className="text-[14px] shrink-0">{'\uD83D\uDCC4'}</span>
+          <span className="font-medium text-[var(--color-text-primary)]">{shortName(refItem.filePath)}</span>
+          {isMissing && (
+            <NotFoundIcon className="w-3.5 h-3.5 text-[var(--color-error)] shrink-0" />
+          )}
+        </div>
+      )
+    case 'dir':
+      return (
+        <div key={`dir-${path}`} title={tooltip} className={`${baseCls} ${stateCls}`}>
+          <span className="text-[14px] shrink-0">{'\uD83D\uDCC1'}</span>
+          <span className="font-medium text-[var(--color-text-primary)]">{shortName(refItem.dirPath)}</span>
+          {isMissing && (
+            <NotFoundIcon className="w-3.5 h-3.5 text-[var(--color-error)] shrink-0" />
+          )}
+        </div>
+      )
+  }
+}
+
 /** Render a list of parsed refs as visual tags */
 export function RefTagList({ refs }: { refs: ParsedRef[] }): ReactNode {
-  const openFile = useEditorStore((s) => s.openFile)
   if (refs.length === 0) return null
 
   return (
     <div className="space-y-1.5 mb-3">
-      {refs.map((ref, idx) => {
-        const key = `${ref.type}-${idx}`
-        const open = () => {
-          if (ref.type === 'file' || ref.type === 'code') {
-            void openFile(ref.filePath)
-          }
-        }
-        const clickable = ref.type === 'file' || ref.type === 'code'
-        switch (ref.type) {
-          case 'code':
-            return (
-              <div key={key} onClick={open} title={ref.filePath} className={`flex items-center gap-1.5 rounded-lg bg-[var(--color-surface-container)] px-2.5 py-1.5 text-xs border border-[var(--color-border)]/50 ${clickable ? 'cursor-pointer hover:border-[var(--color-brand)]/50' : ''}`}>
-                <span className="text-[14px] text-[var(--color-brand)] font-mono font-bold shrink-0">{'{}'}</span>
-                <span className="font-medium text-[var(--color-text-primary)]">{shortName(ref.filePath)}</span>
-                <span className="text-[var(--color-brand)] font-mono shrink-0">L{ref.startLine}-L{ref.endLine}</span>
-              </div>
-            )
-          case 'file':
-            return (
-              <div key={key} onClick={open} title={ref.filePath} className={`flex items-center gap-1.5 rounded-lg bg-[var(--color-surface-container)] px-2.5 py-1.5 text-xs border border-[var(--color-border)]/50 ${clickable ? 'cursor-pointer hover:border-[var(--color-brand)]/50' : ''}`}>
-                <span className="text-[14px] shrink-0">{'\uD83D\uDCC4'}</span>
-                <span className="font-medium text-[var(--color-text-primary)]">{shortName(ref.filePath)}</span>
-              </div>
-            )
-          case 'dir':
-            return (
-              <div key={key} title={ref.dirPath} className="flex items-center gap-1.5 rounded-lg bg-[var(--color-surface-container)] px-2.5 py-1.5 text-xs border border-[var(--color-border)]/50">
-                <span className="text-[14px] shrink-0">{'\uD83D\uDCC1'}</span>
-                <span className="font-medium text-[var(--color-text-primary)]">{shortName(ref.dirPath)}</span>
-              </div>
-            )
-        }
-      })}
+      {refs.map((ref, idx) => (
+        <RefTag key={`${ref.type}-${refPath(ref)}-${idx}`} ref={ref} />
+      ))}
     </div>
   )
 }

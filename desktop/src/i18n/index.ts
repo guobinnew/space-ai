@@ -690,6 +690,12 @@ const translations: Record<Locale, Record<string, string>> = {
     'cron.specificDays': '每 {days} {time}',
     'cron.monthly': '每月 {day} 号 {time}',
     'cron.custom': '自定义: {cron}',
+
+    // File reference tags
+    'ref.fileNotFound': '文件不存在',
+    'ref.directoryNotFound': '目录不存在',
+    'ref.notFoundTooltip': '路径不存在：{path}',
+    'ref.notFoundHint': '源文件已被删除或移动',
   },
 
   en: {
@@ -1374,6 +1380,12 @@ const translations: Record<Locale, Record<string, string>> = {
     'cron.specificDays': 'Every {days} {time}',
     'cron.monthly': 'Day {day} of month {time}',
     'cron.custom': 'Custom: {cron}',
+
+    // File reference tags
+    'ref.fileNotFound': 'File not found',
+    'ref.directoryNotFound': 'Directory not found',
+    'ref.notFoundTooltip': 'Path does not exist: {path}',
+    'ref.notFoundHint': 'Source file has been deleted or moved',
   },
 };
 

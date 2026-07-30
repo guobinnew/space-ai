@@ -12,6 +12,7 @@
  *   POST    /api/filesystem/mkdir      — 创建目录
  *   POST    /api/filesystem/move       — 移动/重命名文件或目录
  *   GET     /api/filesystem/list       — (兼容旧版) 列出目录内容
+ *   GET     /api/filesystem/exists     — 检查路径是否存在（轻量）
  */
 
 import * as path from 'path'
@@ -120,6 +121,11 @@ export async function handleFilesystemApi(
 
     if (action === 'move' && req.method === 'POST') {
       return await handleMove(req)
+    }
+
+    // 轻量存在性检查（不读文件内容，避免触发二进制/大文件错误）
+    if (action === 'exists' && req.method === 'GET') {
+      return await handleExists(url)
     }
 
     // 兼容旧版 list 端点
@@ -466,5 +472,32 @@ async function handleMove(req: Request): Promise<Response> {
     }
     if (err instanceof ApiError) throw err
     throw ApiError.internal(`Move failed: ${err}`)
+  }
+}
+
+/**
+ * 轻量存在性检查 —— 仅调用 fs.existsSync + fs.statSync，
+ * 不读取文件内容，可处理任意类型（含二进制/大文件）。
+ * 返回 { exists: boolean, isDirectory: boolean }
+ */
+async function handleExists(url: URL): Promise<Response> {
+  const targetPath = url.searchParams.get('path')
+  if (!targetPath) {
+    throw ApiError.badRequest('Missing path parameter')
+  }
+
+  const resolvedPath = path.resolve(targetPath)
+  if (!isAllowedFilesystemPath(resolvedPath)) {
+    throw ApiError.forbidden('Access denied: path outside allowed directory')
+  }
+
+  try {
+    if (!fs.existsSync(resolvedPath)) {
+      return Response.json({ exists: false, isDirectory: false })
+    }
+    const stat = fs.statSync(resolvedPath)
+    return Response.json({ exists: true, isDirectory: stat.isDirectory() })
+  } catch {
+    return Response.json({ exists: false, isDirectory: false })
   }
 }
