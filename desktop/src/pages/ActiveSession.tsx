@@ -450,7 +450,7 @@ export function ActiveSession({ sessionId }: { sessionId: string }) {
           </div>
         ) : (
           <>
-            {/* Search mode */}
+            {/* Search mode full-page */}
             {searchMode ? (
               <div className="flex-1 overflow-y-auto">
                 <SessionSearch
@@ -476,12 +476,12 @@ export function ActiveSession({ sessionId }: { sessionId: string }) {
               </div>
             )}
 
-            {/* Query queue + Task bar (above input, below messages) */}
-            <QueryQueue sessionId={sessionId} />
-            <SessionTaskBar sessionId={sessionId} />
+            {/* Bottom area — 查找模式下隐藏 */}
+            {!searchMode && (<>
+              {/* Query queue + Task bar (above input, below messages) */}
+              <QueryQueue sessionId={sessionId} />
+              <SessionTaskBar sessionId={sessionId} />
 
-            {/* 打开会话且有未完成任务时，主动询问是否继续执行任务清单 */}
-            {showContinuePrompt && (
               <div className="px-4 pb-2 flex-shrink-0">
                 <div className="mx-auto max-w-3xl flex items-center justify-between gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-container-low)] px-4 py-3">
                   <div className="flex items-center gap-2 text-sm text-[var(--color-text-primary)]">
@@ -535,8 +535,8 @@ export function ActiveSession({ sessionId }: { sessionId: string }) {
                 </span>
               </div>
             </div>
+            </>)}
           </>
-        )}
       </div>
 
       {/* Resize handle */}
