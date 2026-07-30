@@ -38,6 +38,9 @@ export function ActiveSession({ sessionId }: { sessionId: string }) {
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [searchMode, setSearchMode] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchCaseSensitive, setSearchCaseSensitive] = useState(false);
+  const [searchWholeWord, setSearchWholeWord] = useState(false);
+  const [searchUseRegex, setSearchUseRegex] = useState(false);
   const [focusMessageId, setFocusMessageId] = useState<string | null>(null);
   const {
     tasks: taskList,
@@ -462,6 +465,12 @@ export function ActiveSession({ sessionId }: { sessionId: string }) {
                   messages={sessionState.messages}
                   query={searchQuery}
                   onQueryChange={setSearchQuery}
+                  caseSensitive={searchCaseSensitive}
+                  onCaseSensitiveChange={setSearchCaseSensitive}
+                  wholeWord={searchWholeWord}
+                  onWholeWordChange={setSearchWholeWord}
+                  useRegex={searchUseRegex}
+                  onUseRegexChange={setSearchUseRegex}
                   onSelectMessage={handleSearchSelect}
                   onClose={() => setSearchMode(false)}
                 />

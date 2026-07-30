@@ -2,19 +2,26 @@
  * SessionSearch — 会话消息查找
  *
  * 模式类似文件浏览器的查找功能：
- * - 顶部关键词输入框
+ * - 顶部关键词输入框 + 大小写/全字/正则切换
  * - 下方消息搜索结果列表
  * - 点击结果项回到对话模式并滚动到对应消息
  */
 
-import { useState, useMemo, useRef, useEffect } from 'react';
+import { useMemo, useRef, useEffect } from 'react';
 import { useTranslation } from '../../i18n';
+import { Tooltip } from '../shared/Tooltip';
 import type { UIMessage } from '../../types/chat';
 
 type Props = {
   messages: UIMessage[];
   query: string;
   onQueryChange: (q: string) => void;
+  caseSensitive: boolean;
+  onCaseSensitiveChange: (v: boolean) => void;
+  wholeWord: boolean;
+  onWholeWordChange: (v: boolean) => void;
+  useRegex: boolean;
+  onUseRegexChange: (v: boolean) => void;
   onSelectMessage: (messageId: string) => void;
   onClose: () => void;
 };
@@ -23,7 +30,8 @@ type SearchMatch = {
   messageId: string;
   type: string;
   preview: string;
-  index: number; // 在 messages 中的位置索引
+  matchIndex: number;
+  index: number;
 };
 
 /** 从消息中提取纯文本用于搜索 */
@@ -51,15 +59,41 @@ function getRoleLabel(type: string): string {
   }
 }
 
-/** 截取匹配上下文片段 */
-function getPreviewSnippet(text: string, query: string): string {
-  const lowerText = text.toLowerCase();
-  const lowerQ = query.toLowerCase();
-  const idx = lowerText.indexOf(lowerQ);
-  if (idx === -1) return text.slice(0, 120);
+/** 判断文本是否匹配查询 */
+function matchText(text: string, query: string, caseSensitive: boolean, wholeWord: boolean, useRegex: boolean): { matched: boolean; matchIndex: number } {
+  if (!query.trim()) return { matched: false, matchIndex: -1 };
 
-  const start = Math.max(0, idx - 30);
-  const end = Math.min(text.length, idx + query.length + 60);
+  if (useRegex) {
+    try {
+      const re = new RegExp(query, caseSensitive ? 'g' : 'gi');
+      const m = re.exec(text);
+      return { matched: !!m, matchIndex: m?.index ?? -1 };
+    } catch {
+      return { matched: false, matchIndex: -1 };
+    }
+  }
+
+  if (wholeWord) {
+    const flags = caseSensitive ? '' : 'i';
+    const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const re = new RegExp(`\\b${escaped}\\b`, flags);
+    const m = re.exec(text);
+    return { matched: !!m, matchIndex: m?.index ?? -1 };
+  }
+
+  // 普通子串匹配
+  const hay = caseSensitive ? text : text.toLowerCase();
+  const needle = caseSensitive ? query : query.toLowerCase();
+  const idx = hay.indexOf(needle);
+  return { matched: idx !== -1, matchIndex: idx };
+}
+
+/** 截取匹配上下文片段 */
+function getPreviewSnippet(text: string, matchIndex: number, queryLen: number): string {
+  if (matchIndex === -1) return text.slice(0, 120);
+
+  const start = Math.max(0, matchIndex - 30);
+  const end = Math.min(text.length, matchIndex + queryLen + 60);
   let snippet = text.slice(start, end);
 
   if (start > 0) snippet = '...' + snippet;
@@ -67,7 +101,13 @@ function getPreviewSnippet(text: string, query: string): string {
   return snippet;
 }
 
-export function SessionSearch({ messages, query, onQueryChange, onSelectMessage, onClose }: Props) {
+export function SessionSearch({
+  messages, query, onQueryChange,
+  caseSensitive, onCaseSensitiveChange,
+  wholeWord, onWholeWordChange,
+  useRegex, onUseRegexChange,
+  onSelectMessage, onClose,
+}: Props) {
   const t = useTranslation();
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -78,29 +118,47 @@ export function SessionSearch({ messages, query, onQueryChange, onSelectMessage,
   const results = useMemo(() => {
     if (!query.trim()) return [];
 
-    const lowerQuery = query.toLowerCase();
     const matches: SearchMatch[] = [];
 
     for (let i = messages.length - 1; i >= 0; i--) {
       const msg = messages[i];
       const text = getMessageText(msg);
-      if (text.toLowerCase().includes(lowerQuery)) {
-        const preview = getPreviewSnippet(text, query);
+      const { matched, matchIndex } = matchText(text, query, caseSensitive, wholeWord, useRegex);
+      if (matched) {
+        // 对于正则，query.length 不是真实匹配长度，用 matchIndex + 估算
+        const previewLen = useRegex ? Math.min(text.length - matchIndex, 80) : query.length;
+        const preview = getPreviewSnippet(text, matchIndex, previewLen);
         matches.push({
           messageId: msg.id,
           type: msg.type,
           preview,
+          matchIndex,
           index: i,
         });
       }
     }
 
     return matches;
-  }, [messages, query]);
+  }, [messages, query, caseSensitive, wholeWord, useRegex]);
 
   const handleSelect = (match: SearchMatch) => {
     onSelectMessage(match.messageId);
   };
+
+  const toggleBtn = (active: boolean, onClick: () => void, label: string, title: string) => (
+    <Tooltip content={title}>
+      <button
+        onClick={onClick}
+        className={`flex items-center justify-center w-5 h-5 rounded text-[10px] font-bold shrink-0 transition-colors ${
+          active
+            ? 'text-[var(--color-brand)] bg-[var(--color-surface-selected)]'
+            : 'text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)]'
+        }`}
+      >
+        {label}
+      </button>
+    </Tooltip>
+  );
 
   return (
     <div className="flex flex-col h-full">
@@ -128,6 +186,7 @@ export function SessionSearch({ messages, query, onQueryChange, onSelectMessage,
               onChange={(e) => onQueryChange(e.target.value)}
               placeholder={t('session.searchPlaceholder')}
               className="flex-1 min-w-0 bg-transparent text-sm text-[var(--color-text-primary)] outline-none placeholder:text-[var(--color-text-tertiary)]"
+              spellCheck={false}
             />
             {query && (
               <button
@@ -140,6 +199,12 @@ export function SessionSearch({ messages, query, onQueryChange, onSelectMessage,
                 </svg>
               </button>
             )}
+          </div>
+          {/* Search option toggles */}
+          <div className="flex items-center gap-1 shrink-0">
+            {toggleBtn(caseSensitive, () => onCaseSensitiveChange(!caseSensitive), 'Aa', t('fileExplorer.caseSensitive'))}
+            {toggleBtn(wholeWord, () => onWholeWordChange(!wholeWord), 'ab', t('fileExplorer.wholeWord'))}
+            {toggleBtn(useRegex, () => onUseRegexChange(!useRegex), '.*', t('fileExplorer.useRegex'))}
           </div>
         </div>
       </div>
