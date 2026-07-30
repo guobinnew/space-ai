@@ -7,7 +7,6 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useChatStore } from '../stores/chatStore';
-import { useUIStore } from '../stores/uiStore';
 import { useSessionStore } from '../stores/sessionStore';
 import { useTaskStore } from '../stores/cliTaskStore';
 import { tasksApi } from '../api/tasks';
@@ -197,7 +196,7 @@ export function ActiveSession({ sessionId }: { sessionId: string }) {
   }, []);
 
   const handleSend = (content: string, providerId?: string) => {
-    sendMessage(sessionId, content, providerId ? false : undefined, providerId);
+    sendMessage(sessionId, content, undefined, providerId);
   };
 
   const handleStop = () => {

@@ -23,6 +23,7 @@
 
 ## Server/Agent 架构 (2026-06-22)
 - `server/agent/`: 基于 Bun.serve 的 agent server，参照 smart-code `src/server` 复刻
+- **v1.2.0 (2026-07-30)**: 模型服务商下拉选择、会话消息查找、滚动优化、图标圆角、TTS修复、首页定时任务实时刷新
 - 入口: `sidecar.ts server --app-root <path> --host --port`（参照 smart-code smart-sidecar.ts）
 - desktop lib.rs: dev 用 `bun run sidecar.ts`，生产用 `bun build --compile` 编译的二进制
 - tauri.conf.json resources: `../../server/dist/agent/` → `agent/`

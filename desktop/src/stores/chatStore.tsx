@@ -8,7 +8,7 @@
  */
 
 import { createContext, useContext, useState, useCallback, type ReactNode } from 'react';
-import { wsManager, type ServerMessage } from '../api/websocket';
+import { wsManager, type ServerMessage, type ClientMessage } from '../api/websocket';
 import { sessionsApi } from '../api/sessions';
 import { tasksApi } from '../api/tasks';
 import { getServerPort } from '../api/serverPort';
@@ -45,7 +45,7 @@ interface ChatStoreState {
   sessions: Record<string, PerSessionChatState>;
   connectToSession: (sessionId: string) => void;
   disconnectSession: (sessionId: string) => void;
-  sendMessage: (sessionId: string, content: string) => void;
+  sendMessage: (sessionId: string, content: string, skipQueue?: boolean, providerId?: string) => void;
   stopGeneration: (sessionId: string) => void;
   clearMessages: (sessionId: string) => void;
   answerQuestion: (sessionId: string, answer: string) => void;
@@ -501,9 +501,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       });
 
       if (shouldSendViaWs) {
-        const wsPayload: Record<string, unknown> = { type: 'user_message', content };
-        if (providerId) wsPayload.providerId = providerId;
-        wsManager.send(sessionId, wsPayload);
+        wsManager.send(sessionId, { type: 'user_message', content, providerId });
       }
     },
     [updateSession, getSession],
@@ -599,7 +597,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         content: query.content,
         createdAt: new Date().toISOString(),
       };
-      const wsPayload: Record<string, unknown> = { type: 'user_message', content: query.content };
+      const wsPayload: ClientMessage = { type: 'user_message', content: query.content };
       if (query.providerId) wsPayload.providerId = query.providerId;
       wsManager.send(sessionId, wsPayload);
       return {
