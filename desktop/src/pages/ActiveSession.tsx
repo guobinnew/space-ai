@@ -11,6 +11,7 @@ import { useUIStore } from '../stores/uiStore';
 import { useSessionStore } from '../stores/sessionStore';
 import { useTaskStore } from '../stores/cliTaskStore';
 import { MessageList } from '../components/chat/MessageList';
+import { SessionSearch } from '../components/chat/SessionSearch';
 import { ChatInput } from '../components/chat/ChatInput';
 import { SessionTaskBar } from '../components/chat/SessionTaskBar';
 import { QueryQueue } from '../components/chat/QueryQueue';
@@ -34,6 +35,8 @@ export function ActiveSession({ sessionId }: { sessionId: string }) {
   const [dragging, setDragging] = useState(false);
   const [mode, setMode] = useState<'code' | 'office'>('code');
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [searchMode, setSearchMode] = useState(false);
+  const [focusMessageId, setFocusMessageId] = useState<string | null>(null);
   const {
     tasks: taskList,
     hasPending: _hasPending,
@@ -210,6 +213,24 @@ export function ActiveSession({ sessionId }: { sessionId: string }) {
   const scrollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [scrolling, setScrolling] = useState<'top' | 'bottom' | null>(null);
 
+  // 查找模式：选中消息后滚动到对应位置
+  useEffect(() => {
+    if (!focusMessageId) return;
+    const el = messagesContainerRef.current;
+    if (!el) return;
+    const target = el.querySelector(`[data-msg-id="${focusMessageId}"]`);
+    if (target) {
+      target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+    setFocusMessageId(null);
+  }, [focusMessageId]);
+
+  const handleSearchSelect = useCallback((messageId: string) => {
+    setSearchMode(false);
+    // 延迟一帧等 MessageList 挂载后再滚动
+    requestAnimationFrame(() => setFocusMessageId(messageId));
+  }, []);
+
   const finishScroll = useCallback(() => {
     setScrolling(null);
     scrollTimerRef.current = null;
@@ -321,6 +342,22 @@ export function ActiveSession({ sessionId }: { sessionId: string }) {
                 </svg>
               </button>
             )}
+            {/* Search messages */}
+            <button
+              onClick={() => setSearchMode(true)}
+              disabled={!hasMessages || searchMode}
+              className={`flex items-center justify-center rounded-md p-1.5 transition-colors ${
+                hasMessages && !searchMode
+                  ? 'text-[var(--color-text-tertiary)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-secondary)]'
+                  : 'text-[var(--color-text-disabled)] opacity-30 cursor-not-allowed'
+              }`}
+              title={t('session.search')}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="11" cy="11" r="8" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
+            </button>
             {/* Clear session */}
             <button
               onClick={() => setShowClearConfirm(true)}
@@ -413,20 +450,31 @@ export function ActiveSession({ sessionId }: { sessionId: string }) {
           </div>
         ) : (
           <>
-            {/* Messages */}
-            <div ref={messagesContainerRef} className="flex-1 overflow-y-auto px-4 msg-list-container">
-              <MessageList
-                messages={sessionState.messages}
-                streamingText={sessionState.streamingText}
-                thinkingText={sessionState.thinkingText}
-                chatState={sessionState.chatState}
-                toolCalls={sessionState.toolCalls}
-                pendingQuestion={sessionState.pendingQuestion}
-                pendingPlan={sessionState.pendingPlan}
-                onAnswerQuestion={(answer) => answerQuestion(sessionId, answer)}
-                onRespondPlan={(response) => respondPlan(sessionId, response)}
-              />
-            </div>
+            {/* Search mode */}
+            {searchMode ? (
+              <div className="flex-1 overflow-y-auto">
+                <SessionSearch
+                  messages={sessionState.messages}
+                  onSelectMessage={handleSearchSelect}
+                  onClose={() => setSearchMode(false)}
+                />
+              </div>
+            ) : (
+              /* Messages */
+              <div ref={messagesContainerRef} className="flex-1 overflow-y-auto px-4 msg-list-container">
+                <MessageList
+                  messages={sessionState.messages}
+                  streamingText={sessionState.streamingText}
+                  thinkingText={sessionState.thinkingText}
+                  chatState={sessionState.chatState}
+                  toolCalls={sessionState.toolCalls}
+                  pendingQuestion={sessionState.pendingQuestion}
+                  pendingPlan={sessionState.pendingPlan}
+                  onAnswerQuestion={(answer) => answerQuestion(sessionId, answer)}
+                  onRespondPlan={(response) => respondPlan(sessionId, response)}
+                />
+              </div>
+            )}
 
             {/* Query queue + Task bar (above input, below messages) */}
             <QueryQueue sessionId={sessionId} />

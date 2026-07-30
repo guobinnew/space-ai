@@ -182,7 +182,7 @@ export function MessageList({
             status: isRunning ? 'running' : result ? (result.isError ? 'error' : 'completed') : 'running',
           };
           return (
-            <div key={msg.id} className="msg-item">
+            <div key={msg.id} className="msg-item" data-msg-id={msg.id}>
               <ToolCallBlock toolCall={info} />
             </div>
           );
@@ -191,28 +191,28 @@ export function MessageList({
         const msg = item.msg;
         if (msg.type === 'user_text') {
           return (
-            <div key={msg.id} className="msg-item">
+            <div key={msg.id} className="msg-item" data-msg-id={msg.id}>
               <UserMessage content={msg.content} createdAt={msg.createdAt} />
             </div>
           );
         }
         if (msg.type === 'assistant_text') {
           return (
-            <div key={msg.id} className="msg-item">
+            <div key={msg.id} className="msg-item" data-msg-id={msg.id}>
               <AssistantMessage content={msg.content} createdAt={msg.createdAt} />
             </div>
           );
         }
         if (msg.type === 'thinking') {
           return (
-            <div key={msg.id} className="msg-item">
+            <div key={msg.id} className="msg-item" data-msg-id={msg.id}>
               <ThinkingBlock content={msg.content} isActive={false} />
             </div>
           );
         }
         if (msg.type === 'error') {
           return (
-            <div key={msg.id} className="msg-item">
+            <div key={msg.id} className="msg-item" data-msg-id={msg.id}>
               <div className="flex justify-start ml-10">
                 <div className="max-w-[80%] rounded-xl px-4 py-2.5 text-sm border border-[var(--color-error)]/30 bg-[var(--color-error)]/5 text-[var(--color-error)]">
                   {msg.message}
