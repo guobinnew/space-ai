@@ -536,7 +536,7 @@ export function ActiveSession({ sessionId }: { sessionId: string }) {
               </div>
             </div>
             </>)}
-          </>
+        </>)}
       </div>
 
       {/* Resize handle */}
