@@ -475,7 +475,6 @@ export function ActiveSession({ sessionId }: { sessionId: string }) {
                   onRespondPlan={(response) => respondPlan(sessionId, response)}
                 />
               </div>
-            )}
 
               {/* Query queue + Task bar (above input, below messages) */}
               <QueryQueue sessionId={sessionId} />
