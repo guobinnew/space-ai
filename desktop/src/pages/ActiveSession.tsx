@@ -37,6 +37,7 @@ export function ActiveSession({ sessionId }: { sessionId: string }) {
   const [mode, setMode] = useState<'code' | 'office'>('code');
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [searchMode, setSearchMode] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const [focusMessageId, setFocusMessageId] = useState<string | null>(null);
   const {
     tasks: taskList,
@@ -459,6 +460,8 @@ export function ActiveSession({ sessionId }: { sessionId: string }) {
               <div className="flex-1 overflow-y-auto">
                 <SessionSearch
                   messages={sessionState.messages}
+                  query={searchQuery}
+                  onQueryChange={setSearchQuery}
                   onSelectMessage={handleSearchSelect}
                   onClose={() => setSearchMode(false)}
                 />

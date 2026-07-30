@@ -13,6 +13,8 @@ import type { UIMessage } from '../../types/chat';
 
 type Props = {
   messages: UIMessage[];
+  query: string;
+  onQueryChange: (q: string) => void;
   onSelectMessage: (messageId: string) => void;
   onClose: () => void;
 };
@@ -65,9 +67,8 @@ function getPreviewSnippet(text: string, query: string): string {
   return snippet;
 }
 
-export function SessionSearch({ messages, onSelectMessage, onClose }: Props) {
+export function SessionSearch({ messages, query, onQueryChange, onSelectMessage, onClose }: Props) {
   const t = useTranslation();
-  const [query, setQuery] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -124,13 +125,13 @@ export function SessionSearch({ messages, onSelectMessage, onClose }: Props) {
               ref={inputRef}
               type="text"
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              onChange={(e) => onQueryChange(e.target.value)}
               placeholder={t('session.searchPlaceholder')}
               className="flex-1 min-w-0 bg-transparent text-sm text-[var(--color-text-primary)] outline-none placeholder:text-[var(--color-text-tertiary)]"
             />
             {query && (
               <button
-                onClick={() => setQuery('')}
+                onClick={() => onQueryChange('')}
                 className="flex items-center justify-center rounded p-0.5 text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)] transition-colors"
               >
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
