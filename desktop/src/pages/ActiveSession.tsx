@@ -10,6 +10,7 @@ import { useChatStore } from '../stores/chatStore';
 import { useUIStore } from '../stores/uiStore';
 import { useSessionStore } from '../stores/sessionStore';
 import { useTaskStore } from '../stores/cliTaskStore';
+import { tasksApi } from '../api/tasks';
 import { MessageList } from '../components/chat/MessageList';
 import { SessionSearch } from '../components/chat/SessionSearch';
 import { ChatInput } from '../components/chat/ChatInput';
@@ -106,8 +107,11 @@ export function ActiveSession({ sessionId }: { sessionId: string }) {
       const data = await fetchSessionTasks(sessionId)
       if (first && data) {
         first = false
+        // Reset stale in_progress tasks before checking pending
+        try { await tasksApi.resetStale(sessionId) } catch {}
         // Capture whether there were incomplete tasks at open time
-        setFirstLoadPending(data.hasPending)
+        // Only count 'pending' tasks (not stale 'in_progress' from previous session)
+        setFirstLoadPending(data.hasPending && !!data.nextPending)
       }
       // Auto-clear the task list once execution is fully finished:
       // no pending/in-progress tasks remain and the agent is idle.

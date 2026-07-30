@@ -56,6 +56,11 @@ export const tasksApi = {
     await fetch(`${await getServerBaseUrl()}/api/tasks/${sessionId}`, { method: 'DELETE' })
   },
 
+  /** 重置 in_progress 任务为 pending（会话重开时调用） */
+  async resetStale(sessionId: string): Promise<void> {
+    await fetch(`${await getServerBaseUrl()}/api/tasks/${sessionId}/reset-stale`, { method: 'POST' })
+  },
+
   /** 删除单个任务 */
   async remove(sessionId: string, taskId: string): Promise<void> {
     await fetch(`${await getServerBaseUrl()}/api/tasks/${sessionId}/${taskId}`, { method: 'DELETE' })

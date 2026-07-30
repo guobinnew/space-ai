@@ -9,7 +9,7 @@
  * DELETE /api/tasks/:sessionId/:taskId      — 删除单个任务
  */
 
-import { listTasks, createTask, getTask, updateTask, deleteTask, resetTaskList, hasPendingTasks, getNextPendingTask } from '../services/taskService'
+import { listTasks, createTask, getTask, updateTask, deleteTask, resetTaskList, hasPendingTasks, getNextPendingTask, resetStaleInProgressTasks } from '../services/taskService'
 import { ApiError } from '../middleware/errorHandler'
 
 export async function handleTasksApi(
@@ -46,6 +46,13 @@ export async function handleTasksApi(
       return Response.json({ ok: true })
     }
     throw ApiError.methodNotAllowed()
+  }
+
+  // /api/tasks/:sessionId/reset-stale — 重置 in_progress 任务为 pending
+  if (taskId === 'reset-stale') {
+    if (req.method !== 'POST') throw ApiError.methodNotAllowed()
+    await resetStaleInProgressTasks(sessionId)
+    return Response.json({ ok: true })
   }
 
   // /api/tasks/:sessionId/:taskId

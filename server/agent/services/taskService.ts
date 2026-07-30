@@ -181,6 +181,15 @@ export async function hasPendingTasks(taskListId: string): Promise<boolean> {
   return tasks.some((t) => t.status === 'pending' || t.status === 'in_progress')
 }
 
+/** 将 in_progress 任务重置为 pending（会话重新打开时调用） */
+export async function resetStaleInProgressTasks(taskListId: string): Promise<void> {
+  const tasks = await listTasks(taskListId)
+  const stale = tasks.filter((t) => t.status === 'in_progress')
+  for (const task of stale) {
+    await updateTask(task.id, { status: 'pending' })
+  }
+}
+
 /** 获取下一个 pending 任务 */
 export async function getNextPendingTask(taskListId: string): Promise<Task | null> {
   const tasks = await listTasks(taskListId)
