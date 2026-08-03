@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useUIStore } from '../stores/uiStore';
 import type { Theme } from '../stores/uiStore';
 import { settingsApi } from '../api/settings';
@@ -8,6 +8,8 @@ import { ComputerUseSettings } from '../components/settings/ComputerUseSettings'
 import { MemorySettings } from '../components/settings/MemorySettings';
 import { AgentSettings } from '../components/settings/AgentSettings';
 import { useTranslation } from '../i18n';
+import { filesystemApi, type DirEntry } from '../api/filesystem';
+import { MarkdownRenderer } from '../components/markdown/MarkdownRenderer';
 
 type SettingsCategory = 'general' | 'providers' | 'skills' | 'computerUse' | 'memory' | 'agents' | 'about';
 
@@ -271,6 +273,7 @@ function GeneralSettings() {
 
 function AboutSettings() {
   const t = useTranslation();
+  const [activeTab, setActiveTab] = useState<'features' | 'docs'>('features');
 
   const features = [
     { key: 'multiSession', icon: '💬', color: 'var(--color-brand)' },
@@ -310,7 +313,7 @@ function AboutSettings() {
   ];
 
   return (
-    <div className="w-full space-y-8">
+    <div className="w-full space-y-6">
       {/* Header */}
       <div>
         <h2 className="text-base font-semibold text-[var(--color-text-primary)] mb-1">{t('settings.about.title')}</h2>
@@ -342,6 +345,81 @@ function AboutSettings() {
         </div>
       </div>
 
+      {/* 下方区域：Tab 切换 */}
+      <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-container-low)] overflow-hidden">
+        {/* Tab 头部 */}
+        <div className="flex border-b border-[var(--color-border)] bg-[var(--color-surface-container)]">
+          <TabButton
+            label={t('settings.about.tab.features')}
+            active={activeTab === 'features'}
+            onClick={() => setActiveTab('features')}
+          />
+          <TabButton
+            label={t('settings.about.tab.docs')}
+            active={activeTab === 'docs'}
+            onClick={() => setActiveTab('docs')}
+          />
+        </div>
+
+        {/* Tab 内容 */}
+        <div className="p-5">
+          {activeTab === 'features' ? (
+            <FeaturesIntroTab
+              features={features}
+              archLayers={archLayers}
+              providers={providers}
+              techItems={techItems}
+            />
+          ) : (
+            <DocsTab />
+          )}
+        </div>
+      </div>
+
+      {/* Contact Author — 保留在 Tab 之外 */}
+      <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-container-low)] p-4 flex items-center gap-4">
+        <img src="/author.png" alt={t('about.author')} className="h-20 w-auto opacity-80" />
+        <div>
+          <div className="text-sm font-medium text-[var(--color-text-primary)]">{t('settings.about.contactAuthor')}</div>
+          <div className="text-xs text-[var(--color-text-tertiary)] mt-0.5">{t('settings.about.contactDesc')}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Tab 头部按钮 */
+function TabButton({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`flex-1 py-2.5 text-sm font-medium transition-colors ${
+        active
+          ? 'text-[var(--color-brand)] bg-[var(--color-surface-container-low)] border-b-2 border-[var(--color-brand)]'
+          : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] border-b-2 border-transparent'
+      }`}
+    >
+      {label}
+    </button>
+  );
+}
+
+/** 功能介绍 Tab：原下方区域内容（核心功能 / 架构 / 技术栈 / 服务商） */
+function FeaturesIntroTab({
+  features,
+  archLayers,
+  providers,
+  techItems,
+}: {
+  features: Array<{ key: string; icon: string; color: string }>;
+  archLayers: Array<{ key: string; color: string }>;
+  providers: string[];
+  techItems: Array<{ name: string; desc: string }>;
+}) {
+  const t = useTranslation();
+
+  return (
+    <div className="space-y-6">
       {/* Core Features */}
       <div>
         <h3 className="text-sm font-semibold text-[var(--color-text-primary)] mb-3">{t('settings.about.features')}</h3>
@@ -421,13 +499,151 @@ function AboutSettings() {
           ))}
         </div>
       </div>
+    </div>
+  );
+}
 
-      {/* Contact Author */}
-      <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-container-low)] p-4 flex items-center gap-4">
-        <img src="/author.png" alt={t('about.author')} className="h-20 w-auto opacity-80" />
-        <div>
-          <div className="text-sm font-medium text-[var(--color-text-primary)]">{t('settings.about.contactAuthor')}</div>
-          <div className="text-xs text-[var(--color-text-tertiary)] mt-0.5">{t('settings.about.contactDesc')}</div>
+/** 说明文档 Tab：左侧 doc 目录文件列表 + 右侧 MD 预览 */
+const DOCS_DIR = 'D:\\Work\\SpaceAI\\doc';
+
+function DocsTab() {
+  const t = useTranslation();
+  const [entries, setEntries] = useState<DirEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [selected, setSelected] = useState<DirEntry | null>(null);
+  const [content, setContent] = useState<string>('');
+  const [loadingContent, setLoadingContent] = useState(false);
+  const [contentError, setContentError] = useState<string | null>(null);
+
+  // 加载 doc 目录列表
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    filesystemApi
+      .browse(DOCS_DIR, { includeFiles: true })
+      .then((res) => {
+        if (cancelled) return;
+        // 仅保留 .md 文件，按名称升序
+        const mdFiles = res.entries
+          .filter((e) => !e.isDirectory && /\.md$/i.test(e.name))
+          .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
+        setEntries(mdFiles);
+        // 默认选中第一个
+        if (mdFiles.length > 0) {
+          setSelected(mdFiles[0]!);
+        } else {
+          setSelected(null);
+        }
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        console.error('[DocsTab] load failed:', err);
+        setError(t('settings.about.docs.loadError'));
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [t]);
+
+  // 加载选中文件内容
+  useEffect(() => {
+    if (!selected) {
+      setContent('');
+      setContentError(null);
+      return;
+    }
+    let cancelled = false;
+    setLoadingContent(true);
+    setContentError(null);
+    filesystemApi
+      .readFile(selected.path)
+      .then((res) => {
+        if (cancelled) return;
+        setContent(res.content);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        console.error('[DocsTab] read failed:', err);
+        setContentError(t('settings.about.docs.readError'));
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingContent(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selected, t]);
+
+  const lastModified = useMemo(() => {
+    return selected?.path || '';
+  }, [selected]);
+
+  return (
+    <div className="flex h-[60vh] min-h-[400px] border border-[var(--color-border)] rounded-lg overflow-hidden">
+      {/* 左侧：文档列表 */}
+      <div className="w-[240px] flex-shrink-0 border-r border-[var(--color-border)] bg-[var(--color-surface)] flex flex-col">
+        <div className="px-3 py-2 text-xs font-medium text-[var(--color-text-tertiary)] border-b border-[var(--color-border)] bg-[var(--color-surface-container)] truncate" title={DOCS_DIR}>
+          📁 doc
+        </div>
+        <div className="flex-1 overflow-y-auto py-1">
+          {loading ? (
+            <div className="px-3 py-2 text-xs text-[var(--color-text-tertiary)]">{t('settings.about.docs.loading')}</div>
+          ) : error ? (
+            <div className="px-3 py-2 text-xs text-[var(--color-error)]">{error}</div>
+          ) : entries.length === 0 ? (
+            <div className="px-3 py-2 text-xs text-[var(--color-text-tertiary)]">{t('settings.about.docs.empty')}</div>
+          ) : (
+            entries.map((entry) => (
+              <button
+                key={entry.path}
+                onClick={() => setSelected(entry)}
+                className={`w-full text-left px-3 py-1.5 text-xs flex items-center gap-1.5 transition-colors ${
+                  selected?.path === entry.path
+                    ? 'bg-[var(--color-surface-selected)] text-[var(--color-brand)] font-medium'
+                    : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)]'
+                }`}
+                title={entry.name}
+              >
+                <span className="text-[11px] flex-shrink-0">📄</span>
+                <span className="truncate flex-1">{entry.name}</span>
+              </button>
+            ))
+          )}
+        </div>
+      </div>
+
+      {/* 右侧：MD 预览 */}
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* 顶部路径栏 */}
+        {selected && (
+          <div className="px-4 py-2 text-xs text-[var(--color-text-tertiary)] border-b border-[var(--color-border)] bg-[var(--color-surface-container)] truncate" title={lastModified}>
+            {selected.name}
+          </div>
+        )}
+        {/* 内容区 */}
+        <div className="flex-1 overflow-y-auto">
+          {!selected ? (
+            <div className="h-full flex items-center justify-center text-sm text-[var(--color-text-tertiary)]">
+              {t('settings.about.docs.selectHint')}
+            </div>
+          ) : loadingContent ? (
+            <div className="h-full flex items-center justify-center text-sm text-[var(--color-text-tertiary)]">
+              {t('settings.about.docs.loading')}
+            </div>
+          ) : contentError ? (
+            <div className="h-full flex items-center justify-center text-sm text-[var(--color-error)]">
+              {contentError}
+            </div>
+          ) : (
+            <div className="px-6 py-4 max-w-[820px] mx-auto">
+              <MarkdownRenderer content={content} />
+            </div>
+          )}
         </div>
       </div>
     </div>
