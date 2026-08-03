@@ -19,7 +19,7 @@
  * 与持久化的按天压缩互补：内存压缩是临时的，跨会话不保留；按天压缩写入 memory.md 是持久的。
  */
 
-import type { GenericMessage, StreamChunk } from '../types/stream'
+import type { GenericMessage as GenericMessageType } from './llmStreamService'
 import { sessionService, type JsonlEntry } from './sessionService'
 import {
   getCompactPrompt,
@@ -33,6 +33,9 @@ export const MAX_REACTIVE_COMPACT_RETRIES = 2
 export const DEFAULT_CONTEXT_WINDOW_ANTHROPIC = 200_000
 export const DEFAULT_CONTEXT_WINDOW_OPENAI = 128_000
 
+export type GenericMessage = GenericMessageType
+export type StreamChunk = { type: string; text?: string; [k: string]: unknown }
+
 /**
  * Detect "prompt too long" / "context length exceeded" errors from various
  * LLM providers (Anthropic / OpenAI compatible). Used to trigger reactive compact.
@@ -43,8 +46,6 @@ export function isPromptTooLongError(err: unknown): boolean {
     msg,
   )
 }
-
-export type GenericMessage = GenericMessage
 
 export function shouldAutoCompact(messages: unknown[], contextWindow: number): boolean {
   if (messages.length < 4) return false

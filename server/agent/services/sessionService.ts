@@ -96,12 +96,14 @@ function isoToLocalDate(iso: string): string {
 }
 
 export class SessionService {
-  private configDir: string
-  private sessionsDir: string
+  // 实例化时不再固定 configDir/sessionsDir，运行时动态读取 env，便于测试隔离
 
-  constructor() {
-    this.configDir = process.env.SPACEAI_CONFIG_DIR || path.join(os.homedir(), '.spaceai')
-    this.sessionsDir = path.join(this.configDir, 'sessions')
+  private get configDir(): string {
+    return process.env.SPACEAI_CONFIG_DIR || path.join(os.homedir(), '.spaceai')
+  }
+
+  private get sessionsDir(): string {
+    return path.join(this.configDir, 'sessions')
   }
 
   // ── Path helpers ─────────────────────────────────────────────
@@ -554,14 +556,13 @@ export class SessionService {
         sessionId: id,
         version: '0.1.0',
       }
-      await this.appendDatedJsonl(id, dateStr, userEntry)
-
-      // 首条用户消息自动设标题
-      const allEntries = await this.readEntriesAfterDate(id, manifest.compactedThroughDate)
-      const existingMessages = this.entriesToMessages(allEntries)
+      // 首条用户消息自动设标题（必须在 append 之前判断，否则会把刚追加的也算进去）
+      const allEntriesBeforeAppend = await this.readEntriesAfterDate(id, manifest.compactedThroughDate)
+      const existingMessages = this.entriesToMessages(allEntriesBeforeAppend)
       if (existingMessages.length === 0) {
         manifest.title = content.slice(0, 30) + (content.length > 30 ? '...' : '')
       }
+      await this.appendDatedJsonl(id, dateStr, userEntry)
     } else {
       const contentBlocks: JsonlEntry['message']['content'] = []
       if (thinking) contentBlocks.push({ type: 'thinking', thinking, signature: '' })

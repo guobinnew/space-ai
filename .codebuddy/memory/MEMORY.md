@@ -49,7 +49,28 @@
   - **microcompact**: `microcompactInPlace` 无 LLM，把旧工具结果(保留近 3 条)替换为占位符。兼容 Anthropic(tool_result block)/OpenAI(role 'tool')。
   - **reactive（被动）**: `callAnthropic`/`callOpenAI` 包裹重试，捕获 prompt-too-long(`isPromptTooLongError`) → `forceReactiveCompact` → 重试，最多 2 次。
 - 编排函数在 `llmStreamService.ts`：`llmPartialCompact`/`runAutoCompact`/`forceReactiveCompact`。OpenAI 压缩时保留 systemPrompt（system 在 messages 内），Anthropic 不需要（systemPrompt 单独传）。
-- 常量: KEEP_RECENT_MESSAGES=6, KEEP_RECENT_TOOL_RESULTS=3, MAX_REACTIVE_COMPACT_RETRIES=2。
+- 常量: KEEP_RECENT_MESSAGES=6, KEEP_RECENT_TOOL_RESULTS=3, MAX_REACTIVE_COMPACT_RETRIES=2, DEFAULT_CONTEXT_WINDOW_ANTHROPIC=200_000, DEFAULT_CONTEXT_WINDOW_OPENAI=128_000。
+
+## Session 存储重构（2026-08-03，commit 8a82325）
+- 存储目录：`~/.spaceai/sessions/<id>/`（之前是 `<id>.jsonl` 单文件）
+  - `manifest.json`: 元信息含 `compactedThroughDate`（YYYY-MM-DD 或 null）
+  - `memory.md`: 压缩摘要（触发压缩后生成/更新）
+  - `<YYYY-MM-DD>.jsonl`: 按天分文件保存原始消息
+- `sessionService.ts` 新 API：
+  - `getMessages(id)`: LLM 上下文用，先读 memory.md 作为开头 user summary，再读 compactedThroughDate 之后所有 jsonl
+  - `getMessagesByDay(id, date?)`: 前端分页用，不传 date 返回最新一天；返回 `{messages, days, requestedDay, hasMore}`
+  - `readMemory/writeMemory`、`getManifest/updateManifest`、`listDays`
+  - `migrateLegacyIfNeeded`: 旧 `<id>.jsonl` 在首次访问时切分到对应日期 jsonl + 写 manifest + 删除原文件
+- `compactService.ts` 新增 `compactByDays(sessionId, callCompact)`:
+  - 在 `shouldAutoCompact` 触发时调用
+  - 把 compactedThroughDate 之后除最新一天外的所有天送 LLM 压缩
+  - 旧 memory.md + 新增内容 → 重新总结 → 写回 memory.md
+  - **原始 jsonl 保留不删除**
+  - 更新 manifest.compactedThroughDate
+- `llmStreamService.ts` `streamChat` 入口触发 compactByDays，压缩后重读 history
+- API: `GET /api/sessions/:id/messages?date=YYYY-MM-DD` 按天分页
+- 前端 chatStore: `loadHistory` 加载最新一天；`loadOlderDay` 向上滚动到顶加载前一天并 prepend；`PerSessionChatState` 新增 `loadedDays/loadedDaySet/hasMoreHistory/loadingHistory`；ActiveSession 监听 scrollTop<50 触发，prepend 后保持视觉位置
+- 兼容旧 index.json 全局索引，SessionListItem 不变
 
 ## 任务清单 TaskList (2026-07-21)
 - `desktop/src/stores/cliTaskStore.tsx`: TaskProvider 按会话隔离（ContentRouter 每 tab 包裹）。3s 轮询，JSON 快照防重渲染，按 id 升序稳定排序。`clearTasks(sessionId)` 删除服务端+前端。`fetchSessionTasks` 返回 `{tasks, hasPending, nextPending}`。
