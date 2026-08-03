@@ -315,10 +315,21 @@ function AboutSettings() {
 
   return (
     <div className="w-full space-y-6">
-      {/* Header */}
-      <div>
-        <h2 className="text-base font-semibold text-[var(--color-text-primary)] mb-1">{t('settings.about.title')}</h2>
-        <p className="text-sm text-[var(--color-text-tertiary)] mb-6">{t('settings.about.desc')}</p>
+      {/* Header：左侧标题，右侧联系作者二维码 */}
+      <div className="flex items-start justify-between gap-6">
+        <div className="min-w-0">
+          <h2 className="text-base font-semibold text-[var(--color-text-primary)] mb-1">{t('settings.about.title')}</h2>
+          <p className="text-sm text-[var(--color-text-tertiary)]">{t('settings.about.desc')}</p>
+        </div>
+
+        {/* Contact Author — 页面顶部右侧 */}
+        <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-container-low)] p-3 flex flex-col items-center gap-2 flex-shrink-0 max-w-[180px]">
+          <img src="/author.png" alt={t('about.author')} className="h-24 w-auto opacity-80" />
+          <div className="text-center">
+            <div className="text-xs font-medium text-[var(--color-text-primary)]">{t('settings.about.contactAuthor')}</div>
+            <div className="text-[10px] text-[var(--color-text-tertiary)] mt-0.5 leading-snug">{t('settings.about.contactDesc')}</div>
+          </div>
+        </div>
       </div>
 
       {/* App identity */}
@@ -374,15 +385,6 @@ function AboutSettings() {
           ) : (
             <DocsTab />
           )}
-        </div>
-      </div>
-
-      {/* Contact Author — 保留在 Tab 之外 */}
-      <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-container-low)] p-4 flex items-center gap-4">
-        <img src="/author.png" alt={t('about.author')} className="h-20 w-auto opacity-80" />
-        <div>
-          <div className="text-sm font-medium text-[var(--color-text-primary)]">{t('settings.about.contactAuthor')}</div>
-          <div className="text-xs text-[var(--color-text-tertiary)] mt-0.5">{t('settings.about.contactDesc')}</div>
         </div>
       </div>
     </div>
