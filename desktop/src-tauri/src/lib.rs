@@ -380,7 +380,7 @@ pub fn run() {
         .setup(|app| {
             // Sync bundled docs (~/.spaceai/doc/) from resources.
             // App version is read from tauri.conf.json at compile time.
-            let app_version = app.package_info().version.clone();
+            let app_version = app.package_info().version.to_string();
             let resource_dir = app
                 .path()
                 .resource_dir()
