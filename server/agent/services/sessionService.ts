@@ -253,12 +253,52 @@ export class SessionService {
    * 若已是新结构（无旧文件）则无操作。
    */
   private async migrateLegacyIfNeeded(id: string): Promise<void> {
+    await this._migrateLegacySession(id, false)
+  }
+
+  /**
+   * 批量迁移所有旧 <id>.jsonl 文件到新目录结构。
+   * 扫描 sessions 目录下所有 *.jsonl 单文件（非目录），逐个调用迁移逻辑。
+   * @returns 已迁移的 session ID 列表
+   */
+  async migrateAllLegacySessions(): Promise<string[]> {
+    await this.ensureDirs()
+    const migrated: string[] = []
+    let entries: fsSync.Dirent[]
+    try {
+      entries = await fs.readdir(this.sessionsDir, { withFileTypes: true })
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code === 'ENOENT') return []
+      throw err
+    }
+    // 只处理文件（非目录），且名字形如 session-xxx.jsonl
+    const legacyFiles = entries.filter(
+      (e) => e.isFile() && e.name.endsWith('.jsonl'),
+    )
+    for (const f of legacyFiles) {
+      const id = f.name.replace(/\.jsonl$/, '')
+      try {
+        const did = await this._migrateLegacySession(id, true)
+        if (did) migrated.push(id)
+      } catch (err) {
+        console.error(`[migrate] failed for ${id}:`, err)
+      }
+    }
+    return migrated
+  }
+
+  /**
+   * 内部：执行单个 session 的旧 jsonl 迁移。
+   * @param standalone true=独立调用（不依赖 readIndex 读取 index 信息，全凭旧文件 meta）
+   * @returns 是否真的执行了迁移
+   */
+  private async _migrateLegacySession(id: string, standalone: boolean): Promise<boolean> {
     const legacyPath = this.getLegacyJsonlPath(id)
     let raw: string
     try {
       raw = await fs.readFile(legacyPath, 'utf-8')
     } catch (err) {
-      if ((err as NodeJS.ErrnoException).code === 'ENOENT') return
+      if ((err as NodeJS.ErrnoException).code === 'ENOENT') return false
       throw err
     }
 
@@ -273,7 +313,7 @@ export class SessionService {
     if (!meta) {
       // 无 meta 无法迁移，直接删除损坏文件
       await fs.unlink(legacyPath).catch(() => {})
-      return
+      return false
     }
 
     await this.ensureSessionDir(id)
@@ -290,7 +330,7 @@ export class SessionService {
       await fs.writeFile(this.getDatedJsonlPath(id, dateStr), content, 'utf-8')
     }
 
-    // 写 manifest（基于旧 meta + index 信息）
+    // 写 manifest（基于旧 meta + index 信息；standalone 模式下 index 也可读到）
     const index = await this.readIndex()
     const indexItem = index.find((s) => s.id === id)
     const manifest: SessionManifest = {
@@ -300,7 +340,7 @@ export class SessionService {
       channel: meta.channel || 'desktop',
       createdAt: meta.createdAt,
       modifiedAt: indexItem?.modifiedAt || meta.timestamp,
-      messageCount: indexItem?.messageCount ?? 0,
+      messageCount: indexItem?.messageCount ?? byDate.size, // fallback：按天文件数估算
       compactedThroughDate: null,
     }
     await this.writeManifest(id, manifest)
@@ -308,6 +348,7 @@ export class SessionService {
     // 删除旧文件
     await fs.unlink(legacyPath).catch(() => {})
     console.log(`[session] migrated legacy session ${id}: ${byDate.size} day files`)
+    return true
   }
 
   // ── 条目转换 ────────────────────────────────────────────────
