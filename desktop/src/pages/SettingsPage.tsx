@@ -10,6 +10,7 @@ import { AgentSettings } from '../components/settings/AgentSettings';
 import { useTranslation } from '../i18n';
 import { filesystemApi, type DirEntry } from '../api/filesystem';
 import { MarkdownRenderer } from '../components/markdown/MarkdownRenderer';
+import { getCachedServerBaseUrl } from '../api/serverPort';
 
 type SettingsCategory = 'general' | 'providers' | 'skills' | 'computerUse' | 'memory' | 'agents' | 'about';
 
@@ -515,36 +516,40 @@ function DocsTab() {
   const [content, setContent] = useState<string>('');
   const [loadingContent, setLoadingContent] = useState(false);
   const [contentError, setContentError] = useState<string | null>(null);
+  const [docsDir, setDocsDir] = useState<string>('');
 
-  // 加载 doc 目录列表
+  // 加载 doc 目录列表（先从 /api/info 获取 docsDir，再 browse）
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     setError(null);
-    filesystemApi
-      .browse(DOCS_DIR, { includeFiles: true })
-      .then((res) => {
+    (async () => {
+      try {
+        const baseUrl = getCachedServerBaseUrl();
+        const info = await fetch(`${baseUrl}/api/info`).then((r) => r.json() as Promise<{ docsDir?: string }>);
+        const dir = info.docsDir || DOCS_DIR;
+        if (cancelled) return;
+        setDocsDir(dir);
+        const res = await filesystemApi.browse(dir, { includeFiles: true });
         if (cancelled) return;
         // 仅保留 .md 文件，按名称升序
         const mdFiles = res.entries
           .filter((e) => !e.isDirectory && /\.md$/i.test(e.name))
           .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
         setEntries(mdFiles);
-        // 默认选中第一个
         if (mdFiles.length > 0) {
           setSelected(mdFiles[0]!);
         } else {
           setSelected(null);
         }
-      })
-      .catch((err) => {
+      } catch (err) {
         if (cancelled) return;
         console.error('[DocsTab] load failed:', err);
         setError(t('settings.about.docs.loadError'));
-      })
-      .finally(() => {
+      } finally {
         if (!cancelled) setLoading(false);
-      });
+      }
+    })();
     return () => {
       cancelled = true;
     };
@@ -587,7 +592,7 @@ function DocsTab() {
     <div className="flex h-[60vh] min-h-[400px] border border-[var(--color-border)] rounded-lg overflow-hidden">
       {/* 左侧：文档列表 */}
       <div className="w-[240px] flex-shrink-0 border-r border-[var(--color-border)] bg-[var(--color-surface)] flex flex-col">
-        <div className="px-3 py-2 text-xs font-medium text-[var(--color-text-tertiary)] border-b border-[var(--color-border)] bg-[var(--color-surface-container)] truncate" title={DOCS_DIR}>
+        <div className="px-3 py-2 text-xs font-medium text-[var(--color-text-tertiary)] border-b border-[var(--color-border)] bg-[var(--color-surface-container)] truncate" title={docsDir || DOCS_DIR}>
           📁 doc
         </div>
         <div className="flex-1 overflow-y-auto py-1">

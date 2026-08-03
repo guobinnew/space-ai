@@ -287,6 +287,16 @@ export async function startServer(port = PORT, host = HOST) {
 
         // Server info (compatible with existing frontend)
         if (url.pathname === '/api/info') {
+          // docsDir: 优先 ~/.spaceai/doc/（生产打包同步过来的位置），
+          // 不存在时 fallback 到项目 doc 目录（dev 模式）。
+          const configDir = process.env.SPACEAI_CONFIG_DIR || require('os').homedir() + '/.spaceai'
+          const path = require('path')
+          const prodDocsDir = path.join(configDir, 'doc')
+          const devDocsDir = path.join(process.cwd(), '..', '..', 'doc')
+          const fs = require('fs')
+          const docsDir = fs.existsSync(prodDocsDir)
+            ? prodDocsDir
+            : (fs.existsSync(devDocsDir) ? devDocsDir : prodDocsDir)
           return Response.json(
             {
               name: 'smart-lab-agent',
@@ -295,6 +305,7 @@ export async function startServer(port = PORT, host = HOST) {
               bunVersion: typeof Bun !== 'undefined' ? Bun.version : 'N/A',
               platform: process.platform,
               uptime: process.uptime(),
+              docsDir,
             },
             { headers: corsHeaders(origin) },
           )
