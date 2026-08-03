@@ -314,47 +314,50 @@ function AboutSettings() {
   ];
 
   return (
-    <div className="w-full space-y-6">
-      {/* Header：左侧标题，右侧联系作者二维码 */}
-      <div className="flex items-start justify-between gap-6">
-        <div className="min-w-0">
-          <h2 className="text-base font-semibold text-[var(--color-text-primary)] mb-1">{t('settings.about.title')}</h2>
-          <p className="text-sm text-[var(--color-text-tertiary)]">{t('settings.about.desc')}</p>
-        </div>
+    <div className="w-full space-y-4">
+      {/* Header */}
+      <div>
+        <h2 className="text-base font-semibold text-[var(--color-text-primary)] mb-1">{t('settings.about.title')}</h2>
+        <p className="text-sm text-[var(--color-text-tertiary)]">{t('settings.about.desc')}</p>
+      </div>
 
-        {/* Contact Author — 页面顶部右侧 */}
-        <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-container-low)] p-3 flex flex-col items-center gap-2 flex-shrink-0 max-w-[180px]">
+      {/* App identity + Description + 联系作者二维码（float 布局，减少空白） */}
+      <div className="relative">
+        {/* Contact Author — float right，内容围绕其排布 */}
+        <div className="float-right ml-5 mb-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-container-low)] p-3 flex flex-col items-center gap-2 w-[160px]">
           <img src="/author.png" alt={t('about.author')} className="h-24 w-auto opacity-80" />
           <div className="text-center">
             <div className="text-xs font-medium text-[var(--color-text-primary)]">{t('settings.about.contactAuthor')}</div>
             <div className="text-[10px] text-[var(--color-text-tertiary)] mt-0.5 leading-snug">{t('settings.about.contactDesc')}</div>
           </div>
         </div>
-      </div>
 
-      {/* App identity */}
-      <div className="flex items-center gap-4">
-        <img
-          src="/icon.png"
-          alt={t('app.name')}
-          className="h-16 w-16 rounded-2xl flex-shrink-0"
-        />
-        <div>
-          <div
-            className="text-lg font-bold text-[var(--color-text-primary)]"
-            style={{ fontFamily: 'var(--font-headline)' }}
-          >
-            {t('app.name')}
+        {/* App identity */}
+        <div className="flex items-center gap-4">
+          <img
+            src="/icon.png"
+            alt={t('app.name')}
+            className="h-16 w-16 rounded-2xl flex-shrink-0"
+          />
+          <div>
+            <div
+              className="text-lg font-bold text-[var(--color-text-primary)]"
+              style={{ fontFamily: 'var(--font-headline)' }}
+            >
+              {t('app.name')}
+            </div>
+            <div className="text-sm text-[var(--color-text-tertiary)] mt-0.5">{t('settings.about.version')} {__APP_VERSION__}</div>
           </div>
-          <div className="text-sm text-[var(--color-text-tertiary)] mt-0.5">{t('settings.about.version')} {__APP_VERSION__}</div>
         </div>
-      </div>
 
-      {/* Description */}
-      <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-container-low)] p-4">
-        <div className="text-sm text-[var(--color-text-secondary)] leading-relaxed">
-          {t('settings.about.body')}
+        {/* Description */}
+        <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-container-low)] p-4 mt-3 mr-[180px]">
+          <div className="text-sm text-[var(--color-text-secondary)] leading-relaxed">
+            {t('settings.about.body')}
+          </div>
         </div>
+        {/* 清除 float，避免影响下方 Tab 区域 */}
+        <div className="clear-both" />
       </div>
 
       {/* 下方区域：Tab 切换 */}
