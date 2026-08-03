@@ -253,8 +253,12 @@ export function CodeEditor() {
   }, [activeFile])
 
   const [mdViewMode, setMdViewMode] = useState<'edit' | 'preview' | 'split'>('split')
-  const [readingMode, setReadingMode] = useState(false)
+  // 当前进入朗读模式的文件路径（null=无）。切换文件时朗读继续播放，但 ReadingPanel
+  // 只在 activeFilePath === readingFile 时显示；对另一文件点朗读会先 stop 当前再朗读新的。
+  const [readingFile, setReadingFile] = useState<string | null>(null)
   const [ttsAvailable, setTtsAvailable] = useState(true)
+
+  const isReadingThisFile = !!activeFilePath && readingFile === activeFilePath
 
   // 检查激活服务商是否配置了 TTS 模型
   useEffect(() => {
@@ -264,12 +268,12 @@ export function CodeEditor() {
     }).catch(() => setTtsAvailable(true))
   }, [])
 
-  // 朗读完毕自动退出朗读模式
+  // 朗读完毕自动退出朗读模式（仅当朗读的就是当前文件时）
   useEffect(() => {
-    if (readingMode && tts.state === 'idle' && tts.currentIndex === -1) {
-      setReadingMode(false)
+    if (isReadingThisFile && tts.state === 'idle' && tts.currentIndex === -1) {
+      setReadingFile(null)
     }
-  }, [readingMode, tts.state, tts.currentIndex])
+  }, [isReadingThisFile, tts.state, tts.currentIndex])
 
   if (!activeFile) {
     return (
@@ -376,27 +380,32 @@ export function CodeEditor() {
             ))}
           </div>
           {/* AI 朗读 */}
-          <Tooltip content={!ttsAvailable ? t('editor.ttsNoModel') : readingMode ? t('editor.ttsStop') : t('editor.ttsRead')}>
+          <Tooltip content={!ttsAvailable ? t('editor.ttsNoModel') : isReadingThisFile ? t('editor.ttsStop') : t('editor.ttsRead')}>
             <button
               onClick={() => {
-                if (readingMode) {
+                if (isReadingThisFile) {
+                  // 停止当前文件的朗读
                   tts.stop()
-                  setReadingMode(false)
+                  setReadingFile(null)
                 } else {
-                  setReadingMode(true)
+                  // 打开新朗读：自动停止当前正在进行的朗读（如果有），保证同一时间只有一个 MD 朗读
+                  if (readingFile && readingFile !== activeFilePath) {
+                    tts.stop()
+                  }
+                  setReadingFile(activeFilePath)
                   if (activeFilePath) pinFile(activeFilePath)
                   tts.speak(plainText)
                 }
               }}
               disabled={!plainText || !ttsAvailable}
               className={`flex items-center gap-1 px-2 py-0.5 rounded text-[11px] transition-colors ml-1
-                ${readingMode
+                ${isReadingThisFile
                   ? 'bg-[var(--color-brand)]/10 text-[var(--color-brand)]'
                   : 'text-[var(--color-text-tertiary)] hover:bg-[var(--color-surface-container)] hover:text-[var(--color-text-secondary)]'
                 } disabled:opacity-30`}
             >
-              <span className="material-symbols-outlined text-[14px]">{readingMode ? 'stop' : 'record_voice_over'}</span>
-              {tts.isPlaying && tts.progress.total > 1 && (
+              <span className="material-symbols-outlined text-[14px]">{isReadingThisFile ? 'stop' : 'record_voice_over'}</span>
+              {isReadingThisFile && tts.isPlaying && tts.progress.total > 1 && (
                 <span className="text-[10px] tabular-nums">{tts.progress.current}/{tts.progress.total}</span>
               )}
             </button>
@@ -462,12 +471,12 @@ export function CodeEditor() {
             </div>
           )}
 
-          {(mdViewMode === 'preview' || mdViewMode === 'split') && !readingMode && (
+          {(mdViewMode === 'preview' || mdViewMode === 'split') && !isReadingThisFile && (
             <div className={`${mdViewMode === 'split' ? 'w-1/2' : 'flex-1'} overflow-y-auto p-6 min-w-0`}>
               <MarkdownRenderer content={activeFile.content} />
             </div>
           )}
-          {readingMode && (
+          {isReadingThisFile && (
             <div className="flex-1 flex flex-col min-w-0 bg-[var(--color-surface)]">
               <ReadingPanel tts={tts} />
             </div>
