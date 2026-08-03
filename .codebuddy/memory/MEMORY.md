@@ -29,6 +29,7 @@
 - tauri.conf.json resources: `../../server/dist/agent/` → `agent/`
 - 端口 3721；API: /api/health、/api/info、/api/status、/api/sessions(桩)、/ws/* WebSocket
 - bun 通过 npm 全局安装(shim: bun.cmd)，Start-Process 需用 bun.cmd 全路径
+- **关键约定（用户规则）**：每次修改 `server/agent/` 下任何源码后，必须执行 `bun run build:windows`（在 `server/agent` 目录）重新编译，并复制 `server/dist/agent/smart-sidecar.exe` 到三处：`desktop/src-tauri/target/debug/agent/`、`desktop/src-tauri/target/release/agent/`、`server/dist/agent/`（编译输出本身）。否则正在运行的 desktop 应用仍加载旧二进制，新 API/逻辑不会生效（dev 模式下 bun --hot 不可靠，生产二进制更是完全静态）。复制前若 target 目录下旧 .exe 被进程占用，需先关闭应用再复制。
 
 ## Agent Loop 架构 (2026-07-21)
 - 核心: `server/agent/services/llmStreamService.ts` — `runAnthropicLoop`/`runOpenAILoop`，参考 smart-code `query.ts`。
