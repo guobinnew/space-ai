@@ -20,6 +20,7 @@ import {
   splitForPartialCompact,
   microcompactInPlace,
   isPromptTooLongError,
+  compactByDays,
   KEEP_RECENT_MESSAGES,
   DEFAULT_CONTEXT_WINDOW_ANTHROPIC,
   DEFAULT_CONTEXT_WINDOW_OPENAI,
@@ -257,6 +258,28 @@ export async function streamChat(
   const history = await sessionService.getMessages(sessionId)
   // The last message is the current user message (already saved by conversationService)
   // Use all messages except we'll let the loop handle it
+
+  // 按天持久化压缩：若 history 过长，先把 compactedThroughDate 之前的天压缩到 memory.md
+  // （原始 jsonl 保留；下次 getMessages 会自动从 memory.md 起读）
+  const contextWindow = format === 'anthropic' ? DEFAULT_CONTEXT_WINDOW_ANTHROPIC : DEFAULT_CONTEXT_WINDOW_OPENAI
+  if (shouldAutoCompact(history, contextWindow)) {
+    try {
+      const compactFn = format === 'anthropic'
+        ? (ms: Array<{ role: 'user' | 'assistant'; content: string }>) =>
+            callAnthropicForCompact(baseUrl, apiKey, model, ms as AnthropicMessage[])
+        : (ms: Array<{ role: 'user' | 'assistant'; content: string }>) =>
+            callOpenAIForCompact(baseUrl, apiKey, model, ms as OpenAIMessage[])
+      const compacted = await compactByDays(sessionId, compactFn, onChunk)
+      if (compacted) {
+        // 重新读取压缩后的 history（包含 memory.md 摘要 + 剩余 jsonl）
+        history.length = 0
+        const refreshed = await sessionService.getMessages(sessionId)
+        history.push(...refreshed)
+      }
+    } catch (err) {
+      console.error('[LLM] compactByDays failed:', err)
+    }
+  }
 
   const toolContext: ToolContext = { workDir, sessionId, askUser, providerName: provider.name }
 

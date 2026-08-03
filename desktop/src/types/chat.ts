@@ -83,4 +83,12 @@ export type PerSessionChatState = {
   totalUsage: { totalInput: number; totalOutput: number; totalCacheRead: number; totalCacheCreation: number }
   /** 排队待发送的查询列表 */
   queuedQueries: QueuedQuery[]
+  /** 全部可见日期列表（来自服务端，已排除已压缩天）；用于按天分页查找前一天 */
+  loadedDays: string[]
+  /** 已加载的天集合（按时间顺序在 messages 中排列） */
+  loadedDaySet: string[]
+  /** 是否还有更早的日期可加载（前端向上滚动加载用） */
+  hasMoreHistory: boolean
+  /** 是否正在加载历史（避免重复请求） */
+  loadingHistory: boolean
 }

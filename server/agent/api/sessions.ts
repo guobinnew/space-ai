@@ -3,13 +3,14 @@
  *
  * 参照 smart-code api/sessions.ts 复刻。
  *
- * GET    /api/sessions            — 列出会话
- * GET    /api/sessions/:id        — 获取会话详情(含消息)
- * GET    /api/sessions/:id/messages — 获取会话消息
- * POST   /api/sessions            — 创建新会话
- * DELETE /api/sessions/:id        — 删除会话
- * PATCH  /api/sessions/:id        — 重命名会话
- * POST   /api/sessions/:id/messages — 添加消息
+ * GET    /api/sessions                          — 列出会话
+ * GET    /api/sessions/:id                       — 获取会话详情(含最近一天消息)
+ * GET    /api/sessions/:id/messages              — 获取全部消息（LLM 上下文用，含 memory.md）
+ * GET    /api/sessions/:id/messages?date=YYYY-MM-DD — 按天分页获取消息（前端用）
+ * POST   /api/sessions                           — 创建新会话
+ * DELETE /api/sessions/:id                        — 删除会话
+ * PATCH  /api/sessions/:id                        — 重命名会话
+ * POST   /api/sessions/:id/messages               — 添加消息
  */
 
 import { sessionService } from '../services/sessionService'
@@ -17,7 +18,7 @@ import { ApiError, errorResponse } from '../middleware/errorHandler'
 
 export async function handleSessionsApi(
   req: Request,
-  _url: URL,
+  url: URL,
   segments: string[],
 ): Promise<Response> {
   try {
@@ -41,6 +42,11 @@ export async function handleSessionsApi(
     // Sub-resource: /api/sessions/:id/messages
     if (subResource === 'messages') {
       if (req.method === 'GET') {
+        // 支持 ?date=YYYY-MM-DD 按天分页
+        const date = url.searchParams.get('date')
+        if (date) {
+          return await getSessionMessagesByDay(sessionId, date)
+        }
         return await getSessionMessages(sessionId)
       }
       if (req.method === 'POST') {
@@ -85,6 +91,11 @@ async function getSession(sessionId: string): Promise<Response> {
 async function getSessionMessages(sessionId: string): Promise<Response> {
   const messages = await sessionService.getMessages(sessionId)
   return Response.json({ messages })
+}
+
+async function getSessionMessagesByDay(sessionId: string, date: string): Promise<Response> {
+  const result = await sessionService.getMessagesByDay(sessionId, date)
+  return Response.json(result)
 }
 
 async function createSession(req: Request): Promise<Response> {
