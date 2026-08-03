@@ -519,6 +519,10 @@ function DocsTab() {
   const [docsDir, setDocsDir] = useState<string>('');
 
   // 加载 doc 目录列表（先从 /api/info 获取 docsDir，再 browse）
+  // 注意：依赖数组只用空数组——只在 mount 时加载一次。t（i18n 函数引用）每次渲染
+  // 可能变化，放进依赖会触发循环重渲染：每次 effect 重新跑 → setLoading(true) →
+  // 显示"加载中" → fetch 完 → setLoading(false) → 下次 effect 又 setLoading(true)…
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
@@ -526,7 +530,12 @@ function DocsTab() {
     (async () => {
       try {
         const baseUrl = getCachedServerBaseUrl();
-        const info = await fetch(`${baseUrl}/api/info`).then((r) => r.json() as Promise<{ docsDir?: string }>);
+        // 加 8 秒超时，避免服务端未就绪时一直 loading
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 8000);
+        const info = await fetch(`${baseUrl}/api/info`, { signal: controller.signal })
+          .then((r) => r.json() as Promise<{ docsDir?: string }>)
+          .finally(() => clearTimeout(timeoutId));
         const dir = info.docsDir || DOCS_DIR;
         if (cancelled) return;
         setDocsDir(dir);
@@ -553,7 +562,8 @@ function DocsTab() {
     return () => {
       cancelled = true;
     };
-  }, [t]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // 加载选中文件内容
   useEffect(() => {
@@ -582,7 +592,10 @@ function DocsTab() {
     return () => {
       cancelled = true;
     };
-  }, [selected, t]);
+    // 仅依赖 selected.path（字符串），不依赖 selected 对象引用（避免父组件重渲染时
+    // 重建 selected 数组导致 effect 反复触发）和 t（i18n 函数引用不稳定）
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected?.path]);
 
   const lastModified = useMemo(() => {
     return selected?.path || '';
