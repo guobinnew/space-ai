@@ -64,7 +64,8 @@ export function getCompactPrompt(): string {
 export function formatCompactSummary(summary: string): string {
   let formatted = summary
   // Strip analysis section — drafting scratchpad, no informational value once written.
-  formatted = formatted.replace(/<analysis>[\s\S]*?<\/analysis>/, '')
+  // 使用 g flag 剥离所有 analysis 块
+  formatted = formatted.replace(/<analysis>[\s\S]*?<\/analysis>/g, '')
   // Extract and format summary section.
   const summaryMatch = formatted.match(/<summary>([\s\S]*?)<\/summary>/)
   if (summaryMatch) {

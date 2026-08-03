@@ -7,7 +7,6 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useChatStore } from '../stores/chatStore';
-import { useUIStore } from '../stores/uiStore';
 import { useSessionStore } from '../stores/sessionStore';
 import { useTaskStore } from '../stores/cliTaskStore';
 import { tasksApi } from '../api/tasks';
@@ -197,7 +196,7 @@ export function ActiveSession({ sessionId }: { sessionId: string }) {
   }, []);
 
   const handleSend = (content: string, providerId?: string) => {
-    sendMessage(sessionId, content, providerId ? false : undefined, providerId);
+    sendMessage(sessionId, content, undefined, providerId);
   };
 
   const handleStop = () => {
@@ -261,6 +260,48 @@ export function ActiveSession({ sessionId }: { sessionId: string }) {
     el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
     scrollTimerRef.current = setTimeout(finishScroll, 500);
   }, [scrolling, finishScroll]);
+
+  // 按天分页：向上滚动到接近顶部时加载更早一天
+  const { loadOlderDay, getSession: getChatSession } = useChatStore();
+  const sessionStateForPaginate = getChatSession(sessionId);
+  const prevScrollHeightRef = useRef(0);
+  const prevScrollTopRef = useRef(0);
+
+  useEffect(() => {
+    const el = messagesContainerRef.current;
+    if (!el) return;
+    const handleScroll = () => {
+      const st = el.scrollTop;
+      const sh = el.scrollHeight;
+      // 接近顶部 50px 内触发加载
+      if (st < 50) {
+        const st2 = sessionStateForPaginate;
+        if (st2.loadingHistory || !st2.hasMoreHistory) return;
+        // 记录加载前的 scrollHeight 与 scrollTop 用于加载后保持视觉位置
+        prevScrollHeightRef.current = sh;
+        prevScrollTopRef.current = st;
+        void loadOlderDay(sessionId);
+      }
+    };
+    el.addEventListener('scroll', handleScroll, { passive: true });
+    return () => el.removeEventListener('scroll', handleScroll);
+  }, [sessionId, loadOlderDay, sessionStateForPaginate.loadingHistory, sessionStateForPaginate.hasMoreHistory]);
+
+  // 加载完后保持视觉位置：将 scrollTop 调到新增高度之上对应位置
+  const loadedDaySetRef = useRef<string[]>(sessionStateForPaginate.loadedDaySet);
+  useEffect(() => {
+    const el = messagesContainerRef.current;
+    if (!el) return;
+    // 检测 prepend 后的 scrollHeight 变化
+    const prevH = prevScrollHeightRef.current;
+    if (prevH > 0 && el.scrollHeight > prevH) {
+      const newTop = el.scrollHeight - prevH + prevScrollTopRef.current;
+      el.scrollTo({ top: newTop, behavior: 'instant' });
+      prevScrollHeightRef.current = 0;
+      prevScrollTopRef.current = 0;
+    }
+    loadedDaySetRef.current = sessionStateForPaginate.loadedDaySet;
+  }, [sessionStateForPaginate.loadedDaySet]);
 
   return (
     <div ref={containerRef} className="flex flex-1 overflow-hidden bg-[var(--color-surface)]">

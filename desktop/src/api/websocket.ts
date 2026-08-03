@@ -26,7 +26,7 @@ type ServerMessage =
   | { type: 'pong' }
 
 type ClientMessage =
-  | { type: 'user_message'; content: string }
+  | { type: 'user_message'; content: string; providerId?: string }
   | { type: 'stop_generation' }
   | { type: 'ping' }
   | { type: 'question_answer'; answer: string }

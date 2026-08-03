@@ -13,6 +13,109 @@ fn server_port_file_path() -> Option<std::path::PathBuf> {
     Some(std::path::PathBuf::from(home).join(".spaceai").join("server.port"))
 }
 
+/// Returns the path to ~/.spaceai/ (the user-level config/data directory).
+fn home_spaceai_dir() -> Option<std::path::PathBuf> {
+    let home = std::env::var_os("USERPROFILE")
+        .or_else(|| std::env::var_os("HOME"))?;
+    Some(std::path::PathBuf::from(home).join(".spaceai"))
+}
+
+/// Sync bundled docs from `resource_dir/doc/` to `~/.spaceai/doc/`.
+///
+/// Skipped when the installed version marker matches the running app version
+/// (avoids re-copying on every launch). On any error logs a warning but
+/// never aborts startup — the docs tab will just show an empty list.
+fn sync_bundled_docs(resource_dir: &std::path::Path, app_version: &str) {
+    let Some(ref spaceai_dir) = home_spaceai_dir() else {
+        eprintln!("[SmartLab] sync_docs: cannot resolve home dir, skipping");
+        return;
+    };
+
+    let src_doc = resource_dir.join("doc");
+    let dst_doc = spaceai_dir.join("doc");
+    let version_marker = dst_doc.join(".installed-version");
+
+    // Skip if version marker already matches current app version.
+    if let Ok(installed) = std::fs::read_to_string(&version_marker) {
+        if installed.trim() == app_version {
+            return;
+        }
+    }
+
+    if !src_doc.exists() {
+        // Dev mode or no bundled docs — silently skip. Frontend falls back
+        // to the project doc directory in dev.
+        return;
+    }
+
+    // Ensure target dir exists.
+    if let Err(e) = std::fs::create_dir_all(&dst_doc) {
+        eprintln!("[SmartLab] sync_docs: create_dir_all failed: {}", e);
+        return;
+    }
+
+    // Walk the source doc tree and copy each file (overwrite).
+    let mut copied: u32 = 0;
+    let mut errors: u32 = 0;
+    fn walk_copy(src: &std::path::Path, dst: &std::path::Path, copied: &mut u32, errors: &mut u32) {
+        let entries = match std::fs::read_dir(src) {
+            Ok(e) => e,
+            Err(e) => {
+                eprintln!("[SmartLab] sync_docs: read_dir {:?} failed: {}", src, e);
+                *errors += 1;
+                return;
+            }
+        };
+        for entry in entries.flatten() {
+            let path = entry.path();
+            let name = entry.file_name();
+            let dst_path = dst.join(&name);
+            if path.is_dir() {
+                if let Err(e) = std::fs::create_dir_all(&dst_path) {
+                    eprintln!("[SmartLab] sync_docs: mkdir {:?} failed: {}", dst_path, e);
+                    *errors += 1;
+                    continue;
+                }
+                walk_copy(&path, &dst_path, copied, errors);
+            } else if path.is_file() {
+                if let Err(e) = std::fs::copy(&path, &dst_path) {
+                    eprintln!("[SmartLab] sync_docs: copy {:?} -> {:?} failed: {}", path, dst_path, e);
+                    *errors += 1;
+                } else {
+                    *copied += 1;
+                }
+            }
+        }
+    }
+    walk_copy(&src_doc, &dst_doc, &mut copied, &mut errors);
+
+    // Clean stale files that no longer exist in source (best-effort).
+    fn prune_stale(src: &std::path::Path, dst: &std::path::Path) {
+        let Ok(dst_entries) = std::fs::read_dir(dst) else { return };
+        for entry in dst_entries.flatten() {
+            let name = entry.file_name();
+            // Never remove the version marker here.
+            if name == ".installed-version" { continue; }
+            let dst_path = entry.path();
+            let src_path = src.join(&name);
+            if !src_path.exists() {
+                let _ = std::fs::remove_dir_all(&dst_path).or_else(|_| std::fs::remove_file(&dst_path));
+            } else if dst_path.is_dir() && src_path.is_dir() {
+                prune_stale(&src_path, &dst_path);
+            }
+        }
+    }
+    prune_stale(&src_doc, &dst_doc);
+
+    // Write version marker.
+    let _ = std::fs::write(&version_marker, app_version);
+
+    println!(
+        "[SmartLab] sync_docs: copied {} files, {} errors (version {})",
+        copied, errors, app_version
+    );
+}
+
 /// Read the actual server port from ~/.spaceai/server.port.
 /// Falls back to 3721 if the file doesn't exist or is invalid.
 fn read_server_port() -> u16 {
@@ -275,6 +378,15 @@ pub fn run() {
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
+            // Sync bundled docs (~/.spaceai/doc/) from resources.
+            // App version is read from tauri.conf.json at compile time.
+            let app_version = app.package_info().version.to_string();
+            let resource_dir = app
+                .path()
+                .resource_dir()
+                .map_err(|e| format!("failed to resolve resource dir: {}", e))?;
+            sync_bundled_docs(&resource_dir, &app_version);
+
             // Start the single Server sidecar process.
             match start_server_sidecar(app) {
                 Ok(child) => {

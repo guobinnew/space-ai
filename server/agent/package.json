@@ -7,7 +7,8 @@
     "dev": "bun run sidecar.ts server --port 3721 --host 127.0.0.1",
     "start": "bun run sidecar.ts server --port 3721 --host 127.0.0.1",
     "build": "bun build sidecar.ts --compile --outfile ../dist/agent/smart-sidecar --minify",
-    "build:windows": "bun build sidecar.ts --compile --target=bun-windows-x64 --outfile ../dist/agent/smart-sidecar --minify"
+    "build:windows": "bun build sidecar.ts --compile --target=bun-windows-x64 --outfile ../dist/agent/smart-sidecar --minify",
+    "test": "bun test --cwd ."
   },
   "devDependencies": {
     "@types/bun": "^1.2.0"

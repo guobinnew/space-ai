@@ -291,6 +291,13 @@ const translations: Record<Locale, Record<string, string>> = {
     'settings.about.arch.aiDesc': '多服务商 LLM 集成、工具系统、上下文压缩',
     'settings.about.providers': '支持的 AI 服务商',
     'settings.about.techStack': '技术栈',
+    'settings.about.tab.features': '功能介绍',
+    'settings.about.tab.docs': '说明文档',
+    'settings.about.docs.empty': 'D:\\Work\\SpaceAI\\doc 目录下暂无 Markdown 文档',
+    'settings.about.docs.loadError': '加载文档列表失败',
+    'settings.about.docs.readError': '读取文档内容失败',
+    'settings.about.docs.selectHint': '请从左侧列表选择文档查看',
+    'settings.about.docs.loading': '加载中…',
 
     // Providers
     'settings.providers.title': '服务商',
@@ -690,6 +697,12 @@ const translations: Record<Locale, Record<string, string>> = {
     'cron.specificDays': '每 {days} {time}',
     'cron.monthly': '每月 {day} 号 {time}',
     'cron.custom': '自定义: {cron}',
+
+    // File reference tags
+    'ref.fileNotFound': '文件不存在',
+    'ref.directoryNotFound': '目录不存在',
+    'ref.notFoundTooltip': '路径不存在：{path}',
+    'ref.notFoundHint': '源文件已被删除或移动',
   },
 
   en: {
@@ -975,6 +988,13 @@ const translations: Record<Locale, Record<string, string>> = {
     'settings.about.arch.aiDesc': 'Multi-provider LLM, tool system, context compression',
     'settings.about.providers': 'Supported AI Providers',
     'settings.about.techStack': 'Tech Stack',
+    'settings.about.tab.features': 'Features',
+    'settings.about.tab.docs': 'Docs',
+    'settings.about.docs.empty': 'No Markdown docs found under D:\\Work\\SpaceAI\\doc',
+    'settings.about.docs.loadError': 'Failed to load docs list',
+    'settings.about.docs.readError': 'Failed to read document',
+    'settings.about.docs.selectHint': 'Select a document from the left list to view',
+    'settings.about.docs.loading': 'Loading…',
 
     // Providers
     'settings.providers.title': 'Providers',
@@ -1374,6 +1394,12 @@ const translations: Record<Locale, Record<string, string>> = {
     'cron.specificDays': 'Every {days} {time}',
     'cron.monthly': 'Day {day} of month {time}',
     'cron.custom': 'Custom: {cron}',
+
+    // File reference tags
+    'ref.fileNotFound': 'File not found',
+    'ref.directoryNotFound': 'Directory not found',
+    'ref.notFoundTooltip': 'Path does not exist: {path}',
+    'ref.notFoundHint': 'Source file has been deleted or moved',
   },
 };
 

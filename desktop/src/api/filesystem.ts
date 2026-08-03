@@ -85,4 +85,10 @@ export const filesystemApi = {
     if (!res.ok) return -1
     return Number(res.headers.get('content-length') || -1)
   },
+
+  /** Check whether a path exists on disk (file or directory). */
+  exists(filePath: string) {
+    const q = new URLSearchParams({ path: filePath })
+    return api.get<{ exists: boolean; isDirectory: boolean }>(`/api/filesystem/exists?${q}`)
+  },
 }

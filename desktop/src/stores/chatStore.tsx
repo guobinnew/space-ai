@@ -8,7 +8,7 @@
  */
 
 import { createContext, useContext, useState, useCallback, type ReactNode } from 'react';
-import { wsManager, type ServerMessage } from '../api/websocket';
+import { wsManager, type ServerMessage, type ClientMessage } from '../api/websocket';
 import { sessionsApi } from '../api/sessions';
 import { tasksApi } from '../api/tasks';
 import { getServerPort } from '../api/serverPort';
@@ -45,13 +45,16 @@ interface ChatStoreState {
   sessions: Record<string, PerSessionChatState>;
   connectToSession: (sessionId: string) => void;
   disconnectSession: (sessionId: string) => void;
-  sendMessage: (sessionId: string, content: string) => void;
+  sendMessage: (sessionId: string, content: string, skipQueue?: boolean, providerId?: string) => void;
   stopGeneration: (sessionId: string) => void;
   clearMessages: (sessionId: string) => void;
   answerQuestion: (sessionId: string, answer: string) => void;
   respondPlan: (sessionId: string, response: string) => void;
   getSession: (sessionId: string) => PerSessionChatState;
+  /** 加载最新一天的消息（重置 messages，用于切换会话时） */
   loadHistory: (sessionId: string) => Promise<void>;
+  /** 加载更早一天的消息并 prepend 到现有 messages（向上滚动时调用） */
+  loadOlderDay: (sessionId: string) => Promise<void>;
   /** 排队查询 */
   addQueuedQuery: (sessionId: string, content: string) => void;
   removeQueuedQuery: (sessionId: string, queryId: string) => void;
@@ -74,6 +77,10 @@ function createInitialSessionState(): PerSessionChatState {
     usage: null,
     totalUsage: { totalInput: 0, totalOutput: 0, totalCacheRead: 0, totalCacheCreation: 0 },
     queuedQueries: [],
+    loadedDays: [],
+    loadedDaySet: [],
+    hasMoreHistory: false,
+    loadingHistory: false,
   };
 }
 
@@ -123,68 +130,120 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     [],
   );
 
-  const loadHistory = useCallback(
-    async (sessionId: string) => {
-      try {
-        const data = await sessionsApi.getMessages(sessionId);
-        const uiMessages: UIMessage[] = [];
-        for (const m of data.messages) {
-          // User message
-          if (m.role === 'user') {
-            uiMessages.push({ type: 'user_text', id: m.id, content: m.content, createdAt: m.createdAt });
-            continue;
-          }
-
-          // Assistant message: reconstruct thinking + tool calls + text
-          const tc = (m as any).toolCalls as Array<{ id: string; toolName: string; input: Record<string, unknown>; result?: string; isError?: boolean }> | undefined;
-          const thinking = (m as any).thinking as string | undefined;
-
-          // Add thinking block if present
-          if (thinking) {
+  /** 把 ChatMessage 数组转换为 UIMessage 数组（与服务端格式一致） */
+  const convertMessagesToUI = useCallback((msgs: Array<{
+    id: string
+    role: 'user' | 'assistant'
+    content: string
+    createdAt: string
+    thinking?: string
+    toolCalls?: Array<{ id: string; toolName: string; input: Record<string, unknown>; result?: string; isError?: boolean }>
+  }>): UIMessage[] => {
+    const uiMessages: UIMessage[] = [];
+    for (const m of msgs) {
+      if (m.role === 'user') {
+        uiMessages.push({ type: 'user_text', id: m.id, content: m.content, createdAt: m.createdAt });
+        continue;
+      }
+      const tc = m.toolCalls;
+      const thinking = m.thinking;
+      if (thinking) {
+        uiMessages.push({
+          type: 'thinking',
+          id: `${m.id}-thinking`,
+          content: thinking,
+          createdAt: m.createdAt,
+        });
+      }
+      if (tc && tc.length > 0) {
+        for (const toolCall of tc) {
+          uiMessages.push({
+            type: 'tool_use',
+            id: `${m.id}-tool_use-${toolCall.id}`,
+            toolCallId: toolCall.id,
+            toolName: toolCall.toolName,
+            input: toolCall.input,
+            createdAt: m.createdAt,
+          });
+          if (toolCall.result !== undefined) {
             uiMessages.push({
-              type: 'thinking',
-              id: `${m.id}-thinking`,
-              content: thinking,
+              type: 'tool_result',
+              id: `${m.id}-tool_result-${toolCall.id}`,
+              toolCallId: toolCall.id,
+              toolName: toolCall.toolName,
+              result: toolCall.result,
+              isError: toolCall.isError || false,
               createdAt: m.createdAt,
             });
           }
-
-          // Add tool_use and tool_result for each tool call
-          if (tc && tc.length > 0) {
-            for (const toolCall of tc) {
-              uiMessages.push({
-                type: 'tool_use',
-                id: `${m.id}-tool_use-${toolCall.id}`,
-                toolCallId: toolCall.id,
-                toolName: toolCall.toolName,
-                input: toolCall.input,
-                createdAt: m.createdAt,
-              });
-              if (toolCall.result !== undefined) {
-                uiMessages.push({
-                  type: 'tool_result',
-                  id: `${m.id}-tool_result-${toolCall.id}`,
-                  toolCallId: toolCall.id,
-                  toolName: toolCall.toolName,
-                  result: toolCall.result,
-                  isError: toolCall.isError || false,
-                  createdAt: m.createdAt,
-                });
-              }
-            }
-          }
-
-          // Add assistant text
-          if (m.content) {
-            uiMessages.push({ type: 'assistant_text', id: m.id, content: m.content, createdAt: m.createdAt });
-          }
         }
-        updateSession(sessionId, (prev) => ({ ...prev, messages: uiMessages }));
+      }
+      if (m.content) {
+        uiMessages.push({ type: 'assistant_text', id: m.id, content: m.content, createdAt: m.createdAt });
+      }
+    }
+    return uiMessages;
+  }, []);
+
+  const loadHistory = useCallback(
+    async (sessionId: string) => {
+      try {
+        updateSession(sessionId, (prev) => ({ ...prev, loadingHistory: true }));
+        // 默认加载最新一天
+        const data = await sessionsApi.getMessagesByDay(sessionId);
+        const uiMessages = convertMessagesToUI(data.messages);
+        updateSession(sessionId, (prev) => ({
+          ...prev,
+          messages: uiMessages,
+          // 全部可见天列表
+          loadedDays: data.days,
+          // 已加载天集合：最新一天（若返回了 requestedDay）
+          loadedDaySet: data.requestedDay ? [data.requestedDay] : [],
+          hasMoreHistory: data.hasMore,
+          loadingHistory: false,
+        }));
       } catch {
-        // Ignore load errors
+        updateSession(sessionId, (prev) => ({ ...prev, loadingHistory: false }));
       }
     },
-    [updateSession],
+    [updateSession, convertMessagesToUI],
+  );
+
+  const loadOlderDay = useCallback(
+    async (sessionId: string) => {
+      const current = getSession(sessionId);
+      if (current.loadingHistory || !current.hasMoreHistory) return;
+      if (current.loadedDaySet.length === 0) return;
+
+      // 已加载天升序，最早一天
+      const sortedLoaded = [...current.loadedDaySet].sort();
+      const oldest = sortedLoaded[0]!;
+      // 在全部可见天列表中找到比 oldest 小的最近一天
+      const prevDay = current.loadedDays
+        .filter((d) => d < oldest)
+        .sort()
+        .pop();
+      if (!prevDay) {
+        updateSession(sessionId, (prev) => ({ ...prev, hasMoreHistory: false }));
+        return;
+      }
+      try {
+        updateSession(sessionId, (prev) => ({ ...prev, loadingHistory: true }));
+        const data = await sessionsApi.getMessagesByDay(sessionId, prevDay);
+        const uiMessages = convertMessagesToUI(data.messages);
+        updateSession(sessionId, (prev) => ({
+          ...prev,
+          // prepend older messages
+          messages: [...uiMessages, ...prev.messages],
+          loadedDaySet: Array.from(new Set([...prev.loadedDaySet, prevDay])).sort(),
+          hasMoreHistory: data.hasMore,
+          loadingHistory: false,
+        }));
+      } catch {
+        updateSession(sessionId, (prev) => ({ ...prev, loadingHistory: false }));
+      }
+    },
+    [getSession, updateSession, convertMessagesToUI],
   );
 
   const connectToSession = useCallback(
@@ -501,9 +560,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       });
 
       if (shouldSendViaWs) {
-        const wsPayload: Record<string, unknown> = { type: 'user_message', content };
-        if (providerId) wsPayload.providerId = providerId;
-        wsManager.send(sessionId, wsPayload);
+        wsManager.send(sessionId, { type: 'user_message', content, providerId });
       }
     },
     [updateSession, getSession],
@@ -599,7 +656,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         content: query.content,
         createdAt: new Date().toISOString(),
       };
-      const wsPayload: Record<string, unknown> = { type: 'user_message', content: query.content };
+      const wsPayload: ClientMessage = { type: 'user_message', content: query.content };
       if (query.providerId) wsPayload.providerId = query.providerId;
       wsManager.send(sessionId, wsPayload);
       return {
@@ -645,6 +702,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         respondPlan,
         getSession,
         loadHistory,
+        loadOlderDay,
         addQueuedQuery,
         removeQueuedQuery,
         reorderQueuedQueries,
