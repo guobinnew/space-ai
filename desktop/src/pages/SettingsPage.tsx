@@ -376,8 +376,8 @@ function AboutSettings() {
           />
         </div>
 
-        {/* Tab 内容 */}
-        <div className="p-5">
+        {/* Tab 内容：固定高度，两个 tab 高度一致，内部各自滚动 */}
+        <div className="h-[60vh] min-h-[400px]">
           {activeTab === 'features' ? (
             <FeaturesIntroTab
               features={features}
@@ -425,7 +425,7 @@ function FeaturesIntroTab({
   const t = useTranslation();
 
   return (
-    <div className="space-y-6">
+    <div className="h-full overflow-y-auto space-y-6 p-5">
       {/* Core Features */}
       <div>
         <h3 className="text-sm font-semibold text-[var(--color-text-primary)] mb-3">{t('settings.about.features')}</h3>
@@ -607,7 +607,7 @@ function DocsTab() {
   }, [selected]);
 
   return (
-    <div className="flex h-[60vh] min-h-[400px] border border-[var(--color-border)] rounded-lg overflow-hidden">
+    <div className="flex h-full border border-[var(--color-border)] overflow-hidden">
       {/* 左侧：文档列表 */}
       <div className="w-[240px] flex-shrink-0 border-r border-[var(--color-border)] bg-[var(--color-surface)] flex flex-col">
         <div className="px-3 py-2 text-xs font-medium text-[var(--color-text-tertiary)] border-b border-[var(--color-border)] bg-[var(--color-surface-container)] truncate" title={docsDir || DOCS_DIR}>
