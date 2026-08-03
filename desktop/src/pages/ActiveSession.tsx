@@ -273,7 +273,6 @@ export function ActiveSession({ sessionId }: { sessionId: string }) {
     const handleScroll = () => {
       const st = el.scrollTop;
       const sh = el.scrollHeight;
-      const ch = el.clientHeight;
       // 接近顶部 50px 内触发加载
       if (st < 50) {
         const st2 = sessionStateForPaginate;

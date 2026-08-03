@@ -30,7 +30,8 @@
 - 端口 3721；API: /api/health、/api/info、/api/status、/api/sessions(桩)、/ws/* WebSocket
 - bun 通过 npm 全局安装(shim: bun.cmd)，Start-Process 需用 bun.cmd 全路径
 - **关键约定（用户规则）**：每次修改 `server/agent/` 下任何源码后，必须执行 `bun run build:windows`（在 `server/agent` 目录）重新编译，并复制 `server/dist/agent/smart-sidecar.exe` 到三处：`desktop/src-tauri/target/debug/agent/`、`desktop/src-tauri/target/release/agent/`、`server/dist/agent/`（编译输出本身）。否则正在运行的 desktop 应用仍加载旧二进制，新 API/逻辑不会生效（dev 模式下 bun --hot 不可靠，生产二进制更是完全静态）。复制前若 target 目录下旧 .exe 被进程占用，需先关闭应用再复制。
-- **关键约定（用户规则，2026-08-03 起）**：每次 `git commit` 之前必须通过 server/agent 单元测试。`.git/hooks/pre-commit` 已配置自动运行 `cd server/agent && bun test`，失败则阻止提交。紧急情况可用 `git commit --no-verify` 跳过（不推荐）。新增/修改 server/agent 源码时必须同步更新或新增对应 `__tests__/*.test.ts`。
+- **关键约定（用户规则，2026-08-03 起）**：每次 `git commit` 之前必须通过 server/agent 单元测试。`.git/hooks/pre-commit` 已配置自动运行 `cd server/agent && bun test`，失败则阻止提交。紧急情况可用 `git commit --no-verify` 跳过（不推荐）。
+- **关键约定（用户规则，2026-08-03 强化）**：**修改任何软件功能后（含 server/agent 服务端、desktop 前端、Rust 层）**，必须同步更新或新增对应的单元测试 `__tests__/*.test.ts`。即：新增/修改/修复/重构功能时，先审视是否影响 sessionService/compactService/settingService/compactPrompt 等已有测试覆盖的模块，若有则同步补测试；若是新逻辑模块，应为其补充相应测试。保证测试与功能同步演进，pre-commit 才能持续拦截回归。
 - **测试位置**：`server/agent/__tests__/`，使用 `bun:test` 框架（describe/test/expect/beforeEach/afterEach）。运行：`cd server/agent && bun test`（或 `npm test`）。共 4 个测试文件 73 个用例：sessionService（基础CRUD/按天分页/memory.md摘要前置/旧jsonl迁移/clearMessages）、compactService（shouldAutoCompact/isPromptTooLongError/pickCompactThroughDate/splitForPartialCompact/microcompactInPlace/compactByDays端到端）、settingService（默认值/部分更新/类型校验/不覆盖env字段）、compactPrompt（getCompactPrompt/formatCompactSummary/getCompactUserSummaryMessage）。
 - **测试隔离**：`testHelpers.ts` 的 `setupTempConfig/teardownTempConfig` 通过 `SPACEAI_CONFIG_DIR` 环境变量隔离每个测试到独立临时目录。`sessionService`/`settingService` 的 configDir 改为 getter/方法动态读取 env（之前是构造时固定），便于测试隔离。
 
